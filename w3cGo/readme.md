@@ -3,7 +3,7 @@
 To install Go follow instructions here:
 http://sourabhbajaj.com/mac-setup/Go/README.html
 
-Recommend to use JetBrains GoLand IDE, thare is a 30 day free eval.
+Recommend to use JetBrains GoLand IDE, there is a 30 day free eval.
 https://www.jetbrains.com/go/
 
 Add Go websocket library:
