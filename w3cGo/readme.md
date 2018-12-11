@@ -1,4 +1,4 @@
-#Go implememtation
+# Go implementation
 
 To install Go follow instructions here:
 http://sourabhbajaj.com/mac-setup/Go/README.html
