@@ -1,4 +1,11 @@
-# Go implementation
+# Project: W3C_VehicleSignalInterfaceImpl
+
+Functionality: Feasability test of Go
+
+Implementation language: Go
+
+
+Build instructions:
 
 To install Go follow instructions here:
 http://sourabhbajaj.com/mac-setup/Go/README.html
@@ -12,5 +19,10 @@ go get github.com/gorilla/websocket
 Run w3cGo from IDE or from commandline:
 go run w3cGo
 
+
+
+
+
+Deviations from project software architecture:
 
 
