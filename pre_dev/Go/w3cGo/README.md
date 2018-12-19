@@ -1,4 +1,4 @@
-Project: W3C_VehicleSignalInterfaceImpl
+# Project: W3C_VehicleSignalInterfaceImpl
 
 Functionality: Feasability test of Go
 
@@ -14,12 +14,16 @@ Recommend to use JetBrains GoLand IDE, there is a 30 day free eval.
 https://www.jetbrains.com/go/
 
 Add Go websocket library:
-go get github.com/gorilla/websocket
+_go get github.com/gorilla/websocket_
 
 Run w3cGo from IDE or from commandline:
-go run w3cGo
+_go run w3cGo_
 
 
+**Implementation goal**
+
+The Go evaluation consists of a small restful api corresponding to viwi, and a small subset of the Signal api from spec 
+1.0. 
 
 
 
