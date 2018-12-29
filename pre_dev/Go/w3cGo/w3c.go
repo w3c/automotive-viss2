@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/gorilla/websocket"
+	"github.com/gorilla/mux"
 	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 var upgrader = websocket.Upgrader{
@@ -29,6 +31,8 @@ func getSpeed() int {
 	return rand.Intn(250)
 }
 
+
+
 func weSocketUpgradeHandler(w http.ResponseWriter, r *http.Request){
 	conn, _ := upgrader.Upgrade(w, r, nil)
 	for {
@@ -41,41 +45,31 @@ func weSocketUpgradeHandler(w http.ResponseWriter, r *http.Request){
 		// Print the message to the console
 		fmt.Printf("%s sent: %s \n", conn.RemoteAddr(), string(msg))
 
-		// Write message back to browser
-		message := "speed is " + strconv.Itoa(getSpeed()) + "km/h"
-		myMessage := []byte(message)
+		// run speed collection as separate thread sleeping 500 ms in between each.
+		go func(){
+			for {
+				speed := rand.Intn(250)
+				message :=  strconv.Itoa(speed)
+				myMessage := []byte(message)
+				conn.WriteMessage(msgType, myMessage)
+				time.Sleep(time.Millisecond * 500)
+			}
 
-		if err = conn.WriteMessage(msgType, myMessage); err != nil {
+		}()
+		// Write message back to browser
+
+
+		/*if err = conn.WriteMessage(msgType, myMessage); err != nil {
 			return
-		}
+		}*/
 	}
 }
 
 func main() {
-	/*http.HandleFunc("/reply", func(w http.ResponseWriter, r *http.Request) {
-		printInComingMessage(r)
-
-		conn, _ := upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
-
-		for {
-			// Read message from browser
-			msgType, msg, err := conn.ReadMessage()
-			if err != nil {
-				return
-			}
-
-			// Print the message to the console
-			fmt.Printf("%s sent: %s \n", conn.RemoteAddr(), string(msg))
-
-			// Write message back to browser
-			if err = conn.WriteMessage(msgType, msg); err != nil {
-				return
-			}
-		}
-	})*/
+	r := mux.NewRouter()
 
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		printInComingMessage(r)
 		//check here if we should upgrade our connection to a websocket...
@@ -88,11 +82,20 @@ func main() {
 		}
 	})
 
-	http.HandleFunc("/Vehicle/Media/Artists/Abba/Songs/Waterloo",func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/Vehicle/Media/Artists/{Art_ID}/Songs/{Song_name}",func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "My My At Waterloo Napoleon did surrender %s!", r.URL.Path[1:])
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	r.HandleFunc("/Vehicle/{testID}",func(w http.ResponseWriter, r *http.Request) {
+
+		params := mux.Vars(r);
+		str := params["testID"]
+		fmt.Printf("param is : %s \n",str)
+
+		fmt.Fprintf(w, "did surrender %s!", r.URL.Path[1:])
+	})
+
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
 

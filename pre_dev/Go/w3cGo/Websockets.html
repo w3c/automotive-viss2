@@ -1,6 +1,13 @@
 <!-- websockets.html -->
 <input id="input" type="text" />
 <button onclick="send()">Send</button>
+<div>
+    <p>
+        <span>SPEED IS: </span>
+        <output id="Vehicle.speed">0</output> <span> KM/H </span>
+    </p>
+</div>
+
 <pre id="output"></pre>
 <script>
     var input = document.getElementById("input");
@@ -12,7 +19,9 @@
     };
 
     socket.onmessage = function (e) {
-        output.innerHTML += "Server: " + e.data + "\n";
+        var speedparagraph = document.getElementById("Vehicle.speed");
+        speedparagraph.innerHTML = e.data;
+        //output.innerHTML += "Server: " + e.data + "\n";
     };
 
     function send() {
