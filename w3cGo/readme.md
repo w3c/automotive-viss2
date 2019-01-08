@@ -15,7 +15,7 @@ Add Go websocket library:
 go get github.com/gorilla/websocket
 
 Run w3cGo from IDE or from commandline:
-go run w3cGo
+go run w3c.go
 
 
 
