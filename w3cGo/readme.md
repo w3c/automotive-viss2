@@ -1,7 +1,12 @@
 # Go implementation
 
-To install Go follow instructions here:
+To install Go on Mac follow instructions here:
 http://sourabhbajaj.com/mac-setup/Go/README.html
+
+To install Go on Ubuntu do:
+```
+$ sudo apt-get install golang-go
+```
 
 Recommend to use JetBrains GoLand IDE, there is a 30 day free eval.
 https://www.jetbrains.com/go/
