@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>HTTP client example</h2>
+
+<button onclick="send()">Send</button>
+<pre id="output"></pre>
+
+<script>
+    var output = document.getElementById("output");
+
+
+    try {
+        function send() {
+          output.innerHTML += "Sending...\n";
+          function reqListener() {
+              output.innerHTML += "Server: " + this.responseText + "\n";
+          }
+
+          var xhttp = new XMLHttpRequest();
+          xhttp.addEventListener("load", reqListener);
+          xhttp.open("GET", "http://localhost:8080", true);
+          xhttp.send();
+        }
+    } catch(err) {
+        output.innerHTML += "Error. " + err.message + "\n";
+    }
+
+</script>
+
+</body>
+</html>
+
