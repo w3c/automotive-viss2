@@ -4,10 +4,12 @@
 
 <h2>HTTP client example</h2>
 
+<input id="input" type="text" />
 <button onclick="send()">Send</button>
 <pre id="output"></pre>
 
 <script>
+    var input = document.getElementById("input");
     var output = document.getElementById("output");
 
 
@@ -20,8 +22,9 @@
 
           var xhttp = new XMLHttpRequest();
           xhttp.addEventListener("load", reqListener);
-          xhttp.open("GET", "http://localhost:8080", true);
+          xhttp.open("GET", "http://localhost:8080" + "/" + input.value, true);
           xhttp.send();
+          input.value = "";
         }
     } catch(err) {
         output.innerHTML += "Error. " + err.message + "\n";
