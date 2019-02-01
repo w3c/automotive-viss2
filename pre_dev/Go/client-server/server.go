@@ -7,12 +7,24 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+        "strings"
 )
+
+// #cgo CFLAGS: -I/home/ubjorken/goDev/src/w3cImpl_Go
+// #include <stdlib.h>
+// #include <stdio.h>
+// #include <stdbool.h>
+// #include "vssparserutilities.h"
+import "C"
+
+import "unsafe"
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
+
+var nodeHandle C.long
 
 func printInComingSession(r *http.Request){
 
@@ -29,6 +41,14 @@ func getSpeed() int {
 	return rand.Intn(250)
 }
 
+func getMatches(path string) int {
+// call int VSSSimpleSearch(char* searchPath, long rootNode, bool wildcardAllDepths);
+        cpath := C.CString(path)
+        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
+        C.free(unsafe.Pointer(cpath))
+	return int(matches)
+}
+
 func wsClientSession(conn *websocket.Conn){
         defer conn.Close()  // ???
 	for {
@@ -39,19 +59,26 @@ func wsClientSession(conn *websocket.Conn){
 			break
 		}
 
+                var matches int = getMatches(string(msg)) 
 		// Print the message to the console
-		fmt.Printf("%s sent: %s \n", conn.RemoteAddr(), string(msg))
+		fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
 
 		// Write message back to browser
-		message := "speed is " + strconv.Itoa(getSpeed()) + "km/h"
-		myMessage := []byte(message)
+		message := "Response:Nr of matches= " + strconv.Itoa(matches)
+		response := []byte(message)
 
-		err = conn.WriteMessage(msgType, myMessage); 
+		err = conn.WriteMessage(msgType, response); 
                 if err != nil {
                         log.Print("write:", err)
 			break
 		}
 	}
+}
+
+// removes initial slash, replaces following slashes with dot
+func urlToPath( url string) string {
+        var path string = strings.TrimPrefix(strings.Replace(url, "/", ".", -1), ".")
+        return path
 }
 
 func rootServer(w http.ResponseWriter, r *http.Request) {
@@ -69,15 +96,30 @@ func rootServer(w http.ResponseWriter, r *http.Request) {
                 go wsClientSession(conn)
                 fmt.Printf("WS client session spawned.\n")
 	}else{
-		fmt.Printf("HTTP connection\n")
+                var path string = urlToPath(r.RequestURI)
+                var matches int = getMatches(path) 
+		message := "Response:Nr of matches= " + strconv.Itoa(matches)
+		response := []byte(message)
                 w.Header().Set("Access-Control-Allow-Origin", "*")
-                w.Write([]byte("Response:XXXX\n"))
-		fmt.Printf("HTTP client request served.\n")
+                w.Write(response)
+		fmt.Printf("HTTP client request served for path=%s\n", path)
 	}
 }
 
 func main() {
 	http.HandleFunc("/", rootServer)  // register handler
+
+        // call long VSSReadTree(char* filePath); to read tree into memory
+        filePath := "vss_rel_1.0.cnative"
+        cfilePath := C.CString(filePath)
+        nodeHandle = C.VSSReadTree(cfilePath)
+        C.free(unsafe.Pointer(cfilePath))
+        if (nodeHandle == 0) {
+                fmt.Printf("Tree file not found.\n")
+                return
+        }
+        nodeName := C.GoString(C.getName(nodeHandle))
+        fmt.Printf("Root node name=%s\n", nodeName)
 
 	log.Fatal(http.ListenAndServe("localhost:8080", nil)) // start server
 }
