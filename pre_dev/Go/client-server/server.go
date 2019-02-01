@@ -10,7 +10,6 @@ import (
         "strings"
 )
 
-// #cgo CFLAGS: -I/home/ubjorken/goDev/src/w3cImpl_Go
 // #include <stdlib.h>
 // #include <stdio.h>
 // #include <stdbool.h>
