@@ -3,8 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="b93aadb3-9fcf-423b-b652-6d8eec3795cc" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Websockets.html" beforeDir="false" afterPath="$PROJECT_DIR$/Websockets.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/w3c.go" beforeDir="false" afterPath="$PROJECT_DIR$/w3c.go" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -29,11 +27,20 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/w3c.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1320">
-              <caret line="88" column="29" selection-start-line="88" selection-start-column="29" selection-end-line="88" selection-end-column="29" />
+            <state relative-caret-position="159">
+              <caret line="43" lean-forward="true" selection-start-line="43" selection-end-line="43" />
               <folding>
                 <element signature="e#14#140#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/../../../../github.com/gorilla/websocket/conn.go">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="201">
+              <caret line="646" column="9" lean-forward="true" selection-start-line="646" selection-start-column="9" selection-end-line="646" selection-end-column="9" />
             </state>
           </provider>
         </entry>
@@ -131,10 +138,10 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="412" />
-    <option name="y" value="90" />
+    <option name="x" value="36" />
+    <option name="y" value="27" />
     <option name="width" value="1661" />
-    <option name="height" value="899" />
+    <option name="height" value="878" />
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
@@ -208,15 +215,14 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="412" y="90" width="1661" height="899" extended-state="0" />
-    <editor active="true" />
+    <frame x="36" y="27" width="1661" height="878" extended-state="0" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.22606547" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.20568252" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.42503098" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.24045801" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.43358395" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -224,7 +230,7 @@
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Database Changes" order="8" />
       <window_info anchor="bottom" id="Version Control" order="9" sideWeight="0.49966285" weight="0.3283208" />
-      <window_info anchor="bottom" id="Terminal" order="10" weight="0.32957393" />
+      <window_info anchor="bottom" id="Terminal" order="10" weight="0.3283767" />
       <window_info anchor="bottom" id="Event Log" order="11" sideWeight="0.5003372" side_tool="true" weight="0.3298731" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -295,10 +301,17 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/../../../../github.com/gorilla/websocket/conn.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="201">
+          <caret line="646" column="9" lean-forward="true" selection-start-line="646" selection-start-column="9" selection-end-line="646" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/w3c.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1320">
-          <caret line="88" column="29" selection-start-line="88" selection-start-column="29" selection-end-line="88" selection-end-column="29" />
+        <state relative-caret-position="159">
+          <caret line="43" lean-forward="true" selection-start-line="43" selection-end-line="43" />
           <folding>
             <element signature="e#14#140#0" expanded="true" />
           </folding>
