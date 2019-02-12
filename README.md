@@ -18,6 +18,18 @@ Playing under the server directory should align with the project common software
 # 2. client
 The playing under the client directory has as a prime target testing of the server implementations. To play, create a directory if a new testscope is addressed. In the README.md file, please describe the testscope, build and test intructions.
 
+# Development Process
+
+We will follow a simple process where work packages are create as issues labeled as an implementation issue. The name of the issue is also the name of the branch which is used for implementation. A pull request is created when the task is finished to push the changes to the main branch.
+
+1) Create implementation issue
+2) Branch using the name of the issue
+3) Implement and test
+4) Merge main to local Branch
+5) Create PR
+6) Gate keepers review and push to main branch.
+
+
 
 # Project common software architecture
 The server functionlity has a complexity level that warrants some thoughts on how a good software architecture could look like. 
