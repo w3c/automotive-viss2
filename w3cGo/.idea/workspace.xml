@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="b93aadb3-9fcf-423b-b652-6d8eec3795cc" name="Default Changelist" comment="" />
+    <list default="true" id="b93aadb3-9fcf-423b-b652-6d8eec3795cc" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/../awesomeProject/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../awesomeProject/test.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../pre_dev/Go/w3cGo/test.c" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../pre_dev/Go/w3cGo/test.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../pre_dev/Go/client-server/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/../pre_dev/Go/client-server/server.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../pre_dev/Go/w3cGo/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../pre_dev/Go/w3cGo/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../pre_dev/Go/w3cGo/w3c.go" beforeDir="false" afterPath="$PROJECT_DIR$/../pre_dev/Go/w3cGo/w3c.go" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -9,7 +17,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300" />
+    <leaf />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -39,12 +47,22 @@
   </component>
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
-    <navigator currentView="Scope" currentSubView="Scope 'Problems'; set:Problems; class com.intellij.psi.search.scope.ProblemsScope" proportions="" version="1">
+    <navigator proportions="" version="1">
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="ProjectPane" />
       <pane id="Scope" />
+      <pane id="ProjectPane">
+        <subPane>
+          <expand>
+            <path>
+              <item name="w3cGo" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+            </path>
+          </expand>
+          <select />
+        </subPane>
+      </pane>
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -52,7 +70,7 @@
     <property name="DefaultHtmlFileTemplate" value="HTML File" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="go.gopath.indexing.explicitly.defined" value="true" />
-    <property name="last_opened_file_path" value="$USER_HOME$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
   </component>
@@ -96,7 +114,7 @@
   <component name="ToolWindowManager">
     <frame x="80" y="23" width="1525" height="959" extended-state="0" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.26837492" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.41672286" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -121,27 +139,8 @@
     <option name="version" value="1" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/readme.md">
-      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-        <state split_layout="SPLIT">
-          <first_editor />
-          <second_editor />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/w3c.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="405">
-          <caret line="32" column="9" selection-start-line="32" selection-start-column="9" selection-end-line="32" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/Websockets.html">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="315">
-          <caret line="21" column="9" lean-forward="true" selection-start-line="21" selection-start-column="9" selection-end-line="21" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/readme.md" />
+    <entry file="file://$PROJECT_DIR$/w3c.go" />
+    <entry file="file://$PROJECT_DIR$/Websockets.html" />
   </component>
 </project>
