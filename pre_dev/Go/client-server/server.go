@@ -10,7 +10,6 @@ import (
 	"strings"
 )
 
-
 // #include <stdlib.h>
 // #include <stdio.h>
 // #include <stdbool.h>
@@ -59,7 +58,7 @@ func wsClientSession(conn *websocket.Conn){
 			break
 		}
 
-                var matches int = getMatches(string(msg)) 
+                var matches int = getMatches(string(msg))
 		// Print the message to the console
 		fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
 
@@ -67,7 +66,7 @@ func wsClientSession(conn *websocket.Conn){
 		message := "Response:Nr of matches= " + strconv.Itoa(matches)
 		response := []byte(message)
 
-		err = conn.WriteMessage(msgType, response); 
+		err = conn.WriteMessage(msgType, response);
                 if err != nil {
                         log.Print("write:", err)
 			break
@@ -97,7 +96,7 @@ func rootServer(w http.ResponseWriter, r *http.Request) {
                 fmt.Printf("WS client session spawned.\n")
 	}else{
                 var path string = urlToPath(r.RequestURI)
-                var matches int = getMatches(path) 
+                var matches int = getMatches(path)
 		message := "Response:Nr of matches= " + strconv.Itoa(matches)
 		response := []byte(message)
                 w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -123,6 +122,3 @@ func main() {
 
 	log.Fatal(http.ListenAndServe("localhost:8080", nil)) // start server
 }
-
-
-
