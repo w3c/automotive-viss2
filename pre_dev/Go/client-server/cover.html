@@ -1,0 +1,240 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go (5.1%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "fmt"
+        "github.com/gorilla/websocket"
+        "log"
+        "math/rand"
+        "net/http"
+        "strconv"
+        "strings"
+)
+
+// #include &lt;stdlib.h&gt;
+// #include &lt;stdio.h&gt;
+// #include &lt;stdbool.h&gt;
+// #include "vssparserutilities.h"
+import "C"
+
+import "unsafe"
+
+var upgrader = websocket.Upgrader{
+        ReadBufferSize:  1024,
+        WriteBufferSize: 1024,
+}
+
+var nodeHandle C.long
+
+func printInComingSession(r *http.Request) <span class="cov0" title="0">{
+
+        fmt.Printf("Method : %s \n", r.Method)
+        fmt.Printf("Host : %s \n", r.Host)
+        fmt.Printf("Proto : %s \n", r.Proto)
+        fmt.Printf("Uri : %s \n", r.RequestURI)
+
+        fmt.Printf("upgrade to : %s \n", r.Header.Get("Upgrade"))
+
+}</span>
+
+func getSpeed() int <span class="cov8" title="1">{
+        return rand.Intn(250)
+}</span>
+
+func getMatches(path string) int <span class="cov0" title="0">{
+        // call int VSSSimpleSearch(char* searchPath, long rootNode, bool wildcardAllDepths);
+        cpath := C.CString(path)
+        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
+        C.free(unsafe.Pointer(cpath))
+        return int(matches)
+}</span>
+
+func wsClientSession(conn *websocket.Conn) <span class="cov0" title="0">{
+        defer conn.Close() // ???
+        for </span><span class="cov0" title="0">{
+                // Read message from browser
+                msgType, msg, err := conn.ReadMessage()
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Print("read:", err)
+                        break</span>
+                }
+
+                <span class="cov0" title="0">var matches int = getMatches(string(msg))
+                // Print the message to the console
+                fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+
+                // Write message back to browser
+                message := "Response:Nr of matches= " + strconv.Itoa(matches)
+                response := []byte(message)
+
+                err = conn.WriteMessage(msgType, response);
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Print("write:", err)
+                        break</span>
+                }
+        }
+}
+
+// removes initial slash, replaces following slashes with dot
+func urlToPath(url string) string <span class="cov8" title="1">{
+        var path string = strings.TrimPrefix(strings.Replace(url, "/", ".", -1), ".")
+        return path
+}</span>
+
+func rootServer(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+
+        printInComingSession(r)
+        //check here if we should upgrade our connection to a websocket...
+        if r.Header.Get("Upgrade") == "websocket" </span><span class="cov0" title="0">{
+                fmt.Printf("we are upgrading to a websocket connection\n")
+                upgrader.CheckOrigin = func(r *http.Request) bool </span><span class="cov0" title="0">{ return true }</span>
+                <span class="cov0" title="0">conn, err := upgrader.Upgrade(w, r, nil)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Print("upgrade:", err)
+                        return
+                }</span>
+                <span class="cov0" title="0">go wsClientSession(conn)
+                fmt.Printf("WS client session spawned.\n")</span>
+        } else<span class="cov0" title="0"> {
+
+                var path string = urlToPath(r.RequestURI)
+                var matches int = getMatches(path)
+
+                message := "Response:Nr of matches= " + strconv.Itoa(matches)
+                response := []byte(message)
+
+                w.Header().Set("Access-Control-Allow-Origin", "*")
+                w.Write(response)
+                fmt.Printf("HTTP client request served for path=%s\n", path)
+        }</span>
+}
+
+func initVssFile() bool<span class="cov0" title="0">{
+        filePath := "vss_rel_1.0.cnative"
+        cfilePath := C.CString(filePath)
+        nodeHandle = C.VSSReadTree(cfilePath)
+        C.free(unsafe.Pointer(cfilePath))
+
+        if (nodeHandle == 0) </span><span class="cov0" title="0">{
+                fmt.Printf("Tree file not found.\n")
+                return false
+        }</span>
+
+        <span class="cov0" title="0">nodeName := C.GoString(C.getName(nodeHandle))
+        fmt.Printf("Root node name=%s\n", nodeName)
+
+        return true</span>
+}
+
+func main() <span class="cov0" title="0">{
+
+        http.HandleFunc("/", rootServer) // register handler
+
+        if !initVssFile()</span><span class="cov0" title="0">{
+                log.Fatalf(" Tree file not found")
+                return
+        }</span>
+
+        <span class="cov0" title="0">log.Fatal(http.ListenAndServe("localhost:8080", nil))</span> // start server
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>
