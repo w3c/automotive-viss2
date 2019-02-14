@@ -2,12 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c0fa1379-03c8-4c6b-a2ce-0d1960409b5b" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/integration_test.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/client-server.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/client-server.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client-server" beforeDir="false" afterPath="$PROJECT_DIR$/client-server" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server.go" beforeDir="false" afterPath="$PROJECT_DIR$/server.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/unittesting_test.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../../.gitignore" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -47,7 +42,7 @@
         <entry file="file://$PROJECT_DIR$/wsclient2.html">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="330">
-              <caret line="22" lean-forward="true" selection-start-line="22" selection-end-line="22" />
+              <caret line="22" selection-start-line="22" selection-end-line="22" />
             </state>
           </provider>
         </entry>
@@ -61,7 +56,7 @@
         <entry file="file://$PROJECT_DIR$/testingexample_test.go">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="210">
-              <caret line="14" column="10" lean-forward="true" selection-start-line="14" selection-start-column="10" selection-end-line="14" selection-end-column="10" />
+              <caret line="14" column="10" selection-start-line="14" selection-start-column="10" selection-end-line="14" selection-end-column="10" />
             </state>
           </provider>
         </entry>
@@ -90,8 +85,8 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/integration_test.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="238">
-              <caret line="73" column="55" lean-forward="true" selection-start-line="73" selection-start-column="55" selection-end-line="73" selection-end-column="55" />
+            <state relative-caret-position="1290">
+              <caret line="86" column="9" selection-start-line="86" selection-start-column="9" selection-end-line="86" selection-end-column="9" />
               <folding>
                 <element signature="e#46#130#0" expanded="true" />
               </folding>
@@ -131,7 +126,7 @@
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="1809" />
+    <option name="x" value="1808" />
     <option name="y" value="23" />
     <option name="width" value="1661" />
     <option name="height" value="878" />
@@ -242,12 +237,6 @@
     </recent_temporary>
   </component>
   <component name="TestHistory">
-    <history-entry file="integration_test_go - 2019.02.13 at 16h 06m 30s.xml">
-      <configuration name="integration_test.go" configurationId="GoTestRunConfiguration" />
-    </history-entry>
-    <history-entry file="TestHttpHandling_in_W3C_VehicleSignalInterfaceImpl_pre_dev_Go_client-server - 2019.02.13 at 16h 10m 26s.xml">
-      <configuration name="TestHttpHandling in W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server" configurationId="GoTestRunConfiguration" />
-    </history-entry>
     <history-entry file="TestHttpHandling_in_W3C_VehicleSignalInterfaceImpl_pre_dev_Go_client-server - 2019.02.13 at 16h 16m 37s.xml">
       <configuration name="TestHttpHandling in W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server" configurationId="GoTestRunConfiguration" />
     </history-entry>
@@ -272,6 +261,12 @@
     <history-entry file="integration_test_go - 2019.02.13 at 17h 15m 02s.xml">
       <configuration name="integration_test.go" configurationId="GoTestRunConfiguration" />
     </history-entry>
+    <history-entry file="integration_test_go - 2019.02.14 at 09h 52m 32s.xml">
+      <configuration name="integration_test.go" configurationId="GoTestRunConfiguration" />
+    </history-entry>
+    <history-entry file="integration_test_go - 2019.02.14 at 09h 52m 38s.xml">
+      <configuration name="integration_test.go" configurationId="GoTestRunConfiguration" />
+    </history-entry>
   </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
@@ -283,15 +278,14 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="1809" y="23" width="1661" height="878" extended-state="0" />
-    <editor active="true" />
+    <frame x="1808" y="23" width="1661" height="878" extended-state="0" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.26497838" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.26497838" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" sideWeight="0.6812847" visible="true" weight="0.3842239" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.6812847" visible="true" weight="0.3842239" />
       <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.49783817" weight="0.3994911" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -360,7 +354,7 @@
     <entry file="file://$PROJECT_DIR$/wsclient2.html">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="330">
-          <caret line="22" lean-forward="true" selection-start-line="22" selection-end-line="22" />
+          <caret line="22" selection-start-line="22" selection-end-line="22" />
         </state>
       </provider>
     </entry>
@@ -374,14 +368,14 @@
     <entry file="file://$PROJECT_DIR$/testingexample_test.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="210">
-          <caret line="14" column="10" lean-forward="true" selection-start-line="14" selection-start-column="10" selection-end-line="14" selection-end-column="10" />
+          <caret line="14" column="10" selection-start-line="14" selection-start-column="10" selection-end-line="14" selection-end-column="10" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/integration_test.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="238">
-          <caret line="73" column="55" lean-forward="true" selection-start-line="73" selection-start-column="55" selection-end-line="73" selection-end-column="55" />
+        <state relative-caret-position="1290">
+          <caret line="86" column="9" selection-start-line="86" selection-start-column="9" selection-end-line="86" selection-end-column="9" />
           <folding>
             <element signature="e#46#130#0" expanded="true" />
           </folding>
