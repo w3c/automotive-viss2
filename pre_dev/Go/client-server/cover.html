@@ -169,42 +169,43 @@ func rootServer(w http.ResponseWriter, r *http.Request) <span class="cov0" title
                 var path string = urlToPath(r.RequestURI)
                 var matches int = getMatches(path)
 
-                message := "Response:Nr of matches= " + strconv.Itoa(matches)
+                // build a JSON string of the response, makes it easier to test against.
+                message := `{"response":` + strconv.Itoa(matches) + "}"
                 response := []byte(message)
 
                 w.Header().Set("Access-Control-Allow-Origin", "*")
                 w.Write(response)
-                fmt.Printf("HTTP client request served for path=%s\n", path)
-        }</span>
+                </span>fmt.Printf("HTTP client request served for path=%s\n", path)
+        }
 }
 
-func initVssFile() bool<span class="cov0" title="0">{
+func initVssFile() bool{
         filePath := "vss_rel_1.0.cnative"
         cfilePath := C.CString(filePath)
         nodeHandle = C.VSSReadTree(cfilePath)
         C.free(unsafe.Pointer(cfilePath))
 
-        if (nodeHandle == 0) </span><span class="cov0" title="0">{
+</span>        if (nodeHandle == 0) {
                 fmt.Printf("Tree file not found.\n")
-                return false
-        }</span>
+                </span>return false
+        }
 
-        <span class="cov0" title="0">nodeName := C.GoString(C.getName(nodeHandle))
+        nodeName := C.GoString(C.getName(nodeHandle))
         fmt.Printf("Root node name=%s\n", nodeName)
 
-        return true</span>
+</span>        return true
 }
 
-func main() <span class="cov0" title="0">{
+func main() {
 
         http.HandleFunc("/", rootServer) // register handler
 
-        if !initVssFile()</span><span class="cov0" title="0">{
+</span>        if !initVssFile(){
                 log.Fatalf(" Tree file not found")
-                return
-        }</span>
+                </span>return
+        }
 
-        <span class="cov0" title="0">log.Fatal(http.ListenAndServe("localhost:8080", nil))</span> // start server
+</span>        log.Fatal(http.ListenAndServe("localhost:8080", nil)) // start server
 }
 </pre>
 		

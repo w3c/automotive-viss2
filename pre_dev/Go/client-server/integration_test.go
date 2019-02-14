@@ -74,11 +74,11 @@ func TestSocketHandling(t *testing.T){
 	uri := "ws" + strings.TrimPrefix(server.URL,"http")
 
 	// connect to server, test upgrage
-	ws, _, err := websocket.DefaultDialer.Dial(uri,nil)
+	_, _, err := websocket.DefaultDialer.Dial(uri,nil)
     if err != nil {
     	t.Fatalf("%v", err)
 	}
-	defer ws.Close()
+	// defer ws.Close()
 
     // maybe add response test later...
 	/*for i := 0; i < 10; i++ {
