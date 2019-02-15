@@ -1,0 +1,23 @@
+mode: set
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:28.44,37.2 5 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:39.21,41.2 1 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:43.34,49.2 4 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:51.44,53.6 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:53.6,56.17 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:61.3,70.17 6 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:56.17,58.9 2 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:70.17,72.9 2 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:78.35,81.2 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:83.57,87.44 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:87.44,89.53 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:90.3,91.17 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:95.3,96.45 2 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:89.53,89.68 1 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:91.17,94.4 2 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:97.8,109.3 7 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:112.24,118.23 5 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:123.2,126.13 3 1
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:118.23,121.3 2 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:129.13,133.19 2 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:138.2,138.55 1 0
+W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server/server.go:133.19,136.3 2 0
