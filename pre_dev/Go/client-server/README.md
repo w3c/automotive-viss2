@@ -24,3 +24,22 @@ Terminate client by closing browser tab.
 
 Terminate server by Ctrl-C in terminal window.
 
+
+# Test examples
+Unit tests and integration tests can be added to a Go project. Example unit and integration tests can be found in:
+testingexample_test.go and integration_test.go. 
+
+The tests can be run from command line: 
+
+```go test -v   ``` will run unit tests
+
+
+```go test -tags=integration``` will run integration tests
+
+Coverage can be viewed using the following commands:
+
+```go test -coverprofile cover.out``` will show unit testing coverage
+
+```go test -tags=integration -coverprofile cover.out``` will show integration test coverage
+
+```go tool cover -html=cover.out - o cover.html``` will generate a html file with code coverage
