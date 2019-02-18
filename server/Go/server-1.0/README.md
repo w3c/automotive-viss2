@@ -48,12 +48,12 @@ The core server hub, running in the main context, spawns the following Go routin
 - The service manager registration server<br>
 The Go routines communicate with the server hub using Go channels.<br>
 The communication with the transport protocol and service managers is realized using the Websocket protocol.<br>
-![Core server design](server/Go/server-1.0/pics/Core server SwA.jpg?raw=true)<br>
+![Core server design](./pics/Core server SwA.jpg?raw=true)<br>
 * Fig. 1 Core server design<br>
 The Websocket transport protocol manager is partitioned in the following logical components:<br>
 - Websocket manager hub, the manager, responsible for registration with the core server, spawning of Websocket servers for connecting app-clients, and routing of messages to/from app-clients, etc.,<br>
 - Websocket server,  exist in multiple instances, one for each app-client that connects to it.<br>
-![Transport manager design](server/Go/server-1.0/pics/WS manager SwA.jpg?raw=true)<br>
+![Transport manager design](./pics/WS manager SwA.jpg?raw=true)<br>
 * Fig. 2 Websocket transport manager design<br>
 The Websocket servers run in separate Go routines, and communicate with the manager hub via Go channels.<br>
 The data communication with the core server uses the Websocket protocol.<br>
