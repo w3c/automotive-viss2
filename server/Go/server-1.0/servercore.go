@@ -19,11 +19,10 @@ import (
 	//    "strings"
 )
 
-// #cgo CFLAGS: -I/Users/pwinzell/go-workspace/src/W3C_VehicleSignalInterfaceImpl/pre_dev/Go/client-server
 // #include <stdlib.h>
 // #include <stdio.h>
 // #include <stdbool.h>
-// #include "vssparserutilities.h"
+// #include "treeparser/vssparserutilities.h"
 import "C"
 
 //import "unsafe"
