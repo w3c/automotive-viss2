@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gorilla/websocket"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -26,14 +25,16 @@ var upgrader = websocket.Upgrader{
 var nodeHandle C.long
 
 func printInComingSession(r *http.Request) {
+    log.WithFields(log.Fields{
+		"Method": r.Method,
+		"Host":r.Host,
+		"Proto":r.Proto,
+		"Uri":r.RequestURI,
+	}).Info("http request fields")
 
-	fmt.Printf("Method : %s \n", r.Method)
-	fmt.Printf("Host : %s \n", r.Host)
-	fmt.Printf("Proto : %s \n", r.Proto)
-	fmt.Printf("Uri : %s \n", r.RequestURI)
-
-	fmt.Printf("upgrade to : %s \n", r.Header.Get("Upgrade"))
-
+    log.WithFields(log.Fields{
+    	"Header-Get":r.Header.Get("Upgrade"),
+	}).Trace(" upgraded to ")
 }
 
 func getSpeed() int {
@@ -49,26 +50,26 @@ func getMatches(path string) int {
 }
 
 func wsClientSession(conn *websocket.Conn) {
-	defer conn.Close() // ???
+	defer conn.Close() // dispose when its all over
 	for {
 		// Read message from browser
 		msgType, msg, err := conn.ReadMessage()
 		if err != nil {
-			log.Print("read:", err)
+			log.Error("read: ", err)
 			break
 		}
 
 		var matches int = getMatches(string(msg))
-		// Print the message to the console
-		fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+		// log the message
+		log.Trace(" request: ", conn.RemoteAddr(), " ", string(msg))
 
 		// Write message back to browser
-		message := "Response:Nr of matches= " + strconv.Itoa(matches)
+		message := "Response:Nr of matches = " + strconv.Itoa(matches)
 		response := []byte(message)
 
 		err = conn.WriteMessage(msgType, response);
 		if err != nil {
-			log.Print("write:", err)
+			log.Error("write:", err)
 			break
 		}
 	}
@@ -85,15 +86,15 @@ func rootServer(w http.ResponseWriter, r *http.Request) {
 	printInComingSession(r)
 	//check here if we should upgrade our connection to a websocket...
 	if r.Header.Get("Upgrade") == "websocket" {
-		fmt.Printf("we are upgrading to a websocket connection\n")
+		log.Trace("we are upgrading to a websocket connection")
 		upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Print("upgrade:", err)
+			log.Error("upgrade:", err)
 			return
 		}
 		go wsClientSession(conn)
-		fmt.Printf("WS client session spawned.\n")
+		log.Trace("WS client session spawned.")
 	} else {
 
 		var path string = urlToPath(r.RequestURI)
@@ -105,7 +106,7 @@ func rootServer(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Write(response)
-		fmt.Printf("HTTP client request served for path=%s\n", path)
+		log.Info("HTTP client request served for path = ", path)
 	}
 }
 
@@ -116,22 +117,24 @@ func initVssFile() bool{
 	C.free(unsafe.Pointer(cfilePath))
 
 	if (nodeHandle == 0) {
-		fmt.Printf("Tree file not found.\n")
+		log.Error("Tree file not found")
 		return false
 	}
 
 	nodeName := C.GoString(C.getName(nodeHandle))
-	fmt.Printf("Root node name=%s\n", nodeName)
+	log.Trace("Root node name = ", nodeName)
 
 	return true
 }
 
 func main() {
 
+	initLogger()
+
 	http.HandleFunc("/", rootServer) // register handler
 
 	if !initVssFile(){
-		log.Fatalf(" Tree file not found")
+		log.Fatal(" Tree file not found")
 		return
 	}
 
