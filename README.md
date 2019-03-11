@@ -28,7 +28,7 @@ We will follow a simple process where work packages are create as issues labeled
 4) Merge main to local Branch
 5) Create PR
 6) Gate keepers review and push to main branch.
-
+   - current gate keepers: (@MagnusGun,@UlfBj,@PeterWinzell) 
 
 
 # Project common software architecture
