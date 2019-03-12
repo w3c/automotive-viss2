@@ -146,7 +146,7 @@ func makeappClientHandler(appClientChannel []chan string, serverIndex *int) func
                 log.Print("upgrade:", err)
                 return
            }
-           if (*serverIndex <= len(appClientChannel)) {
+           if (*serverIndex < len(appClientChannel)) {
                go wsAppSession(conn, appClientChannel[*serverIndex])
                *serverIndex += 1
            } else {
