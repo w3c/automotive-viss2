@@ -167,7 +167,9 @@ func serviceDataRequestAndResponse(dataConn *websocket.Conn, request string) str
 func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int) (dataConn *websocket.Conn) {
     var addr = flag.String("addr", "localhost:" + strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
     dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/"+strconv.Itoa(serviceIndex)}
-    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
+    fmt.Printf("Connecting to:%s\n", dataSessionUrl.String())
+    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin":{"*"}})
+//    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 //    defer dataConn.Close() //???
     if err != nil {
         log.Fatal("Service data session dial error:", err)
@@ -177,6 +179,7 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int) (dataCon
 }
 
 func initServiceClientSession(serviceDataChan chan string, serviceIndex int) {
+    time.Sleep(10*time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
     muxIndex := (len(muxServer) -2)/2 + 1 + (serviceIndex +1)  //could be more intuitive...
     fmt.Printf("initServiceClientSession: muxIndex=%d\n", muxIndex)
     dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex)
@@ -223,7 +226,6 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
             
             fmt.Printf("serviceRegisterServer():POST response=%s\n", response)
             w.Write([]byte(response))
-            time.Sleep(2*time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
             go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1)
         } else {
             fmt.Printf("serviceRegisterServer():Max number of services already registered.\n")

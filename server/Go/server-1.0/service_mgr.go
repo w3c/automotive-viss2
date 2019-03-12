@@ -23,8 +23,8 @@ import (
  
 // one muxServer component for service registration, one for the data communication
 var muxServer = []*http.ServeMux {
-    http.NewServeMux(),  // for registration
-    http.NewServeMux(),  // for data session
+    http.NewServeMux(),  // 0 = for registration
+    http.NewServeMux(),  // 1 = for data session
 }
 
 
@@ -126,7 +126,7 @@ func makeServiceDataHandler(dataChannel chan string) func(http.ResponseWriter, *
                 log.Print("upgrade:", err)
                 return
            }
-               go wsdataSession(conn, dataChannel)
+           go wsdataSession(conn, dataChannel)
         } else {
             fmt.Printf("Client must set up a Websocket session.\n")
         }
@@ -136,6 +136,7 @@ func makeServiceDataHandler(dataChannel chan string) func(http.ResponseWriter, *
 func initDataServer(muxServer *http.ServeMux, dataChannel chan string, regResponse RegResponse) {
     serviceDataHandler := makeServiceDataHandler(dataChannel)
     muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
+    fmt.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
     log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
