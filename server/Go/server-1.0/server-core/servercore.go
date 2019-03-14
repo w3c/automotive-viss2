@@ -19,16 +19,17 @@ import (
     "net/url"
     "strconv"
     "encoding/json"
-//    "strings"
+    "strings"
 )
 
 // #include <stdlib.h>
 // #include <stdio.h>
 // #include <stdbool.h>
-// #include "treeparser/vssparserutilities.h"
+// #include "vssparserutilities.h"
 import "C"
 
-//import "unsafe"
+import "unsafe"
+var nodeHandle C.long
 
 var transportRegChan chan int
 var transportRegPortNum int = 8081
@@ -69,6 +70,15 @@ var muxServer = []*http.ServeMux {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+var actionList = []string {
+    "get",
+    "set",
+    "subscribe",
+    "unsubscribe",
+    "getmetadata",
+    "authorize",
 }
 
 
@@ -319,7 +329,107 @@ func updateServiceRouting(portNo string, rootNode string) {
     fmt.Printf("updateServiceRouting(): portnum=%s, rootNode=%s\n", portNo, rootNode)
 }
 
+func initVssFile() bool{
+	filePath := "vss_rel_1.0.cnative"
+	cfilePath := C.CString(filePath)
+	nodeHandle = C.VSSReadTree(cfilePath)
+	C.free(unsafe.Pointer(cfilePath))
+
+	if (nodeHandle == 0) {
+//		log.Error("Tree file not found")
+		return false
+	}
+
+//	nodeName := C.GoString(C.getName(nodeHandle))
+//	log.Trace("Root node name = ", nodeName)
+
+	return true
+}
+
+// the below impl is *not* robust
+func extractPath(request string) string {
+    pathValueStart := strings.Index(request, "\"path\":") // colon must follow directly after 'path'
+    if (pathValueStart != -1) {
+        pathValueStart += 7  // to point to first char after :
+        pathValueEnd := strings.Index(request[pathValueStart:], "\",") // '",' must follow directly after the path value
+        pathValueEnd += pathValueStart // point before '"'
+        fmt.Printf("extractPath(): pathValueStart = %d, pathValueEnd = %d, path=%s\n", pathValueStart, pathValueEnd, request[pathValueStart+1:pathValueEnd])
+        return request[pathValueStart+1:pathValueEnd]
+    } else {
+        return ""
+    }
+}
+
+func getMatches(request string) int {
+    path := extractPath(request)
+    fmt.Printf("getMatches(): path=%s\n", path)
+    if (len(path) > 0) {
+        // call int VSSSimpleSearch(char* searchPath, long rootNode, bool wildcardAllDepths);
+        cpath := C.CString(path)
+        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
+        C.free(unsafe.Pointer(cpath))
+        return int(matches)
+    } else {
+        return 0
+    }
+}
+
+func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
+    matches := getMatches(request)
+    fmt.Printf("retrieveServiceResponse():received request from transport manager %d:%s. No of matches=%d\n", tDChanIndex, request, matches)
+    if (matches == 0) {
+        transportDataChan[tDChanIndex] <- "No match in tree for requested path."
+    } else {
+        var aggregatedResponse string
+        for i := 0; i < matches; i++ {
+            serviceDataChan[sDChanIndex] <- request // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
+            response := <- serviceDataChan[sDChanIndex]
+            aggregatedResponse += response + " , "  // not final solution...
+        }
+        transportDataChan[tDChanIndex] <- aggregatedResponse
+    }
+    if (matches > 0) {
+        if (matches > 1) {
+            // add matches to pendingServiceRequestList
+        }
+        serviceDataChan[sDChanIndex] <- request // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
+        response := <- serviceDataChan[sDChanIndex]
+        transportDataChan[tDChanIndex] <- response
+    } else {
+        transportDataChan[tDChanIndex] <- "No match in tree for requested path."
+    }
+}
+
+func getPayloadAction(request string) string {
+    for _, element := range actionList {
+        if (strings.Contains(request, element) == true) {
+            return element
+        }
+    }
+    return ""
+}
+
+func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
+    switch getPayloadAction(request) {
+        case actionList[0]: // get
+            retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
+        case actionList[1]: // set
+//        case actionList[2]: // subscribe
+//        case actionList[3]: // unsubscribe
+//        case actionList[4]: // getmetadata
+//        case actionList[5]: // authorise
+        default:
+            fmt.Printf("serveRequest():not implemented/unknown action=%s\n", getPayloadAction(request))
+            transportDataChan[tDChanIndex] <- "Unsupported request."
+    }
+}
+
 func main() {
+    if !initVssFile(){
+        log.Fatal(" Tree file not found")
+        return
+    }
+
     createProcolMap()
     initTransportDataServers()
     fmt.Printf("main():initTransportDataServers() executed...\n")
@@ -336,16 +446,9 @@ func main() {
             mgrId := <- transportRegChan
             updateRoutingTable(portNum, mgrId)
         case request := <- transportDataChan[0]:  // request from transport0 (=HTTP), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
-            fmt.Printf("main():received request from transport manager 0:%s\n", request)
-            serviceDataChan[0] <- request // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
-            response := <- serviceDataChan[0]
-            transportDataChan[0] <- response
+            serveRequest(request, 0, 0)
         case request := <- transportDataChan[1]:  // request from transport1 (=WS), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
-            fmt.Printf("main():received request from transport manager 1:%s\n", request)
-            serviceDataChan[0] <- request // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
-            response := <- serviceDataChan[0]
-            transportDataChan[1] <- response
-//            transportDataChan[1] <- "dummy response" + request
+            serveRequest(request, 1, 0)
 //        case xxx := <- transportDataChan[2]:  // implement when there is a 3rd transport protocol mgr
         case portNo := <- serviceRegChan:  // save service data portnum and root node in routing table
             rootNode := <- serviceRegChan
