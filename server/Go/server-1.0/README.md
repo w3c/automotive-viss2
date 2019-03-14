@@ -11,7 +11,8 @@ Implementation language: Go for server, JS for app-clients.
 Run the following go programs in separate terminal windows, then start the app client in a browser.
 
 Server core:
-$ go run servercore.go
+$ go build
+$ ./server-core
 
 Service manager mgr:
 $ go run service_mgr.go
@@ -28,16 +29,16 @@ The order of starting the different programs should be:
 3. ws_mgr.go
 4. wsclient.html
 
-After the startup sequence above, write any request with correct JSON syntax in the app client input field, e. g.:
-{"path":"Vehicle.Cabin"}
-{"xxx":123}
+After the startup sequence above, write any VISS request with correct JSON syntax in the app client input field, e. g.:
+{"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":123}
 and after pushing Send a response starting with "Service mgr response:" followed by the JSON formatted request in which '"Mgrid":xxxx, "ClientId":yyy' has been inserted before the initial request payload, will be returned. 
+If the path in the request have several matches in the tree, the response will be concatenated by the number of matches (the example above 8 times).
 It is possible to start a second app-client (wsclient2.html) and send request from one or the other client. 
-The Mgrid and Clientid are server internal routing data, and should be removed from the response before reching the app-client, but kept here for improved error checking.
+The Mgrid and Clientid are server internal routing data, and should be removed from the response before reaching the app-client, but kept here for improved error checking.
 
 Terminate client by closing browser tab.
 
-Terminate core server, and websocket transport manager by Ctrl-C in respective terminal window.
+Terminate core server, websocket transport manager, and service manager by Ctrl-C in respective terminal window.
 
 ## Software implementation
 Figures 1 and 2 shows the design of the core server and the Websocket transport manager, respectively. The design is based on the high level Sw Architecture description found in the README of the root directory.<br>
@@ -54,12 +55,12 @@ The core server hub, running in the main context, spawns the following Go routin
 - The service manager registration server<br>
 The Go routines communicate with the server hub using Go channels.<br>
 The communication with the transport protocol and service managers is realized using the Websocket protocol.<br>
-![Core server design](pics/Core server SwA.jpg?raw=true)<br>
+![Core server design](pics/Core server SwA.jpg)<br>
 * Fig. 1 Core server design<br>
 The Websocket transport protocol manager is partitioned in the following logical components:<br>
 - Websocket manager hub, the manager, responsible for registration with the core server, spawning of Websocket servers for connecting app-clients, and routing of messages to/from app-clients, etc.,<br>
 - Websocket server,  exist in multiple instances, one for each app-client that connects to it.<br>
-![Transport manager design](pics/WS manager SwA.jpg?raw=true)<br>
+![Transport manager design](pics/WS manager SwA.jpg)<br>
 * Fig. 2 Websocket transport manager design<br>
 The Websocket servers run in separate Go routines, and communicate with the manager hub via Go channels.<br>
 The data communication with the core server uses the Websocket protocol.<br>
