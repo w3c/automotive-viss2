@@ -31,6 +31,11 @@ import "C"
 import "unsafe"
 var nodeHandle C.long
 
+type searchData_t struct {  // searchData_t defined in vssparserutilities.h
+    responsePath [512]byte  // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+    foundNodeHandles int64  // defined as long in vssparserutilities.h
+}
+
 var transportRegChan chan int
 var transportRegPortNum int = 8081
 var transportDataPortNum int = 8100  // port number interval [8100-]
@@ -360,13 +365,14 @@ func extractPath(request string) string {
     }
 }
 
-func getMatches(request string) int {
+func searchTree(request string, searchData *searchData_t) int {
     path := extractPath(request)
     fmt.Printf("getMatches(): path=%s\n", path)
     if (len(path) > 0) {
-        // call int VSSSimpleSearch(char* searchPath, long rootNode, bool wildcardAllDepths);
+        // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
         cpath := C.CString(path)
-        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
+        var matches C.int = C.VSSSearchNodes(cpath, nodeHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
+//        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
         C.free(unsafe.Pointer(cpath))
         return int(matches)
     } else {
@@ -375,8 +381,12 @@ func getMatches(request string) int {
 }
 
 func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
-    matches := getMatches(request)
+    searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
+    matches := searchTree(request, &searchData[0])
     fmt.Printf("retrieveServiceResponse():received request from transport manager %d:%s. No of matches=%d\n", tDChanIndex, request, matches)
+if (matches > 0) {
+    fmt.Printf("retrieveServiceResponse():Match 1:path:%s\n", string(searchData[0].responsePath[:]))
+}
     if (matches == 0) {
         transportDataChan[tDChanIndex] <- "No match in tree for requested path."
     } else {
