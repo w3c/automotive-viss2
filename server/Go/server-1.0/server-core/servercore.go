@@ -31,6 +31,11 @@ import "C"
 import "unsafe"
 var nodeHandle C.long
 
+type searchData_t struct {  // searchData_t defined in vssparserutilities.h
+    responsePath [512]byte  // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+    foundNodeHandles int64  // defined as long in vssparserutilities.h
+}
+
 var transportRegChan chan int
 var transportRegPortNum int = 8081
 var transportDataPortNum int = 8100  // port number interval [8100-]
@@ -360,13 +365,14 @@ func extractPath(request string) string {
     }
 }
 
-func getMatches(request string) int {
+func searchTree(request string, searchData *searchData_t) int {
     path := extractPath(request)
     fmt.Printf("getMatches(): path=%s\n", path)
     if (len(path) > 0) {
-        // call int VSSSimpleSearch(char* searchPath, long rootNode, bool wildcardAllDepths);
+        // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
         cpath := C.CString(path)
-        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
+        var matches C.int = C.VSSSearchNodes(cpath, nodeHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
+//        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
         C.free(unsafe.Pointer(cpath))
         return int(matches)
     } else {
@@ -374,29 +380,29 @@ func getMatches(request string) int {
     }
 }
 
+func updateRequestPath(request string, path string) string {
+    pathStart := strings.Index(request, "\"path\":") // colon must follow directly after 'path'
+    pathStart += 7  // to point to first char after :
+    pathEnd := strings.Index(request[pathStart:], "\",") // '",' must follow directly after the path value
+    pathEnd += pathStart // point before '"'
+    return request[:pathStart] + path + request[pathEnd:]
+
+}
+
 func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
-    matches := getMatches(request)
+    searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
+    matches := searchTree(request, &searchData[0])
     fmt.Printf("retrieveServiceResponse():received request from transport manager %d:%s. No of matches=%d\n", tDChanIndex, request, matches)
     if (matches == 0) {
-        transportDataChan[tDChanIndex] <- "No match in tree for requested path."
+        transportDataChan[tDChanIndex] <- "No match in tree for requested path."  // should be error response
     } else {
         var aggregatedResponse string
         for i := 0; i < matches; i++ {
-            serviceDataChan[sDChanIndex] <- request // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
+            serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[i].responsePath[:])) // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
             response := <- serviceDataChan[sDChanIndex]
             aggregatedResponse += response + " , "  // not final solution...
         }
         transportDataChan[tDChanIndex] <- aggregatedResponse
-    }
-    if (matches > 0) {
-        if (matches > 1) {
-            // add matches to pendingServiceRequestList
-        }
-        serviceDataChan[sDChanIndex] <- request // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
-        response := <- serviceDataChan[sDChanIndex]
-        transportDataChan[tDChanIndex] <- response
-    } else {
-        transportDataChan[tDChanIndex] <- "No match in tree for requested path."
     }
 }
 
@@ -414,6 +420,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
         case actionList[0]: // get
             retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
         case actionList[1]: // set
+            retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
 //        case actionList[2]: // subscribe
 //        case actionList[3]: // unsubscribe
 //        case actionList[4]: // getmetadata
