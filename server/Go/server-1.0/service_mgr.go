@@ -18,8 +18,27 @@ import (
     "time"
     "encoding/json"
     "strconv"
-//    "strings"
+    "strings"
 )
+
+var actionList = []string {
+    "get",
+    "set",
+    "subscribe",
+    "unsubscribe",
+    "getmetadata",
+    "authorize",
+}
+
+var successResponse = []string {
+    "{\"action\": \"get\", \"requestId\": \"AAA\", \"value\": 999, \"timestamp\": 1234}",
+    "{\"action\": \"set\", \"requestId\": \"AAA\", \"timestamp\": 1234}",
+}
+ 
+var failureResponse = []string {
+    "{\"action\": \"get\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
+    "{\"action\": \"set\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
+}
  
 // one muxServer component for service registration, one for the data communication
 var muxServer = []*http.ServeMux {
@@ -140,6 +159,29 @@ func initDataServer(muxServer *http.ServeMux, dataChannel chan string, regRespon
     log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
+func getPayloadAction(request string) string {
+    for _, element := range actionList {
+        if (strings.Contains(request, element) == true) {
+            return element
+        }
+    }
+    return ""
+}
+
+
+func updateResponseValue(response string, value string) string {
+    valueStart := strings.Index(response, "\"value\":") // colon must follow directly after 'value'
+    if (valueStart == -1) {
+        return response
+    }
+    valueStart += 8  // to point to first char after :
+    valueEnd := strings.Index(response[valueStart:], "\",") // '",' must follow directly after the 'value'
+    valueEnd += valueStart // point before '"'
+    return response[:valueStart] + value + response[valueEnd+5:]  // 5->': 999'
+
+}
+
+var dummyValue int
 
 func main() {
     var regResponse RegResponse
@@ -151,16 +193,24 @@ func main() {
     }
     go initDataServer(muxServer[1], dataChan, regResponse)
     fmt.Printf("initDataServer() done\n")
+    var response string
     for {
         select {
         case request := <- dataChan:
             fmt.Printf("Service manager: Request from Server core 0:%s\n", request)
-            // create dummy response  TODO: connect to a vehicle data source for the response
-            fmt.Printf("Service mgr response:%s\n", request)
-            dataChan <- "Service mgr response:" + request
+            // use template as response  TODO: 1. update template, 2. include error handling, 3. connect to a vehicle data source
+            switch getPayloadAction(request) {
+                case actionList[0]: // get
+                    response = updateResponseValue(successResponse[0], strconv.Itoa(dummyValue))
+                    dummyValue++
+                case actionList[1]: // set
+                    response = successResponse[1]
+            }
+            fmt.Printf("Service mgr response:%s\n", response)
+            dataChan <- response
         default:
             // anything to do?
-        }
-    }
+        } // select
+    } // for
 }
 
