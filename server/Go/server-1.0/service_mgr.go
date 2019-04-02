@@ -22,23 +22,30 @@ import (
 )
 
 var actionList = []string {
-    "get",
-    "set",
-    "subscribe",
-    "unsubscribe",
-    "getmetadata",
-    "authorize",
+    "\"get",
+    "\"set",
+    "\"subscribe",
+    "\"unsubscribe",
+    "\"subscription",
+    "\"getmetadata",
+    "\"authorize",
 }
 
 var successResponse = []string {
     "{\"action\": \"get\", \"requestId\": \"AAA\", \"value\": 999, \"timestamp\": 1234}",
     "{\"action\": \"set\", \"requestId\": \"AAA\", \"timestamp\": 1234}",
+    "{\"action\": \"subscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"timestamp\": 1234}",
+    "{\"action\": \"unsubscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"timestamp\": 1234}",
 }
  
 var failureResponse = []string {
     "{\"action\": \"get\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
     "{\"action\": \"set\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
+    "{\"action\": \"subscribe\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
+    "{\"action\": \"unsubscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"error\": {\"number\":99, \"reason\": \"CCC\", \"message\": \"DDD\"}, \"timestamp\": 1234}",
 }
+
+var subscriptionNotification string = "{\"action\": \"subscription\", \"subscriptionId\": \"BBB\", \"value\": 999, \"timestamp\": 1234}"
  
 // one muxServer component for service registration, one for the data communication
 var muxServer = []*http.ServeMux {
@@ -109,25 +116,33 @@ func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
     return 1
 }
 
-func wsdataSession(conn *websocket.Conn, clientChannel chan string){
-    defer conn.Close()  // ???
+func frontendWSdataSession(conn *websocket.Conn, clientChannel chan string, backendChannel chan string){
+    defer conn.Close()
     for {
-        msgType, msg, err := conn.ReadMessage()
+        _, msg, err := conn.ReadMessage()
         if err != nil {
             log.Print("Service data read error:", err)
             break
         }
-
         fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
 
         clientChannel <- string(msg) // forward to mgr hub, 
         message := <- clientChannel    //  and wait for response
 
-        fmt.Printf("Service:wsdataSession(): response message received=%s\n", message)
+        backendChannel <- message 
+    }
+}
+
+func backendWSdataSession(conn *websocket.Conn, backendChannel chan string){
+    defer conn.Close()
+    for {
+        message := <- backendChannel  
+
+        fmt.Printf("Service:backendWSdataSession(): message received=%s\n", message)
         // Write message back to server core
         response := []byte(message)
 
-        err = conn.WriteMessage(msgType, response); 
+        err := conn.WriteMessage(websocket.TextMessage, response)
         if err != nil {
            log.Print("Service data write error:", err)
            break
@@ -135,7 +150,7 @@ func wsdataSession(conn *websocket.Conn, clientChannel chan string){
     }
 }
 
-func makeServiceDataHandler(dataChannel chan string) func(http.ResponseWriter, *http.Request) {
+func makeServiceDataHandler(dataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
             fmt.Printf("we are upgrading to a websocket connection.\n")
@@ -145,15 +160,16 @@ func makeServiceDataHandler(dataChannel chan string) func(http.ResponseWriter, *
                 log.Print("upgrade:", err)
                 return
            }
-           go wsdataSession(conn, dataChannel)
+           go frontendWSdataSession(conn, dataChannel, backendChannel)
+           go backendWSdataSession(conn, backendChannel)
         } else {
             fmt.Printf("Client must set up a Websocket session.\n")
         }
     }
 }
 
-func initDataServer(muxServer *http.ServeMux, dataChannel chan string, regResponse RegResponse) {
-    serviceDataHandler := makeServiceDataHandler(dataChannel)
+func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendChannel chan string, regResponse RegResponse) {
+    serviceDataHandler := makeServiceDataHandler(dataChannel, backendChannel)
     muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
     fmt.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
     log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
@@ -181,19 +197,55 @@ func updateResponseValue(response string, value string) string {
 
 }
 
-var dummyValue int
+var subscriptionTrigger time.Duration = 5000 // used for triggering subscription events every 5000 ms
+var subscriptionTicker *time.Ticker
+
+func activateSubscription(subscriptionChannel chan int) {
+    subscriptionTicker = time.NewTicker(subscriptionTrigger*time.Millisecond)
+    go func() {
+        for range subscriptionTicker.C {
+            subscriptionChannel <- 1
+        }
+    }()
+}
+
+func deactivateSubscription() {
+    subscriptionTicker.Stop()
+}
+
+func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscReq string) {
+    select {
+        case <- subscriptionChannel:
+            backendChannel <- prependResponse(subscReq, subscriptionNotification)
+        default: // no subscription, so return
+    }
+}
+
+// prepends response with {"MgrID" : xxx , "ClientId" : x ,
+func prependResponse(request string, response string) string {
+    cutIndex := strings.Index(request, "\"ClientId\" :") // one space between 'ClientId' and colon
+    if (cutIndex != -1) {
+        cutIndex += 17  // cutIndex points to C, move it to point after comma (x is one digit)
+        return request[:cutIndex] + response[1:]
+    }
+    return "prependResponse() failed"
+}
+
+var dummyValue int  // used as return value in get
 
 func main() {
     var regResponse RegResponse
     dataChan := make(chan string)
+    backendChan := make(chan string)
     regRequest := RegRequest{Rootnode: "Vehicle"}
+    subscriptionChan := make(chan int)
 
     if (registerAsServiceMgr(regRequest, &regResponse) == 0) {
         return
     }
-    go initDataServer(muxServer[1], dataChan, regResponse)
+    go initDataServer(muxServer[1], dataChan, backendChan, regResponse)
     fmt.Printf("initDataServer() done\n")
-    var response string
+    var response, subscribeRequest string
     for {
         select {
         case request := <- dataChan:
@@ -205,11 +257,18 @@ func main() {
                     dummyValue++
                 case actionList[1]: // set
                     response = successResponse[1]
+                case actionList[2]: // subscribe
+                    activateSubscription(subscriptionChan)
+                    response = successResponse[2]
+                    subscribeRequest = request
+                case actionList[3]: // unsubscribe
+                    deactivateSubscription()
+                    response = successResponse[3]
             }
             fmt.Printf("Service mgr response:%s\n", response)
-            dataChan <- response
+            dataChan <- prependResponse(request, response)
         default:
-            // anything to do?
+            checkSubscription(subscriptionChan, backendChan, subscribeRequest)
         } // select
     } // for
 }
