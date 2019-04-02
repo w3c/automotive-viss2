@@ -2,7 +2,10 @@
 
 Functionality: 
 	Long term: Server implementation following the project SwA, with capability to serve multiple app-clients over both WebSockets and HTTP protocols in parallel.
-	Short term limitations: Only the WebSocket protocol is supported, with max two parallel app-clients.
+	Short term limitations: 
+		- Only the WebSocket protocol is supported, with max two parallel app-clients. 
+		- Service discovery and access restriction not implemented. 
+		- Payload parsing is not robust. Payloads to use from app client should be copied from appclient_commands.txt
 
 Implementation language: Go for server, JS for app-clients.
 
@@ -31,7 +34,7 @@ The order of starting the different programs should be:
 
 After the startup sequence above, write any VISS request with correct JSON syntax in the app client input field, e. g.:
 {"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":123}
-and after pushing Send a response starting with "Service mgr response:" followed by the JSON formatted request in which '"Mgrid":xxxx, "ClientId":yyy' has been inserted before the initial request payload, will be returned. 
+and after pushing Send a response starting with "Server:" followed by the JSON formatted request in which '"Mgrid":xxxx, "ClientId":yyy' has been inserted before the initial request payload, will be returned. 
 If the path in the request have several matches in the tree, the response will be concatenated by the number of matches (the example above 8 times).
 It is possible to start a second app-client (wsclient2.html) and send request from one or the other client. 
 The Mgrid and Clientid are server internal routing data, and should be removed from the response before reaching the app-client, but kept here for improved error checking.
@@ -42,6 +45,7 @@ Terminate core server, websocket transport manager, and service manager by Ctrl-
 
 ## Software implementation
 Figures 1 and 2 shows the design of the core server and the Websocket transport manager, respectively. The design is based on the high level Sw Architecture description found in the README of the root directory.<br>
+The server internal message routing in the figures show how it was done before implementing subscription support, which added both a number of new go routines, as well as new channels (frontend/backend). A figure update is TODO.<br>
 The core server is partitioned in the following logical components:<br>
 - Core server hub - the manager, tying it all together,<br>
 - The transport manager registration server, managing the registration of transport protocol managers over HTTP,<br>

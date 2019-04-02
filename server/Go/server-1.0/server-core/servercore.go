@@ -78,13 +78,22 @@ var upgrader = websocket.Upgrader{
 }
 
 var actionList = []string {
-    "get",
-    "set",
-    "subscribe",
-    "unsubscribe",
-    "getmetadata",
-    "authorize",
+    "\"get",
+    "\"set",
+    "\"subscribe",
+    "\"unsubscribe",
+    "\"subscription",
+    "\"getmetadata",
+    "\"authorize",
 }
+
+type RouterTable_t struct {
+    mgrId int
+    transportIndex int
+    serviceIndex int
+}
+
+var routerTable []RouterTable_t
 
 
 /*
@@ -98,6 +107,49 @@ var actionList = []string {
     - request message access restriction control
     - service discovery response synthesis
 */
+
+func routerTableAdd(mgrId int, protocolIndex int) {
+    var tableElement RouterTable_t
+    tableElement.mgrId = mgrId
+    tableElement.transportIndex = protocolIndex
+    tableElement.serviceIndex = 0   // with multiple service mgr this cannot be hardcoded
+    routerTable = append(routerTable, tableElement)
+}
+
+func routerTableSearchForServiceIndex(mgrId int) int {
+    for _, element := range routerTable {
+        if (element.mgrId == mgrId) {
+            fmt.Printf("routerTableSearchForServiceIndex: Found index=%d\n", element.serviceIndex)
+            return element.serviceIndex
+        }
+    }
+    return -1
+}
+
+/*func routerTableUpdateServiceIndex(mgrId int, serviceIndex int) {
+    for _, element := range routerTable {
+        if (element.mgrId == mgrId) {
+            element.serviceIndex = serviceIndex
+        }
+    }
+} */
+
+func getPayloadMgrId(request string) int {
+    mgridStart := strings.Index(request, "\"MgrId\" :") // space between 'MgrId' and colon
+    if (mgridStart != -1) {
+        mgridStart += 7  // to point to first char after :
+        mgridEnd := strings.Index(request[mgridStart:], " ,") // space plus comma must follow directly after the mgr id value
+        mgridEnd += mgridStart // point before '"'
+        fmt.Printf("MgrId=%s\n", request[mgridStart+3:mgridEnd])
+        mgrid, err := strconv.Atoi(request[mgridStart+3:mgridEnd])
+        if err == nil {
+            return mgrid
+        }
+        log.Print("Atoi conversion error:", err)
+        fmt.Printf("MgrId=%s\n", request[mgridStart+3:mgridEnd])
+    }
+    return -1
+}
 
 /*
 * The transportRegisterServer assigns a requesting transport mgr the data channel port number to use, 
@@ -132,20 +184,15 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
             }
         }
         if (protocolIndex != -1) {  // communicate: port no + mgr Id to server hub, port no + url path + mgr Id to transport mgr
-            select {
-                case transportRegChannel <- transportDataPortNum + protocolIndex:  // port no
-                default:
-            }
+            transportRegChannel <- transportDataPortNum + protocolIndex  // port no
             mgrId := rand.Intn(65535)  // [0 -65535], 16-bit value
-            select {
-                case transportRegChannel <- mgrId:  // mgr id
-                default:
-            }
+            transportRegChannel <- mgrId  // mgr id
 	    w.Header().Set("Content-Type", "application/json")
             response := "{ \"Portnum\" : " + strconv.Itoa(transportDataPortNum + protocolIndex) + " , \"Urlpath\" : \"/transport/data/" + strconv.Itoa(protocolIndex) + "\"" + " , \"Mgrid\" : " + strconv.Itoa(mgrId) + " }"
             
             fmt.Printf("transportRegisterServer():POST response=%s\n", response)
             w.Write([]byte(response)) // correct JSON?
+            routerTableAdd(mgrId, protocolIndex)
         } else {
             http.Error(w, "404 protocol not supported.", 404)
         }
@@ -160,55 +207,63 @@ func initTransportRegisterServer(transportRegChannel chan int) {
     log.Fatal(http.ListenAndServe("localhost:8081", muxServer[0]))
 }
 
-func serviceDataRequestAndResponse(dataConn *websocket.Conn, request string) string {
+func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
     err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
     if (err != nil) {
         log.Print("Service datachannel write error:", err)
     }
-    // receive response from server core, and forward to clientId=0 session
-    _, message, err := dataConn.ReadMessage()
-    if err != nil {
-        log.Println("Service datachannel read error:", err)
-        return "Service unavailable"
+}
+
+func backendServiceDataComm(dataConn *websocket.Conn, backendChannel chan string) {
+    // receive response from service mgr, and forward to transport mgr server
+    for {
+        _, message, err := dataConn.ReadMessage()
+        if err != nil {
+            log.Println("Service datachannel read error:", err)
+            message = []byte("Service unavailable")  // should be correct JSON error messagge
+        }
+        fmt.Printf("Server core: Message from service mgr:%s\n", string(message))
+        if getPayloadAction(string(message)) == actionList[4] {
+            backendChannel <- string(message)  // subscription
+        } else {
+            serviceDataChan[routerTableSearchForServiceIndex(getPayloadMgrId(string(message)))] <- string(message)  // response to request
+        }
     }
-    fmt.Printf("Server hub: Response from service:%s\n", string(message))
-    return string(message)
 }
 
 /**
 * initServiceDataSession:
 * sets up the WS based communication (as client) with a service manager
 **/
-func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int) (dataConn *websocket.Conn) {
+func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel chan string) (dataConn *websocket.Conn) {
     var addr = flag.String("addr", "localhost:" + strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
     dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/"+strconv.Itoa(serviceIndex)}
     fmt.Printf("Connecting to:%s\n", dataSessionUrl.String())
     dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin":{"*"}})
 //    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
-//    defer dataConn.Close() //???
     if err != nil {
         log.Fatal("Service data session dial error:", err)
         return nil
     }
+    go backendServiceDataComm(dataConn, backendChannel)
     return dataConn
 }
 
-func initServiceClientSession(serviceDataChan chan string, serviceIndex int) {
+func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel chan string) {
     time.Sleep(10*time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
     muxIndex := (len(muxServer) -2)/2 + 1 + (serviceIndex +1)  //could be more intuitive...
     fmt.Printf("initServiceClientSession: muxIndex=%d\n", muxIndex)
-    dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex)
+    dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel)
     for {
         select {
-            case request := <- serviceDataChan:
-                response := serviceDataRequestAndResponse(dataConn, request)
-                serviceDataChan <- response
-            default:
+            case request := <- serviceDataChannel:
+                frontendServiceDataComm(dataConn, request)
+//            default:
         }
     }
 }
 
-func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int) func(http.ResponseWriter, *http.Request) {
+func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
     fmt.Printf("serviceRegisterServer():url=%s\n", req.URL.Path)
     if (req.URL.Path != "/service/reg") {
@@ -227,21 +282,15 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
         }
         fmt.Printf("serviceRegisterServer(index=%d):received POST request=%s\n", *serviceIndex, payload.Rootnode)
         if (*serviceIndex < 2) {  // communicate: port no + root node to server hub, port no + url path to transport mgr, and start a client session
-            select {
-                case serviceRegChannel <- strconv.Itoa(serviceDataPortNum + *serviceIndex):
-                *serviceIndex += 1
-                default:
-            }
-            select {
-                case serviceRegChannel <- payload.Rootnode: 
-                default:
-            }
+            serviceRegChannel <- strconv.Itoa(serviceDataPortNum + *serviceIndex)
+            serviceRegChannel <- payload.Rootnode
+            *serviceIndex += 1
 	    w.Header().Set("Content-Type", "application/json")
             response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum + *serviceIndex-1) + " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex-1) + "\"" + " }"
             
             fmt.Printf("serviceRegisterServer():POST response=%s\n", response)
             w.Write([]byte(response))
-            go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1)
+            go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1, backendChannel)
         } else {
             fmt.Printf("serviceRegisterServer():Max number of services already registered.\n")
         }
@@ -249,9 +298,9 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
     }
 }
 
-func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int) {
+func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int, backendChannel chan string) {
     fmt.Printf("initServiceRegisterServer():localhost:8082/service/reg\n")
-    serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex)
+    serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex, backendChannel)
     muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
     log.Fatal(http.ListenAndServe("localhost:8082", muxServer[1]))
 }
@@ -270,10 +319,10 @@ func createProcolMap() {
     supportedProtocols[1] = "WebSocket"
 }
 
-func wsDataSession(conn *websocket.Conn, transportDataChannel chan string){
+func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string){
     defer conn.Close()  // ???
     for {
-        msgType, msg, err := conn.ReadMessage()
+        _, msg, err := conn.ReadMessage()
         if err != nil {
             log.Print("read error data WS protocol.", err)
             break
@@ -283,8 +332,17 @@ func wsDataSession(conn *websocket.Conn, transportDataChannel chan string){
         transportDataChannel <- string(msg) // send request to server hub
         response := <- transportDataChannel    // wait for response from server hub
 
-        fmt.Printf("%s Server core response: %s \n", conn.RemoteAddr(), string(response))
-        err = conn.WriteMessage(msgType, []byte(response)); 
+        backendChannel <- response 
+    }
+}
+
+func backendWSDataSession(conn *websocket.Conn, backendChannel chan string){
+    defer conn.Close()
+    for {
+        message := <- backendChannel  
+
+        fmt.Printf("%s Transport mgr server: message= %s \n", conn.RemoteAddr(), message)
+        err := conn.WriteMessage(websocket.TextMessage, []byte(message)); 
         if err != nil {
             log.Print("write error data WS protocol.", err)
             break
@@ -292,7 +350,7 @@ func wsDataSession(conn *websocket.Conn, transportDataChannel chan string){
     }
 }
 
-func makeTransportDataHandler(transportDataChannel chan string) func(http.ResponseWriter, *http.Request) {
+func makeTransportDataHandler(transportDataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
             fmt.Printf("we are upgrading to a websocket connection\n")
@@ -303,7 +361,8 @@ func makeTransportDataHandler(transportDataChannel chan string) func(http.Respon
                 return
             }
             fmt.Printf("WS data session initiated.\n")
-            wsDataSession(conn, transportDataChannel)
+            go frontendWSDataSession(conn, transportDataChannel, backendChannel)
+            go backendWSDataSession(conn, backendChannel)
         }else{
             http.Error(w, "400 protocol must be websocket.", 400)
         }
@@ -313,21 +372,17 @@ func makeTransportDataHandler(transportDataChannel chan string) func(http.Respon
 /**
 *  All transport data servers implement a WS server which communicates with a transport protocol manager.
 **/
-func initTransportDataServer(protocolIndex int, muxServer *http.ServeMux, transportDataChan []chan string) {
+func initTransportDataServer(protocolIndex int, muxServer *http.ServeMux, transportDataChannel []chan string, backendChannel chan string) {
     fmt.Printf("initTransportDataServer():protocolIndex=%d\n", protocolIndex)
-    transportDataHandler := makeTransportDataHandler(transportDataChan[protocolIndex])
+    transportDataHandler := makeTransportDataHandler(transportDataChannel[protocolIndex], backendChannel)
     muxServer.HandleFunc("/transport/data/" + strconv.Itoa(protocolIndex), transportDataHandler)
     log.Fatal(http.ListenAndServe("localhost:" + strconv.Itoa(transportDataPortNum+protocolIndex), muxServer))
 }
 
-func initTransportDataServers() {
+func initTransportDataServers(transportDataChannel []chan string, backendChannel chan string) {
     for key, _ := range supportedProtocols {
-        go initTransportDataServer(key, muxServer[key+2], transportDataChan)  //muxelements 0 and one assigned to reg servers
+        go initTransportDataServer(key, muxServer[key+2], transportDataChannel, backendChannel)  //muxelements 0 and one assigned to reg servers
     }
-}
-
-func updateRoutingTable(portNum int, mgrId int) {
-    fmt.Printf("updateRoutingTable():portnum=%d, mgrid=%d\n", portNum, mgrId)
 }
 
 func updateServiceRouting(portNo string, rootNode string) {
@@ -409,6 +464,7 @@ func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
 func getPayloadAction(request string) string {
     for _, element := range actionList {
         if (strings.Contains(request, element) == true) {
+fmt.Printf("getPayloadAction():element=%s\n", element)
             return element
         }
     }
@@ -421,14 +477,22 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
             retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
         case actionList[1]: // set
             retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
-//        case actionList[2]: // subscribe
-//        case actionList[3]: // unsubscribe
+        case actionList[2]: // subscribe
+            retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
+        case actionList[3]: // unsubscribe
+            serviceDataChan[sDChanIndex] <- request
+            response := <- serviceDataChan[sDChanIndex]
+            transportDataChan[tDChanIndex] <- response
 //        case actionList[4]: // getmetadata
 //        case actionList[5]: // authorise
         default:
             fmt.Printf("serveRequest():not implemented/unknown action=%s\n", getPayloadAction(request))
             transportDataChan[tDChanIndex] <- "Unsupported request."
     }
+}
+
+func updateTransportRoutingTable(mgrId int, portNum int) {
+    fmt.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d\n", mgrId, portNum)
 }
 
 func main() {
@@ -438,20 +502,21 @@ func main() {
     }
 
     createProcolMap()
-    initTransportDataServers()
+    backendChan := make (chan string, 1)  // used to feed transport mgr backend server)
+    initTransportDataServers(transportDataChan, backendChan)
     fmt.Printf("main():initTransportDataServers() executed...\n")
     transportRegChan := make(chan int, 2*2)
     go initTransportRegisterServer(transportRegChan)
     fmt.Printf("main():initTransportRegisterServer() executed...\n")
     serviceRegChan := make(chan string, 2)
     serviceIndex := 0  // index assigned to registered services
-    go initServiceRegisterServer(serviceRegChan, &serviceIndex)
+    go initServiceRegisterServer(serviceRegChan, &serviceIndex, backendChan)
     fmt.Printf("main():starting loop for channel receptions...\n")
     for {
         select {
         case portNum := <- transportRegChan:  // save port no + transport mgr Id in routing table
             mgrId := <- transportRegChan
-            updateRoutingTable(portNum, mgrId)
+            updateTransportRoutingTable(mgrId, portNum)
         case request := <- transportDataChan[0]:  // request from transport0 (=HTTP), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
             serveRequest(request, 0, 0)
         case request := <- transportDataChan[1]:  // request from transport1 (=WS), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
@@ -461,7 +526,7 @@ func main() {
             rootNode := <- serviceRegChan
             updateServiceRouting(portNo, rootNode)
 //        case xxx := <- serviceDataChan[0]:    // for asynchronous routing, instead of the synchronous above. ToDo?
-        default: // what to do here?
+        default:
         }
     }
 }

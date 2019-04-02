@@ -1,0 +1,8 @@
+{"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":123}
+
+{"action":"get", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":234}
+
+{"action":"subscribe", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":234}  // "filters" key-value left out
+
+{"action":"unsubscribe", "subscriptionId":789, "requestId":234}
+

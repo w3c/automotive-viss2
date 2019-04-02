@@ -22,14 +22,29 @@ import (
     "strings"
 )
  
+var actionList = []string {
+    "\"get",
+    "\"set",
+    "\"subscribe",
+    "\"unsubscribe",
+    "\"subscription",
+    "\"getmetadata",
+    "\"authorize",
+}
+
 // the number of elements in muxServer and appClientChan arrays sets the max number of parallel app clients
 var muxServer = []*http.ServeMux {
     http.NewServeMux(),  // for app client WS sessions on port number 8080
     http.NewServeMux(),  // for data session with core server on port number provided at registration
 }
 
-// the number of array elements sets the limit for max number of parallel app clients
+// the number of channel array elements sets the limit for max number of parallel app clients
 var appClientChan = []chan string {
+    make(chan string),
+    make(chan string),
+}
+
+var clientBackendChan = []chan string {
     make(chan string),
     make(chan string),
 }
@@ -110,10 +125,10 @@ func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
     return dataConn
 }
 
-func wsAppSession(conn *websocket.Conn, clientChannel chan string){
-    defer conn.Close()  // ???
+func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string){
+    defer conn.Close()
     for {
-        msgType, msg, err := conn.ReadMessage()
+        _, msg, err := conn.ReadMessage()
         if err != nil {
             log.Print("App client read error:", err)
             break
@@ -124,11 +139,20 @@ func wsAppSession(conn *websocket.Conn, clientChannel chan string){
         clientChannel <- string(msg) // forward to mgr hub, 
         message := <- clientChannel    //  and wait for response
 
-        fmt.Printf("wsAppSession(): response message received=%s\n", message)
+        clientBackendChannel <- message 
+    }
+}
+
+func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string){
+    defer conn.Close()
+    for {
+        message := <- clientBackendChannel  
+
+        fmt.Printf("backendWSAppSession(): Message received=%s\n", message)
         // Write message back to app client
         response := []byte(message)
 
-        err = conn.WriteMessage(msgType, response); 
+        err := conn.WriteMessage(websocket.TextMessage, response); 
         if err != nil {
            log.Print("App client write error:", err)
            break
@@ -136,7 +160,7 @@ func wsAppSession(conn *websocket.Conn, clientChannel chan string){
     }
 }
 
-func makeappClientHandler(appClientChannel []chan string, serverIndex *int) func(http.ResponseWriter, *http.Request) {
+func makeappClientHandler(appClientChannel []chan string, clientBackendChannel []chan string, serverIndex *int) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
             fmt.Printf("we are upgrading to a websocket connection. Server index=%d\n", *serverIndex)
@@ -147,7 +171,8 @@ func makeappClientHandler(appClientChannel []chan string, serverIndex *int) func
                 return
            }
            if (*serverIndex < len(appClientChannel)) {
-               go wsAppSession(conn, appClientChannel[*serverIndex])
+               go frontendWSAppSession(conn, appClientChannel[*serverIndex], clientBackendChannel[*serverIndex])
+               go backendWSAppSession(conn, clientBackendChannel[*serverIndex])
                *serverIndex += 1
            } else {
                fmt.Printf("not possible to start more app client sessions.\n")
@@ -158,11 +183,43 @@ func makeappClientHandler(appClientChannel []chan string, serverIndex *int) func
     }
 }
 
-func initClientServer(muxServer *http.ServeMux) {
+func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan string) {
     serverIndex := 0
-    appClientHandler := makeappClientHandler(appClientChan, &serverIndex)
+    appClientHandler := makeappClientHandler(appClientChan, clientBackendChannel, &serverIndex)
     muxServer.HandleFunc("/", appClientHandler)
     log.Fatal(http.ListenAndServe("localhost:8080", muxServer))
+}
+
+func getPayloadClientId(request string) int {
+    return 0
+}
+
+func getPayloadAction(payload string) string {
+    for _, element := range actionList {
+        if (strings.Contains(payload, element) == true) {
+            return element
+        }
+    }
+    return ""
+}
+
+func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string, clientBackendChannel []chan string) {
+    for {
+        // receive message from server core, and forward to clientId transport session
+        
+        _, message, err := dataConn.ReadMessage()
+        if err != nil {
+            log.Println("Datachannel read error:", err)
+            return
+        }
+        fmt.Printf("Server hub: Message from server core:%s\n", string(message))
+        clientId := getPayloadClientId(string(message))
+        if (getPayloadAction(string(message)) == actionList[4]) {
+            clientBackendChannel[clientId] <- string(message)  //subscription notification
+        } else {
+            appClientChannel[clientId] <- string(message)
+        }
+    }
 }
 
 /**
@@ -173,14 +230,15 @@ func initClientServer(muxServer *http.ServeMux) {
 **/
 func main() {
     registerAsTransportMgr(&regData)
-    go initClientServer(muxServer[0])  // go routine needed due to listenAndServe call...
+    go initClientServer(muxServer[0], clientBackendChan)  // go routine needed due to listenAndServe call...
     fmt.Printf("initClientServer() done\n")
     dataConn := initDataSession(muxServer[1], regData)
+    go transportHubFrontendWSsession(dataConn, appClientChan, clientBackendChan) // receives messages from server core
     fmt.Printf("initDataSession() done\n")
     for {
         select {
         case reqMessage := <- appClientChan[0]:
-            fmt.Printf("Server hub: Request from client 0:%s\n", reqMessage)
+            fmt.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
             // add mgrId + clientId=0 to message, forward to server core
             newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
@@ -188,14 +246,14 @@ func main() {
             if (err != nil) {
                 log.Print("Datachannel write error:", err)
             }
-            // receive response from server core, and forward to clientId=0 session
+/*            // receive response from server core, and forward to clientId=0 session
             _, message, err := dataConn.ReadMessage()
             if err != nil {
                 log.Println("Datachannel read error:", err)
                 return
             }
             fmt.Printf("Server hub: Response from server core:%s\n", string(message))
-            appClientChan[0] <- string(message)
+            appClientChan[0] <- string(message) */
         case reqMessage := <- appClientChan[1]:
             // add mgrId + clientId=1 to message, forward to server core
             newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
@@ -204,14 +262,14 @@ func main() {
             if (err != nil) {
                 log.Print("Datachannel write error:", err)
             }
-            // receive response from server core, and forward to clientId=1 session
+/*            // receive response from server core, and forward to clientId=1 session
             _, message, err := dataConn.ReadMessage()
             if err != nil {
                 log.Println("Datachannel read error:", err)
                 return
             }
             fmt.Printf("Server hub: Response from server core:%s\n", string(message))
-            appClientChan[1] <- string(message)
+            appClientChan[1] <- string(message) */
         }
     }
 }
