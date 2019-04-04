@@ -45,7 +45,7 @@ Terminate core server, websocket transport manager, and service manager by Ctrl-
 
 ## Software implementation
 Figures 1 and 2 shows the design of the core server and the Websocket transport manager, respectively. The design is based on the high level Sw Architecture description found in the README of the root directory.<br>
-The server internal message routing in the figures show how it was done before implementing subscription support, which added both a number of new go routines, as well as new channels (frontend/backend). A figure update is TODO.<br>
+The drawings to the left in the two figures show a high level view where cases of possible multiple instances of components are shown, while the drawings to the right show a more detailed view, but where for simplicity only a single instance of components are shown.<br>
 The core server is partitioned in the following logical components:<br>
 - Core server hub - the manager, tying it all together,<br>
 - The transport manager registration server, managing the registration of transport protocol managers over HTTP,<br>
@@ -54,10 +54,11 @@ The core server is partitioned in the following logical components:<br>
 - Service data channel client, exist in multiple instances, one for each registered service manager, managing the data communiction,<br>
 - The tree manager, providing access to the tree, abstracting the actual format of the tree, and more complex operations such as tree search, tree initiation and termination.<br>
 The core server hub, running in the main context, spawns the following Go routines:<br>
-- The transport manager registration server<br>
-- Transport data channel servers<br>
-- The service manager registration server<br>
-The Go routines communicate with the server hub using Go channels.<br>
+- The transport manager registration server.<br>
+- Transport data channel servers, each having separate frontend and a backend go routine.<br>
+- The service manager registration server.<br>
+- Service data channel servers, each having separate frontend and a backend go routines.<br>
+The Go routines communicate in between using Go channels.<br>
 The communication with the transport protocol and service managers is realized using the Websocket protocol.<br>
 ![Core server design](pics/Core_server_SwA.jpg)<br>
 * Fig. 1 Core server design<br>
@@ -66,5 +67,5 @@ The Websocket transport protocol manager is partitioned in the following logical
 - Websocket server,  exist in multiple instances, one for each app-client that connects to it.<br>
 ![Transport manager design](pics/WS_manager_SwA.jpg)<br>
 * Fig. 2 Websocket transport manager design<br>
-The Websocket servers run in separate Go routines, and communicate with the manager hub via Go channels.<br>
-The data communication with the core server uses the Websocket protocol.<br>
+The Websocket hub and WS servers run in separate Go routines, each having separate frontend and a backend go routine, and communicate with each other via Go channels.<br>
+The data communication with the core server uses the Websocket protocol, as well as its communication with the app-clients.<br>
