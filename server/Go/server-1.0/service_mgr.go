@@ -43,6 +43,7 @@ var failureResponse = []string {
     "{\"action\": \"set\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
     "{\"action\": \"subscribe\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
     "{\"action\": \"unsubscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"error\": {\"number\":99, \"reason\": \"CCC\", \"message\": \"DDD\"}, \"timestamp\": 1234}",
+    "{\"action\": \"unsupported\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
 }
 
 var subscriptionNotification string = "{\"action\": \"subscription\", \"subscriptionId\": \"BBB\", \"value\": 999, \"timestamp\": 1234}"
@@ -184,7 +185,6 @@ func getPayloadAction(request string) string {
     return ""
 }
 
-
 func updateResponseValue(response string, value string) string {
     valueStart := strings.Index(response, "\"value\":") // colon must follow directly after 'value'
     if (valueStart == -1) {
@@ -221,7 +221,7 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
     }
 }
 
-// prepends response with {"MgrID" : xxx , "ClientId" : x ,
+// prepends response with'{"MgrID" : xxx , "ClientId" : x ,' copied from request
 func prependResponse(request string, response string) string {
     cutIndex := strings.Index(request, "\"ClientId\" :") // one space between 'ClientId' and colon
     if (cutIndex != -1) {
@@ -264,6 +264,8 @@ func main() {
                 case actionList[3]: // unsubscribe
                     deactivateSubscription()
                     response = successResponse[3]
+                default:
+                    response = failureResponse[4] // improvement needed
             }
             fmt.Printf("Service mgr response:%s\n", response)
             dataChan <- prependResponse(request, response)
