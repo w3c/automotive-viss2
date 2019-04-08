@@ -136,10 +136,15 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 
         fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
 
-        clientChannel <- string(msg) // forward to mgr hub, 
-        message := <- clientChannel    //  and wait for response
+        var response string
+        if (len(msg) == 0 || getPayloadAction(string(msg)) == "") {
+            response = "Request not parsable."   //TODO Improved error response
+        } else {
+            clientChannel <- string(msg) // forward to mgr hub, 
+            response = <- clientChannel    //  and wait for response
+        }
 
-        clientBackendChannel <- message 
+        clientBackendChannel <- response 
     }
 }
 
@@ -191,7 +196,18 @@ func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan stri
 }
 
 func getPayloadClientId(request string) int {
-    return 0
+    type Payload struct {
+        ClientId int
+    }
+    decoder := json.NewDecoder(strings.NewReader(request))
+    var payload Payload
+    err := decoder.Decode(&payload)
+    if err != nil {
+        fmt.Printf("Server hub-getPayloadClientId: JSON decode failed for request:%s\n", request)
+        panic(err)
+        return -1
+    }
+    return payload.ClientId
 }
 
 func getPayloadAction(payload string) string {
@@ -246,14 +262,6 @@ func main() {
             if (err != nil) {
                 log.Print("Datachannel write error:", err)
             }
-/*            // receive response from server core, and forward to clientId=0 session
-            _, message, err := dataConn.ReadMessage()
-            if err != nil {
-                log.Println("Datachannel read error:", err)
-                return
-            }
-            fmt.Printf("Server hub: Response from server core:%s\n", string(message))
-            appClientChan[0] <- string(message) */
         case reqMessage := <- appClientChan[1]:
             // add mgrId + clientId=1 to message, forward to server core
             newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
@@ -262,14 +270,6 @@ func main() {
             if (err != nil) {
                 log.Print("Datachannel write error:", err)
             }
-/*            // receive response from server core, and forward to clientId=1 session
-            _, message, err := dataConn.ReadMessage()
-            if err != nil {
-                log.Println("Datachannel read error:", err)
-                return
-            }
-            fmt.Printf("Server hub: Response from server core:%s\n", string(message))
-            appClientChan[1] <- string(message) */
         }
     }
 }
