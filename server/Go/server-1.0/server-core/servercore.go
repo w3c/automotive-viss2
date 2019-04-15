@@ -247,7 +247,7 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendC
 }
 
 func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string) {
-    time.Sleep(10*time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
+    time.Sleep(3*time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
     muxIndex := (len(muxServer) -2)/2 + 1 + (serviceIndex +1)  //could be more intuitive...
     fmt.Printf("initServiceClientSession: muxIndex=%d\n", muxIndex)
     dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel)
@@ -433,12 +433,29 @@ func searchTree(request string, searchData *searchData_t) int {
 }
 
 func updateRequestPath(request string, path string) string {
-    pathStart := strings.Index(request, "\"path\":") // colon must follow directly after 'path'
-    pathStart += 7  // to point to first char after :
-    pathEnd := strings.Index(request[pathStart:], "\",") // '",' must follow directly after the path value
-    pathEnd += pathStart // point before '"'
-    return request[:pathStart] + path + request[pathEnd:]
+    decoder := json.NewDecoder(strings.NewReader(request))
+    var jsonMap map[string]interface{}
+    err := decoder.Decode(&jsonMap)
+    if err != nil {
+        fmt.Printf("Server core-updateRequestPath: JSON decode failed for request:%s\n", request)
+        return ""
+    }
+    jsonMap["path"] = path
+    updatedRequest, err2 := json.Marshal(jsonMap)
+    if err2 != nil {
+        fmt.Printf("Server core-updateRequestPath: JSON encode failed for request:%s\n", request)
+        return ""
+    }
+    return string(updatedRequest)
+}
 
+func getPathLen(path string) int {
+    for i := 0 ; i < len(path) ; i++ {
+        if (path[i] == 0x00) {   // the path buffer defined in searchData_t is initiated with all zeros
+            return i
+        }
+    }
+    return len(path)
 }
 
 func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
@@ -450,7 +467,8 @@ func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
     } else {
         var aggregatedResponse string
         for i := 0; i < matches; i++ {
-            serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[i].responsePath[:])) // this should be preceeded with request verification, and routing analysis (resolve x -> serviceDataChan[x])
+            pathLen := getPathLen(string(searchData[i].responsePath[:]))
+            serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[i].responsePath[:pathLen]))
             response := <- serviceDataChan[sDChanIndex]
             aggregatedResponse += response + " , "  // not final solution...
         }
