@@ -21,33 +21,6 @@ import (
     "strings"
 )
 
-var actionList = []string {
-    "\"get",
-    "\"set",
-    "\"subscribe",
-    "\"unsubscribe",
-    "\"subscription",
-    "\"getmetadata",
-    "\"authorize",
-}
-
-var successResponse = []string {
-    "{\"action\": \"get\", \"requestId\": \"AAA\", \"value\": 999, \"timestamp\": 1234}",
-    "{\"action\": \"set\", \"requestId\": \"AAA\", \"timestamp\": 1234}",
-    "{\"action\": \"subscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"timestamp\": 1234}",
-    "{\"action\": \"unsubscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"timestamp\": 1234}",
-}
- 
-var failureResponse = []string {
-    "{\"action\": \"get\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
-    "{\"action\": \"set\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
-    "{\"action\": \"subscribe\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
-    "{\"action\": \"unsubscribe\", \"requestId\": \"AAA\", \"subscriptionId\": \"BBB\", \"error\": {\"number\":99, \"reason\": \"CCC\", \"message\": \"DDD\"}, \"timestamp\": 1234}",
-    "{\"action\": \"unsupported\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
-}
-
-var subscriptionNotification string = "{\"action\": \"subscription\", \"subscriptionId\": \"BBB\", \"value\": 999, \"timestamp\": 1234}"
- 
 // one muxServer component for service registration, one for the data communication
 var muxServer = []*http.ServeMux {
     http.NewServeMux(),  // 0 = for registration
@@ -176,59 +149,54 @@ func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendCh
     log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
-func getPayloadAction(request string) string {
-    for _, element := range actionList {
-        if (strings.Contains(request, element) == true) {
-            return element
-        }
-    }
-    return ""
-}
-
-func updateResponseValue(response string, value string) string {
-    valueStart := strings.Index(response, "\"value\":") // colon must follow directly after 'value'
-    if (valueStart == -1) {
-        return response
-    }
-    valueStart += 8  // to point to first char after :
-    valueEnd := strings.Index(response[valueStart:], "\",") // '",' must follow directly after the 'value'
-    valueEnd += valueStart // point before '"'
-    return response[:valueStart] + value + response[valueEnd+5:]  // 5->': 999'
-
-}
-
 var subscriptionTrigger time.Duration = 5000 // used for triggering subscription events every 5000 ms
 var subscriptionTicker *time.Ticker
 
-func activateSubscription(subscriptionChannel chan int) {
+var subscriptionId int
+func activateSubscription(subscriptionChannel chan int) int {
     subscriptionTicker = time.NewTicker(subscriptionTrigger*time.Millisecond)
     go func() {
         for range subscriptionTicker.C {
             subscriptionChannel <- 1
         }
     }()
+    subscriptionId++
+    return subscriptionId-1
 }
 
 func deactivateSubscription() {
     subscriptionTicker.Stop()
 }
 
-func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscReq string) {
+func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionMap map[string]interface{}) {
     select {
         case <- subscriptionChannel:
-            backendChannel <- prependResponse(subscReq, subscriptionNotification)
+            backendChannel <- finalizeResponse(subscriptionMap, true)
         default: // no subscription, so return
     }
 }
 
-// prepends response with'{"MgrID" : xxx , "ClientId" : x ,' copied from request
-func prependResponse(request string, response string) string {
-    cutIndex := strings.Index(request, "\"ClientId\" :") // one space between 'ClientId' and colon
-    if (cutIndex != -1) {
-        cutIndex += 17  // cutIndex points to C, move it to point after comma (x is one digit)
-        return request[:cutIndex] + response[1:]
+func extractPayload(request string, rMap *map[string]interface{}) {
+    decoder := json.NewDecoder(strings.NewReader(request))
+    err := decoder.Decode(rMap)
+    if err != nil {
+        fmt.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
+        return 
     }
-    return "prependResponse() failed"
+}
+
+func finalizeResponse(responseMap map[string]interface{}, responseStatus bool) string {
+    if (responseStatus == false) {
+//\"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}
+    responseMap["error"] = "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}"
+    }
+    responseMap["timestamp"] = 1234
+    response, err := json.Marshal(responseMap)
+    if err != nil {
+        fmt.Printf("Server core-finalizeResponse: JSON encode failed.\n")
+        return ""
+    }
+    return string(response)
 }
 
 var dummyValue int  // used as return value in get
@@ -245,32 +213,46 @@ func main() {
     }
     go initDataServer(muxServer[1], dataChan, backendChan, regResponse)
     fmt.Printf("initDataServer() done\n")
-    var response, subscribeRequest string
+    var subscriptionMap = make(map[string]interface{})  // only one subscription is supported!
     for {
         select {
-        case request := <- dataChan:
-            fmt.Printf("Service manager: Request from Server core 0:%s\n", request)
+        case request := <- dataChan:  // request from server core
+            fmt.Printf("Service manager: Request from Server core:%s\n", request)
             // use template as response  TODO: 1. update template, 2. include error handling, 3. connect to a vehicle data source
-            switch getPayloadAction(request) {
-                case actionList[0]: // get
-                    response = updateResponseValue(successResponse[0], strconv.Itoa(dummyValue))
+            var requestMap = make(map[string]interface{})
+            var responseMap = make(map[string]interface{})
+            extractPayload(request, &requestMap)
+            responseMap["MgrId"] = requestMap["MgrId"]
+            responseMap["ClientId"] = requestMap["ClientId"]
+            responseMap["action"] = requestMap["action"]
+            responseMap["requestId"] = requestMap["requestId"]
+            var responseStatus bool
+            switch requestMap["action"] {
+                case "get":
+                    responseMap["value"] = strconv.Itoa(dummyValue)
                     dummyValue++
-                case actionList[1]: // set
-                    response = successResponse[1]
-                case actionList[2]: // subscribe
-                    activateSubscription(subscriptionChan)
-                    response = successResponse[2]
-                    subscribeRequest = request
-                case actionList[3]: // unsubscribe
+                    responseStatus = true
+                case "set":
+                    // interact with underlying subsystem to set the value
+                    responseStatus = true
+                case "subscribe":
+                    subscrId := activateSubscription(subscriptionChan)
+                    for k, v := range responseMap {
+                        subscriptionMap[k] = v
+                    }
+                    subscriptionMap["action"] = "subscription"
+                    subscriptionMap["subscriptionId"] = strconv.Itoa(subscrId)
+                    responseMap["subscriptionId"] = strconv.Itoa(subscrId)
+                    responseStatus = true
+                case "unsubscribe":
                     deactivateSubscription()
-                    response = successResponse[3]
+                    responseStatus = true
                 default:
-                    response = failureResponse[4] // improvement needed
+                    responseStatus = false
             }
-            fmt.Printf("Service mgr response:%s\n", response)
-            dataChan <- prependResponse(request, response)
+            dataChan <- finalizeResponse(responseMap, responseStatus)
         default:
-            checkSubscription(subscriptionChan, backendChan, subscribeRequest)
+            checkSubscription(subscriptionChan, backendChan, subscriptionMap)
         } // select
     } // for
 }
