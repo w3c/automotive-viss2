@@ -22,16 +22,6 @@ import (
     "strings"
 )
  
-var actionList = []string {
-    "\"get",
-    "\"set",
-    "\"subscribe",
-    "\"unsubscribe",
-    "\"subscription",
-    "\"getmetadata",
-    "\"authorize",
-}
-
 // the number of elements in muxServer and appClientChan arrays sets the max number of parallel app clients
 var muxServer = []*http.ServeMux {
     http.NewServeMux(),  // for app client WS sessions on port number 8080
@@ -134,15 +124,10 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
             break
         }
 
-        fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+        fmt.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), string(msg), len(msg))
 
-        var response string
-        if (len(msg) == 0 || getPayloadAction(string(msg)) == "") {
-            response = "Request not parsable."   //TODO Improved error response
-        } else {
-            clientChannel <- string(msg) // forward to mgr hub, 
-            response = <- clientChannel    //  and wait for response
-        }
+        clientChannel <- string(msg) // forward to mgr hub, 
+        response := <- clientChannel    //  and wait for response
 
         clientBackendChannel <- response 
     }
@@ -195,45 +180,41 @@ func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan stri
     log.Fatal(http.ListenAndServe("localhost:8080", muxServer))
 }
 
-func getPayloadClientId(request string) int {
-    type Payload struct {
-        ClientId int
-    }
+func extractPayload(request string, rMap *map[string]interface{}) {
     decoder := json.NewDecoder(strings.NewReader(request))
-    var payload Payload
-    err := decoder.Decode(&payload)
+    err := decoder.Decode(rMap)
     if err != nil {
-        fmt.Printf("Server hub-getPayloadClientId: JSON decode failed for request:%s\n", request)
-        panic(err)
-        return -1
+        fmt.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
+        return 
     }
-    return payload.ClientId
 }
 
-func getPayloadAction(payload string) string {
-    for _, element := range actionList {
-        if (strings.Contains(payload, element) == true) {
-            return element
-        }
+func finalizeResponse(responseMap map[string]interface{}) string {
+    response, err := json.Marshal(responseMap)
+    if err != nil {
+        fmt.Printf("WS transport mgr-finalizeResponse: JSON encode failed.\n")
+        return "JSON marshal error"   // what to do here?
     }
-    return ""
+    return string(response)
 }
 
 func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string, clientBackendChannel []chan string) {
     for {
-        // receive message from server core, and forward to clientId transport session
-        
-        _, message, err := dataConn.ReadMessage()
+        _, response, err := dataConn.ReadMessage()
         if err != nil {
             log.Println("Datachannel read error:", err)
-            return
+            return  // ??
         }
-        fmt.Printf("Server hub: Message from server core:%s\n", string(message))
-        clientId := getPayloadClientId(string(message))
-        if (getPayloadAction(string(message)) == actionList[4]) {
-            clientBackendChannel[clientId] <- string(message)  //subscription notification
+        fmt.Printf("Server hub: Response from server core:%s\n", string(response))
+        var responseMap = make(map[string]interface{})
+        extractPayload(string(response), &responseMap)
+        clientId := int(responseMap["ClientId"].(float64))
+        delete(responseMap, "MgrId")
+        delete(responseMap, "ClientId")
+        if (responseMap["action"] == "subscription") {
+            clientBackendChannel[clientId] <- finalizeResponse(responseMap)  //subscription notification
         } else {
-            appClientChannel[clientId] <- string(message)
+            appClientChannel[clientId] <- finalizeResponse(responseMap)
         }
     }
 }
