@@ -51,7 +51,17 @@ var backendChan = []chan string {
     make(chan string),
 }
 
-var supportedProtocols map[int]string
+/*
+* To add support for one more transport manager protocol:
+*    - add a map entry to supportedProtocols
+*    - add a komponent to the muxServer array
+*    - add a component to the transportDataChan array
+*    - add a select case in the main loop
+*/
+var supportedProtocols = map[int]string {
+    0: "HTTP",
+    1: "WebSocket",
+}
 
 var serviceRegChan chan string
 var serviceRegPortNum int = 8082
@@ -82,16 +92,6 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-var actionList = []string {
-    "\"get",
-    "\"set",
-    "\"subscribe",
-    "\"unsubscribe",
-    "\"subscription",
-    "\"getmetadata",
-    "\"authorize",
-}
-
 type RouterTable_t struct {
     mgrId int
     mgrIndex int
@@ -99,8 +99,13 @@ type RouterTable_t struct {
 
 var routerTable []RouterTable_t
 
-var failureResponse = []string {
-    "{\"action\": \"get\", \"requestId\": \"AAA\", \"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}, \"timestamp\": 1234}",
+var errorResponseMap = map[string]interface{} {
+    "MgrId":0,
+    "ClientId":0,
+    "action":"unknown",
+    "requestId":"XXX",
+    "error":"{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}",
+    "timestamp":1234,
 }
 
 /*
@@ -210,20 +215,31 @@ func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
     }
 }
 
+func extractPayload(message string, rMap *map[string]interface{}) {
+    decoder := json.NewDecoder(strings.NewReader(message))
+    err := decoder.Decode(rMap)
+    if err != nil {
+        fmt.Printf("Server core-extractPayload: JSON decode failed for message:%s\n", message)
+        return 
+    }
+}
+
 func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan string, serviceIndex int) {
-    // receive response from service mgr, and forward to transport mgr server
     for {
-        _, message, err := dataConn.ReadMessage()
+        _, response, err := dataConn.ReadMessage()
+        fmt.Printf("Server core: Response from service mgr:%s\n", string(response))
+        var responseMap = make(map[string]interface{})
         if err != nil {
             log.Println("Service datachannel read error:", err)
-            message = []byte("Service unavailable")  // should be correct JSON error messagge
-        }
-        fmt.Printf("Server core: Message from service mgr:%s\n", string(message))
-        if getPayloadAction(string(message)) == actionList[4] {
-            mgrIndex := routerTableSearchForMgrIndex(getPayloadMgrId(string(message)))
-            backendChannel[mgrIndex] <- string(message)  // subscription
+            response = []byte(finalizeResponse(errorResponseMap))  // needs improvement
         } else {
-            serviceDataChan[serviceIndex] <- string(message)  // response to request
+            extractPayload(string(response), &responseMap)
+        }
+        if responseMap["action"] == "subscription" {
+            mgrIndex := routerTableSearchForMgrIndex(int(responseMap["MgrId"].(float64)))
+            backendChannel[mgrIndex] <- string(response)
+        } else {
+            serviceDataChan[serviceIndex] <- string(response)  // response to request
         }
     }
 }
@@ -300,20 +316,6 @@ func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int,
     serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex, backendChannel)
     muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
     log.Fatal(http.ListenAndServe("localhost:8082", muxServer[1]))
-}
-
-/*
-* createProcolMap:
-* To add support for one more transport manager protocol:
-*    - add a map entry below
-*    - add a komponent to the muxServer array
-*    - add a component to the transportDataChan array
-*    - add a select case in the main loop
-*/
-func createProcolMap() {
-    supportedProtocols = make(map[int]string)
-    supportedProtocols[0] = "HTTP"
-    supportedProtocols[1] = "WebSocket"
 }
 
 func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string){
@@ -458,6 +460,24 @@ func getPathLen(path string) int {
     return len(path)
 }
 
+func aggregateValue(oldValue string, newValue string) string {
+    return oldValue + ", " + newValue  // Needs improvement
+}
+
+func aggregateResponse(iterator int, response string, aggregatedResponseMap *map[string]interface{}) {
+    if (iterator == 0) {
+        extractPayload(response, aggregatedResponseMap)
+    } else {
+        var multipleResponseMap map[string]interface{}
+        extractPayload(response, &multipleResponseMap)
+        switch multipleResponseMap["action"] {
+        case "get":
+            (*aggregatedResponseMap)["value"] = aggregateValue((*aggregatedResponseMap)["value"].(string), multipleResponseMap["value"].(string))
+        default: // TODO check if error
+        }
+    }
+}
+
 func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
     searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
     matches := searchTree(request, &searchData[0])
@@ -465,55 +485,54 @@ func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
     if (matches == 0) {
         transportDataChan[tDChanIndex] <- "No match in tree for requested path."  // should be error response
     } else {
-        var aggregatedResponse string
-        for i := 0; i < matches; i++ {
-            pathLen := getPathLen(string(searchData[i].responsePath[:]))
-            serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[i].responsePath[:pathLen]))
+        if (matches == 1) {
+            pathLen := getPathLen(string(searchData[0].responsePath[:]))
+            serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[0].responsePath[:pathLen]))
             response := <- serviceDataChan[sDChanIndex]
-            aggregatedResponse += response + " , "  // not final solution...
+            transportDataChan[tDChanIndex] <- response
+        } else {
+            var aggregatedResponseMap map[string]interface{}
+            for i := 0; i < matches; i++ {
+                pathLen := getPathLen(string(searchData[i].responsePath[:]))
+                serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[i].responsePath[:pathLen]))
+                response := <- serviceDataChan[sDChanIndex]
+                aggregateResponse(i, response, &aggregatedResponseMap)
+            }
+            transportDataChan[tDChanIndex] <- finalizeResponse(aggregatedResponseMap)
         }
-        transportDataChan[tDChanIndex] <- aggregatedResponse
     }
 }
 
-func getPayloadAction(request string) string {
-    for _, element := range actionList {
-        if (strings.Contains(request, element) == true) {
-fmt.Printf("getPayloadAction():element=%s\n", element)
-            return element
-        }
+func finalizeResponse(responseMap map[string]interface{}) string {
+    response, err := json.Marshal(responseMap)
+    if err != nil {
+        fmt.Printf("Server core-finalizeResponse: JSON encode failed.\n")
+        return "JSON marshal error"   // what to do here?
     }
-    return ""
+    return string(response)
 }
-
-// prepends response with'{"MgrID" : xxx , "ClientId" : x ,' copied from request
-func prependResponse(request string, response string) string {
-    cutIndex := strings.Index(request, "\"ClientId\" :") // one space between 'ClientId' and colon
-    if (cutIndex != -1) {
-        cutIndex += 17  // cutIndex points to C, move it to point after comma (x is one digit)
-        return request[:cutIndex] + response[1:]
-    }
-    return "prependResponse() failed"
-}
-
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
-    switch getPayloadAction(request) {
-        case actionList[0]: // get
+    var requestMap = make(map[string]interface{})
+    extractPayload(request, &requestMap)
+    switch requestMap["action"] {
+        case "get":
             retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
-        case actionList[1]: // set
+        case "set":
             retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
-        case actionList[2]: // subscribe
+        case "subscribe":
             retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
-        case actionList[3]: // unsubscribe
+        case "unsubscribe":
             serviceDataChan[sDChanIndex] <- request
             response := <- serviceDataChan[sDChanIndex]
             transportDataChan[tDChanIndex] <- response
-//        case actionList[4]: // getmetadata
-//        case actionList[5]: // authorise
+//        case "getmetadata":
+//        case "authorise":
         default:
-            fmt.Printf("serveRequest():not implemented/unknown action=%s\n", getPayloadAction(request))
-            transportDataChan[tDChanIndex] <- prependResponse(request, failureResponse[0])  // TODO action specific error response
+            fmt.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
+            errorResponseMap["MgrId"] = requestMap["MgrId"]
+            errorResponseMap["ClientId"] = requestMap["ClientId"]
+            transportDataChan[tDChanIndex] <- finalizeResponse(errorResponseMap)
     }
 }
 
@@ -527,7 +546,6 @@ func main() {
         return
     }
 
-    createProcolMap()
     initTransportDataServers(transportDataChan, backendChan)
     fmt.Printf("main():initTransportDataServers() executed...\n")
     transportRegChan := make(chan int, 2*2)

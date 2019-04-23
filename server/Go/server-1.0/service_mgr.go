@@ -187,8 +187,7 @@ func extractPayload(request string, rMap *map[string]interface{}) {
 
 func finalizeResponse(responseMap map[string]interface{}, responseStatus bool) string {
     if (responseStatus == false) {
-//\"error\": {\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}
-    responseMap["error"] = "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}"
+    responseMap["error"] = "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}" // TODO
     }
     responseMap["timestamp"] = 1234
     response, err := json.Marshal(responseMap)
