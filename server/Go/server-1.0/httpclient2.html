@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>HTTP client example POST</h2>
+
+<input id="input-path" type="text" />
+<input id="input-value" type="text" />
+<button onclick="send()">Send</button>
+<pre id="output"></pre>
+
+<script>
+    var inputPath = document.getElementById("input-path");
+    var inputValue = document.getElementById("input-value");
+    var output = document.getElementById("output");
+
+    try {
+        function send() {
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+              output.innerHTML += "Server: " + this.responseText + "\n";
+          };
+          var params = inputValue.value;
+          xhttp.open("POST", "http://localhost:8888/" + inputPath.value, true);
+          xhttp.send(params);
+          inputPath.value = "";
+          inputValue.value = "";
+        }
+    } catch(err) {
+        output.innerHTML += "Error. " + err.message + "\n";
+    }
+
+</script>
+
+</body>
+</html>
+
