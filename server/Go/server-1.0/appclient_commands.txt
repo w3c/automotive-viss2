@@ -6,4 +6,11 @@
 
 {"action":"unsubscribe", "subscriptionId":"789", "requestId":"234"}
 
+{"action":"set", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "value":"999", "requestId":"234"}
 
+
+// for HTTP client POST
+
+Vehicle/Cabin/Door/Row1/Right/IsOpen
+
+999

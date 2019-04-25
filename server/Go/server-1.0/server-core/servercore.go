@@ -231,7 +231,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
         var responseMap = make(map[string]interface{})
         if err != nil {
             log.Println("Service datachannel read error:", err)
-            response = []byte(finalizeResponse(errorResponseMap))  // needs improvement
+            response = []byte(finalizeMessage(errorResponseMap))  // needs improvement
         } else {
             extractPayload(string(response), &responseMap)
         }
@@ -405,50 +405,17 @@ func initVssFile() bool{
 	return true
 }
 
-// the below impl is *not* robust
-func extractPath(request string) string {
-    pathValueStart := strings.Index(request, "\"path\":") // colon must follow directly after 'path'
-    if (pathValueStart != -1) {
-        pathValueStart += 7  // to point to first char after :
-        pathValueEnd := strings.Index(request[pathValueStart:], "\",") // '",' must follow directly after the path value
-        pathValueEnd += pathValueStart // point before '"'
-        fmt.Printf("extractPath(): pathValueStart = %d, pathValueEnd = %d, path=%s\n", pathValueStart, pathValueEnd, request[pathValueStart+1:pathValueEnd])
-        return request[pathValueStart+1:pathValueEnd]
-    } else {
-        return ""
-    }
-}
-
-func searchTree(request string, searchData *searchData_t) int {
-    path := extractPath(request)
+func searchTree(path string, searchData *searchData_t) int {
     fmt.Printf("getMatches(): path=%s\n", path)
     if (len(path) > 0) {
         // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
         cpath := C.CString(path)
         var matches C.int = C.VSSSearchNodes(cpath, nodeHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
-//        var matches C.int = C.VSSSimpleSearch(cpath, nodeHandle, false)
         C.free(unsafe.Pointer(cpath))
         return int(matches)
     } else {
         return 0
     }
-}
-
-func updateRequestPath(request string, path string) string {
-    decoder := json.NewDecoder(strings.NewReader(request))
-    var jsonMap map[string]interface{}
-    err := decoder.Decode(&jsonMap)
-    if err != nil {
-        fmt.Printf("Server core-updateRequestPath: JSON decode failed for request:%s\n", request)
-        return ""
-    }
-    jsonMap["path"] = path
-    updatedRequest, err2 := json.Marshal(jsonMap)
-    if err2 != nil {
-        fmt.Printf("Server core-updateRequestPath: JSON encode failed for request:%s\n", request)
-        return ""
-    }
-    return string(updatedRequest)
 }
 
 func getPathLen(path string) int {
@@ -478,35 +445,36 @@ func aggregateResponse(iterator int, response string, aggregatedResponseMap *map
     }
 }
 
-func retrieveServiceResponse(request string, tDChanIndex int, sDChanIndex int) {
+func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
     searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
-    matches := searchTree(request, &searchData[0])
-    fmt.Printf("retrieveServiceResponse():received request from transport manager %d:%s. No of matches=%d\n", tDChanIndex, request, matches)
+    matches := searchTree(requestMap["path"].(string), &searchData[0])
     if (matches == 0) {
         transportDataChan[tDChanIndex] <- "No match in tree for requested path."  // should be error response
     } else {
         if (matches == 1) {
             pathLen := getPathLen(string(searchData[0].responsePath[:]))
-            serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[0].responsePath[:pathLen]))
+            requestMap["path"] = string(searchData[0].responsePath[:pathLen])
+            serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
             response := <- serviceDataChan[sDChanIndex]
             transportDataChan[tDChanIndex] <- response
         } else {
             var aggregatedResponseMap map[string]interface{}
             for i := 0; i < matches; i++ {
                 pathLen := getPathLen(string(searchData[i].responsePath[:]))
-                serviceDataChan[sDChanIndex] <- updateRequestPath(request, string(searchData[i].responsePath[:pathLen]))
+                requestMap["path"] = string(searchData[0].responsePath[:pathLen])
+                serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
                 response := <- serviceDataChan[sDChanIndex]
                 aggregateResponse(i, response, &aggregatedResponseMap)
             }
-            transportDataChan[tDChanIndex] <- finalizeResponse(aggregatedResponseMap)
+            transportDataChan[tDChanIndex] <- finalizeMessage(aggregatedResponseMap)
         }
     }
 }
 
-func finalizeResponse(responseMap map[string]interface{}) string {
+func finalizeMessage(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
-        fmt.Printf("Server core-finalizeResponse: JSON encode failed.\n")
+        fmt.Printf("Server core-finalizeMessage: JSON encode failed.\n")
         return "JSON marshal error"   // what to do here?
     }
     return string(response)
@@ -517,22 +485,22 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
     extractPayload(request, &requestMap)
     switch requestMap["action"] {
         case "get":
-            retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
+            retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
         case "set":
-            retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
+            retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
         case "subscribe":
-            retrieveServiceResponse(request, tDChanIndex, sDChanIndex)
+            retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
         case "unsubscribe":
             serviceDataChan[sDChanIndex] <- request
             response := <- serviceDataChan[sDChanIndex]
             transportDataChan[tDChanIndex] <- response
 //        case "getmetadata":
-//        case "authorise":
+//        case "authorize":
         default:
             fmt.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
             errorResponseMap["MgrId"] = requestMap["MgrId"]
             errorResponseMap["ClientId"] = requestMap["ClientId"]
-            transportDataChan[tDChanIndex] <- finalizeResponse(errorResponseMap)
+            transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
     }
 }
 
