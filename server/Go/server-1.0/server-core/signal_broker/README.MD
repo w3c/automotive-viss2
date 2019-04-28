@@ -5,23 +5,31 @@ The function
   func getHardCodedSignalSettings(vin string)(*settings)
 ```
 
-returns the two signal tree subsets from the namespaces BodyCANhs and ChassisCANhs. To add remove signals from these , idenfify can frame name and can signal name and add 
+returns the two signal tree subsets from the namespaces BodyCANhs and ChassisCANhs. To add remove signals from these , idenfify can frame name and can signal name and add accordingly:(for more info: https://github.com/volvo-cars/signalbroker-server)
+
+
 ```
 ...
   {Frameid: "VDDMChasFr01",
-						Sigids: []signalid{
-							{Identifier: "PtTqAtAxleFrntMaxReq_UB"},
-						},
-					},
+	Sigids: []signalid{
+		{Identifier: "PtTqAtAxleFrntMaxReq_UB"},
+		},
+  },
 ...
 ```
+
 The api contains only one function:
 
 ```
-
+func GetResponseReceiver()(*grpc.ClientConn,base.NetworkService_SubscribeToSignalsClient)
 ```
 
+which returns a gprc client connection and response stream. brokertest.go contains an example on how to use.
 
+The constant broker_adress points to the current signal broker ip adress and must be assigned accordingly.
 
-
-"10.251.177.181:50051"
+```
+const (
+	broker_adress = "10.251.177.181:50051"
+)
+```
