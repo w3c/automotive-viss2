@@ -180,7 +180,7 @@ func getSignaId(signalName string,namespaceName string) *base.SignalId{
 
 func readVehicleSettingsFromDB(vin string)(string,*base.SubscriberConfig){
 
-	data := getHardCodedSignalSettings(vin);
+	data := getHardCodedSignalSettings(vin); // this should be replaced by an actual call to a vehicle settings db.
 
 
 	var signalids []*base.SignalId;
