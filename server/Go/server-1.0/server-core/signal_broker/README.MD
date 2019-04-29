@@ -18,13 +18,15 @@ returns the two signal tree subsets from the namespaces BodyCANhs and ChassisCAN
 ...
 ```
 
-The api contains only one function:
+The api contains two functions:
 
 ```
 func GetResponseReceiver()(*grpc.ClientConn,base.NetworkService_SubscribeToSignalsClient)
+func PrintSignalTree(clientconnection *grpc.ClientConn)
 ```
 
-which returns a gprc client connection and response stream. brokertest.go contains an example on how to use.
+GetResponseReceiver returns a gprc client connection and response stream. brokertest.go contains an example on how to use.
+PrintSignalTree prints the current signal tree to the console.
 
 The constant broker_adress points to the current signal broker ip adress and must be assigned accordingly.
 
