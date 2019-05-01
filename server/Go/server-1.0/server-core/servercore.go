@@ -29,11 +29,11 @@ import (
 import "C"
 
 import "unsafe"
-var nodeHandle C.long
+var rootHandle C.long
 
 type searchData_t struct {  // searchData_t defined in vssparserutilities.h
     responsePath [512]byte  // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-    foundNodeHandles int64  // defined as long in vssparserutilities.h
+    foundNodeHandle int64  // defined as long in vssparserutilities.h
 }
 
 var transportRegChan chan int
@@ -391,16 +391,13 @@ func updateServiceRouting(portNo string, rootNode string) {
 func initVssFile() bool{
 	filePath := "vss_rel_1.0.cnative"
 	cfilePath := C.CString(filePath)
-	nodeHandle = C.VSSReadTree(cfilePath)
+	rootHandle = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
 
-	if (nodeHandle == 0) {
+	if (rootHandle == 0) {
 //		log.Error("Tree file not found")
 		return false
 	}
-
-//	nodeName := C.GoString(C.getName(nodeHandle))
-//	log.Trace("Root node name = ", nodeName)
 
 	return true
 }
@@ -410,7 +407,7 @@ func searchTree(path string, searchData *searchData_t) int {
     if (len(path) > 0) {
         // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
         cpath := C.CString(path)
-        var matches C.int = C.VSSSearchNodes(cpath, nodeHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
+        var matches C.int = C.VSSSearchNodes(cpath, rootHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
         C.free(unsafe.Pointer(cpath))
         return int(matches)
     } else {
@@ -475,9 +472,92 @@ func finalizeMessage(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
         fmt.Printf("Server core-finalizeMessage: JSON encode failed.\n")
-        return "JSON marshal error"   // what to do here?
+        return "{\"error\":\"JSON marshal error\"}"   // what to do here?
     }
     return string(response)
+}
+
+
+func removeQuery(path string) string {
+    pathEnd := strings.Index(path, "?$spec")
+    if (pathEnd != -1) {
+        return path[:pathEnd]
+    }
+    return path
+}
+
+// vssparserutilities.h: nodeTypes_t; 0-9 -> the data types, 10-16 -> the node types. Should be separated in the C code declarations...
+func nodeTypesToString(nodeType int) string {
+    switch (nodeType) {
+      case 0:  return "int8"
+      case 1: return "uint8"
+      case 2: return "int16"
+      case 3: return "uint16"
+      case 4: return "int32"
+      case 5:  return "uint32"
+      case 6: return "double"
+      case 7: return "float"
+      case 8: return "boolean"
+      case 9: return "string"
+      case 10: return "sensor"
+      case 11: return "actuator"
+      case 12: return "stream"
+      case 13: return "attribute"
+      case 14:  return "branch"
+      case 15: return "rbranch"
+      case 16: return "element"
+      default:
+          return ""
+    }
+}
+
+func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string) string{
+    var newJsonBuffer string
+    nodeName := C.GoString(C.getName(nodeHandle))
+    newJsonBuffer += `"` + nodeName + `":{`
+    nodeType := int(C.getType(nodeHandle))
+    newJsonBuffer += `"type":` + `"` + nodeTypesToString(nodeType) + `",`
+    nodeDescr := C.GoString(C.getDescr(nodeHandle))
+    newJsonBuffer += `"description":` + `"` + nodeDescr + `",`
+    nodeNumofChildren := int(C.getNumOfChildren(nodeHandle))
+    switch (nodeType) {
+      case 14:  // branch
+      case 15: // rbranch
+      case 16: // element
+      case 10: // sensor
+          fallthrough
+      case 11: // actuator
+          fallthrough
+      case 13: // attribute
+          nodeDatatype := int(C.getDatatype(nodeHandle))
+          newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
+      case 12: // stream
+      default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...
+    }
+    if (nodeNumofChildren > 0) {
+        newJsonBuffer += `"children":` + "{"
+    }
+    for i := 0 ; i < nodeNumofChildren ; i++ {
+        childNode := C.long(C.getChild(nodeHandle, C.int(i)))
+        newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer)
+    }
+    if (nodeNumofChildren > 0) {
+        newJsonBuffer += "}"
+    }
+    newJsonBuffer += "}"
+    return jsonBuffer + newJsonBuffer
+}
+
+func synthesizeJsonTree(path string) string {
+    var jsonBuffer string
+    searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
+    matches := searchTree(path, &searchData[0])
+    if (matches == 0) {
+        return ""
+    }
+    rootNode := C.long(searchData[0].foundNodeHandle)
+    jsonBuffer = jsonifyTreeNode(rootNode, jsonBuffer)
+    return "{" + jsonBuffer + "}"
 }
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
@@ -494,8 +574,13 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
             serviceDataChan[sDChanIndex] <- request
             response := <- serviceDataChan[sDChanIndex]
             transportDataChan[tDChanIndex] <- response
-//        case "getmetadata":
-//        case "authorize":
+        case "getmetadata":
+            path := removeQuery(requestMap["path"].(string))
+            requestMap["metadata"] = synthesizeJsonTree(path)  //TODO handle error case
+            delete(requestMap, "path")
+            requestMap["timestamp"] = 1234
+            transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
+//        case "authorize":  //TODO
         default:
             fmt.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
             errorResponseMap["MgrId"] = requestMap["MgrId"]

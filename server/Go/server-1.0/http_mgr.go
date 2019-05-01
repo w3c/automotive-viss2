@@ -117,6 +117,7 @@ func pathToUrl(path string) string {  // not needed?
 	return "/" + url
 }
 
+// TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string){
     path := urlToPath(req.RequestURI)
     fmt.Printf("HTTP method:%s, path: %s\n", req.Method, path)
@@ -131,16 +132,11 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
            requestMap["path"] = path
            requestMap["requestId"] = strconv.Itoa(requestTag)
            requestTag++
-      case "POST":  // set/authorize
-           if (strings.Contains(path, "$token")) {
-               requestMap["action"] = "authorize"
-               requestMap["tokens"] = "dummyToken"  //insert token from http request
-           } else {
-               requestMap["action"] = "set"
-               requestMap["path"] = path
-               body,_ := ioutil.ReadAll(req.Body)
-               requestMap["value"] = string(body)
-           }
+      case "POST":  // set
+           requestMap["action"] = "set"
+           requestMap["path"] = path
+           body,_ := ioutil.ReadAll(req.Body)
+           requestMap["value"] = string(body)
            requestMap["requestId"] = strconv.Itoa(requestTag)
            requestTag++
       default:
