@@ -446,7 +446,11 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
     searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
     matches := searchTree(requestMap["path"].(string), &searchData[0])
     if (matches == 0) {
-        transportDataChan[tDChanIndex] <- "No match in tree for requested path."  // should be error response
+        errorResponseMap["MgrId"] = requestMap["MgrId"]
+        errorResponseMap["ClientId"] = requestMap["ClientId"]
+        errorResponseMap["action"] = requestMap["action"]
+        errorResponseMap["requestId"] = requestMap["requestId"]
+        transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
     } else {
         if (matches == 1) {
             pathLen := getPathLen(string(searchData[0].responsePath[:]))
@@ -583,8 +587,8 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 //        case "authorize":  //TODO
         default:
             fmt.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
-            errorResponseMap["MgrId"] = requestMap["MgrId"]
-            errorResponseMap["ClientId"] = requestMap["ClientId"]
+            errorResponseMap["MgrId"] = 0 //??
+            errorResponseMap["ClientId"] = 0 //??
             transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
     }
 }

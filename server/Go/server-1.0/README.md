@@ -7,6 +7,9 @@ Functionality: <br>
 		- Access restriction not implemented. <br>
 		- Responses for error cases may not be correct (or even have JSON format).<br>
 		- Only one service manager can register with the core server.<br>
+		- The service manager returns dummy values for get.<br>
+		- The service manager does not update values for set.<br>
+		- The service manager returns dummy values every five secs for subscription.<br>
 
 Implementation language: Go for server, JS for app-clients.
 
