@@ -2,32 +2,59 @@
 <html>
 <body>
 
-<h2>HTTP client example POST</h2>
+<h2>HTTP client example</h2>
 
-<input id="input-path" type="text" />
-<input id="input-value" type="text" />
-<button onclick="send()">Send</button>
-<pre id="output"></pre>
+<div>
+<input id="post-path" type="text" placeholder="url path"/>
+<input id="post-value" type="text" placeholder="input value" />
+<button onclick="sendPost()">POST</button>
+<pre id="post-output"></pre>
+</div>
+<div>
+<input id="get-path" type="text" placeholder="url path" />
+<button onclick="sendGet()">GET</button>
+<pre id="get-output"></pre>
+</div>
 
 <script>
-    var inputPath = document.getElementById("input-path");
-    var inputValue = document.getElementById("input-value");
-    var output = document.getElementById("output");
+    var postPath = document.getElementById("post-path");
+    var postValue = document.getElementById("post-value");
+    var getPath = document.getElementById("get-path");
+    var postOutput = document.getElementById("post-output");
+    var getOutput = document.getElementById("get-output");
 
     try {
-        function send() {
+        function sendPost() {
           var xhttp = new XMLHttpRequest();
           xhttp.onreadystatechange = function() {
-              output.innerHTML += "Server: " + this.responseText + "\n";
+              postOutput.innerHTML += "Server: " + this.responseText + "\n";
           };
-          var params = inputValue.value;
-          xhttp.open("POST", "http://localhost:8888/" + inputPath.value, true);
+          var params = postValue.value;
+          xhttp.open("POST", "http://localhost:8888/" + postPath.value, true);
           xhttp.send(params);
-          inputPath.value = "";
-          inputValue.value = "";
+          postPath.value = "";
+          postValue.value = "";
         }
     } catch(err) {
-        output.innerHTML += "Error. " + err.message + "\n";
+        postOutput.innerHTML += "Error. " + err.message + "\n";
+    }
+
+    try {
+        function sendGet() {
+          var xhttp2 = new XMLHttpRequest();
+          xhttp2.onreadystatechange = function() {
+              if(this.readyState == 4 && this.status == 200) {
+                  getOutput.innerHTML += "Server: " + this.responseText + "\n";
+              } else {
+                  getOutput.innerHTML += "Server: readyState=" + this.readyState + ", status=" + this.status + "\n";
+              }
+          };
+          xhttp2.open("GET", "http://localhost:8888/" + getPath.value, true);
+          xhttp2.send(null);
+          getPath.value = "";
+        }
+    } catch(err) {
+        getOutput.innerHTML += "Error. " + err.message + "\n";
     }
 
 </script>
