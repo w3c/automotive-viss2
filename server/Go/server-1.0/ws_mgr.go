@@ -177,7 +177,7 @@ func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan stri
     serverIndex := 0
     appClientHandler := makeappClientHandler(appClientChan, clientBackendChannel, &serverIndex)
     muxServer.HandleFunc("/", appClientHandler)
-    log.Fatal(http.ListenAndServe("localhost:8080", muxServer))
+    log.Fatal(http.ListenAndServe(":8080", muxServer))
 }
 
 func extractPayload(request string, rMap *map[string]interface{}) {
