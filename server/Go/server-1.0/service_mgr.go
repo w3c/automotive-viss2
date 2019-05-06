@@ -252,6 +252,7 @@ func main() {
             dataChan <- finalizeResponse(responseMap, responseStatus)
         default:
             checkSubscription(subscriptionChan, backendChan, subscriptionMap)
+            time.Sleep(50*time.Millisecond)
         } // select
     } // for
 }
