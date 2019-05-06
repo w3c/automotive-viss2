@@ -271,7 +271,6 @@ func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, 
         select {
             case request := <- serviceDataChannel:
                 frontendServiceDataComm(dataConn, request)
-//            default:
         }
     }
 }
@@ -627,6 +626,7 @@ func main() {
             updateServiceRouting(portNo, rootNode)
 //        case xxx := <- serviceDataChan[0]:    // for asynchronous routing, instead of the synchronous above. ToDo?
         default:
+            time.Sleep(50*time.Millisecond)
         }
     }
 }
