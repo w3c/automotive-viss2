@@ -8,15 +8,14 @@ class W3CRestClient extends W3CClient{
 
      }
     setup(){
-        //this.send_post_request("Vehicle/Cabin/Door/Row1/Right/IsOpen");
+
     }
 
     send_get_request(request){
         $.ajax({
             type: "GET",
-            url: "http://localhost:8888/" + request,
-            dataType: 'jsonp',
-            accept: 'application/json',
+            url: "http://192.168.150.131:8888/" + request,
+
             success: this.message_success,
             error: function()
             {
@@ -29,10 +28,8 @@ class W3CRestClient extends W3CClient{
     send_post_request(request, value){
         $.ajax({
             type: "POST",
-            url: "http://localhost:8888/" + request,
-            dataType: 'jsonp',
-            data: {"value": value},
-            accept: 'application/json',
+            url: "http://192.168.150.131:8888/" + request,
+            data: "123",
             success: this.message_success,
             error: function()
             {
@@ -43,10 +40,8 @@ class W3CRestClient extends W3CClient{
     }
 
     message_success(request){
-        console.log(request);
-        //var request = JSON.parse(event);
         W3CClient.prototype.handleRequest(request) // does nothing atm
-
+        W3CRestClient.prototype.addLog(request, 'rest-receive-log-list');
         switch(request.action){
             case "get":
                 if (request.path in available_signals) {
@@ -63,23 +58,23 @@ class W3CRestClient extends W3CClient{
     }
 	
 	requestGet(path){
-		//{"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":"123"}
-		send_get_request(path);
+        W3CRestClient.prototype.addLog(path, 'rest-send-log-list');
+		this.send_get_request(path);
 	}
 
 	requestSet(path, value){
-		//{"action":"set", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "value":"999", "requestId":"234"}
-		send_post_request(path, value);
+        W3CRestClient.prototype.addLog(path + ", data: " + value, 'rest-send-log-list');
+		this.send_post_request(path, value);
 	}
 
-	subscribe(path){
-		//{"action":"subscribe", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":"234"}
-		//socket.send(JSON.stringify({ 'action': 'subscribe', 'path': path, 'requestId': 234}));
-	}
-
-	unsubscribe(){
-		//{"action":"unsubscribe", "subscriptionId":"789", "requestId":"234"}
-		//socket.send(JSON.stringify({ 'action': 'unsubscribe', 'path': path, 'requestId': 234}));
+    addLog(value, log_id){
+        var log_item = document.createElement('li');
+        log_item.appendChild(document.createTextNode(value));
+        log_item.classList.add("list-group-item");
+        
+        var sendLog = document.getElementById(log_id);
+        sendLog.append(log_item);
+        sendLog.scrollTop = sendLog.scrollHeight;
 	}
 
     updateSpeedometerValue(id, value){

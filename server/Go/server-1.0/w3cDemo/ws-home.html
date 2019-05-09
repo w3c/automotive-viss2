@@ -1,9 +1,8 @@
-
 <html>
     <link href="css/speedometer.css" rel="stylesheet" type="text/css" />
     <link href="css/bootstrap.css" rel="stylesheet" type="text/css" />
     <link href="css/bootstrap-grid.css" rel="stylesheet" type="text/css" />
-    <script src="js/jquery-3.4.0.slim.min.js"></script>
+    <script src="js/jquery-3.4.0.min.js"></script>
     <script src="js/speedometer.js"></script>
     <script src="js/popper.min.js"></script>
     <script src="js/bootstrap.js"></script>
@@ -20,17 +19,24 @@
         client.setup();
 		
 		function startSpeedSubscription(){
-            client.subscribe("");
+            //client.subscribe("");
+            client.requestGet("Vehicle.Cabin.Door.Row1.Right.IsOpen");
         }
 
         function stopSpeedSubscription(){
             // get id from somewhere
-            client.unsubscribe();
+            //client.unsubscribe();
         }
-        
-        
+              
     </script>
-    
+    <style>
+        /* scroll to bottom of log */
+        .list-group{
+            max-height: 300px;
+            margin-bottom: 10px;
+            overflow:scroll;
+        }
+    </style>
     <body>
         <nav class="navbar navbar-expand-lg navbar-light bg-light">
             <div class="collapse navbar-collapse justify-content-center">
@@ -49,7 +55,7 @@
 			<div class="row">
 			  <div class="col text-center">
 					<button type="button" class="btn" onclick="startSpeedSubscription();">Start Subscription</button>
-					<button type="button" class="btn" onclick="stopSpeedSubscription();">Stop Subscription</button>
+                    <button type="button" class="btn" onclick="stopSpeedSubscription();">Stop Subscription</button>
 			  </div>
 			</div>
 			<div class="row">
@@ -64,10 +70,16 @@
 					<!-- add some other buttons and gauges here-->
 				</div>
 			</div>
+			<div class="row" id="ws-log-content">
+                <div class="col-6">
+                    <h4>Requests</h4>
+                    <ul class="list-group" id="ws-send-log-list">
+                </div>
+                <div class="col-6">
+                    <h4>Responses</h4>
+                    <ul class="list-group" id="ws-receive-log-list">
+                </div>
             </div>
         </div>    
     </body>
 </html>
-
-
- 
