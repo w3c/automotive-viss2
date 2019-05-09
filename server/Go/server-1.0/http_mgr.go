@@ -109,7 +109,7 @@ func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
 
 func urlToPath(url string) string {
 	var path string = strings.TrimPrefix(strings.Replace(url, "/", ".", -1), ".")
-	return path[1:]
+	return path[:]
 }
 
 func pathToUrl(path string) string {  // not needed?
@@ -117,6 +117,7 @@ func pathToUrl(path string) string {  // not needed?
 	return "/" + url
 }
 
+// TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string){
     path := urlToPath(req.RequestURI)
     fmt.Printf("HTTP method:%s, path: %s\n", req.Method, path)
@@ -131,16 +132,11 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
            requestMap["path"] = path
            requestMap["requestId"] = strconv.Itoa(requestTag)
            requestTag++
-      case "POST":  // set/authorize
-           if (strings.Contains(path, "$token")) {
-               requestMap["action"] = "authorize"
-               requestMap["tokens"] = "dummyToken"  //insert token from http request
-           } else {
-               requestMap["action"] = "set"
-               requestMap["path"] = path
-               body,_ := ioutil.ReadAll(req.Body)
-               requestMap["value"] = string(body)
-           }
+      case "POST":  // set
+           requestMap["action"] = "set"
+           requestMap["path"] = path
+           body,_ := ioutil.ReadAll(req.Body)
+           requestMap["value"] = string(body)
            requestMap["requestId"] = strconv.Itoa(requestTag)
            requestTag++
       default:
@@ -151,7 +147,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
     clientChannel <- finalizeResponse(requestMap) // forward to mgr hub, 
     response := <- clientChannel    //  and wait for response
 
-    backendHttpAppSession(response, w)
+    backendHttpAppSession(response, &w)
 }
 
 func extractPayload(message string, rMap *map[string]interface{}) {
@@ -163,36 +159,36 @@ func extractPayload(message string, rMap *map[string]interface{}) {
     }
 }
 
-func backendHttpAppSession(message string, w http.ResponseWriter){
+func backendHttpAppSession(message string, w *http.ResponseWriter){
         fmt.Printf("backendWSAppSession(): Message received=%s\n", message)
 
         var responseMap = make(map[string]interface{})
         extractPayload(message, &responseMap)
         var response string
+        if (responseMap["error"] != nil) {
+            http.Error(*w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
+            return
+        }
         switch responseMap["action"] {
           case "get":
-              if _, ok := responseMap["error"]; ok {
-                  http.Error(w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
-              } else {
-                  response = responseMap["value"].(string)
-              }
+              response = responseMap["value"].(string)
           case "getmetadata":
-              if _, ok := responseMap["error"]; ok {
-                  http.Error(w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
-              } else {
-                  response = responseMap["metadata"].(string)
-              }
+              response = responseMap["metadata"].(string)
           case "set":
-              if _, ok := responseMap["error"]; ok {
-                  http.Error(w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
-              } else {
-                  response = "200 OK"
-              }
+              response = "200 OK"  //??
           default:
-              http.Error(w, "500 Internal error", http.StatusInternalServerError)  // TODO select error code from responseMap-error:number
+              http.Error(*w, "500 Internal error", http.StatusInternalServerError)  // TODO select error code from responseMap-error:number
+              return
 
         }
-        w.Write([]byte(response))
+        resp := []byte(response)
+        (*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
+        (*w).Header().Set("Access-Control-Allow-Origin", "*") 
+
+        written, err := (*w).Write(resp)
+        if (err != nil) {
+            fmt.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
+        }
 }
 
 func makeappClientHandler(appClientChannel []chan string) func(http.ResponseWriter, *http.Request) {
@@ -202,14 +198,14 @@ func makeappClientHandler(appClientChannel []chan string) func(http.ResponseWrit
             fmt.Printf("Client call to incorrect port number for websocket connection.\n")
             return
         }
-        go frontendHttpAppSession(w, req, appClientChannel[0])  // array not needed
+        /*go*/ frontendHttpAppSession(w, req, appClientChannel[0])  // array not needed
     }
 }
 
 func initClientServer(muxServer *http.ServeMux) {
     appClientHandler := makeappClientHandler(appClientChan)
     muxServer.HandleFunc("/", appClientHandler)
-    log.Fatal(http.ListenAndServe("localhost:8888", muxServer))
+    log.Fatal(http.ListenAndServe(":8888", muxServer))
 }
 
 func finalizeResponse(responseMap map[string]interface{}) string {

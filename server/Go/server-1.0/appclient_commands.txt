@@ -1,3 +1,5 @@
+// Websocket requests
+
 {"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":"123"}
 
 {"action":"get", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":"234"}
@@ -8,9 +10,21 @@
 
 {"action":"set", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "value":"999", "requestId":"234"}
 
+{"action":"getmetadata", "path":"Vehicle.Cabin.Door.Row1.Right?$spec", "requestId":"234"}
 
-// for HTTP client POST
 
-Vehicle/Cabin/Door/Row1/Right/IsOpen
+// HTTP requests
 
-999
+Get command
+HTTP GET 
+URL=Vehicle/Cabin/Door/Row1/Right/IsOpen
+
+Set command
+HTTP POST 
+URL=Vehicle/Cabin/Door/Row1/Right/IsOpen
+Payload=123
+
+Getmetadata command
+HTTP GET 
+URL=Vehicle/Cabin/Door/Row1/Right?$spec
+

@@ -1,11 +1,15 @@
 # Project: W3C_VehicleSignalInterfaceImpl: server/server-1.0
 
-Functionality: 
-	Long term: Server implementation following the project SwA, with capability to serve multiple app-clients over both WebSockets and HTTP protocols in parallel.
-	Short term limitations: 
-		- Only the WebSocket protocol is supported, with max two parallel app-clients. 
-		- Service discovery and access restriction not implemented. 
-		- Payload parsing is not robust. Payloads to use from app client should be copied from appclient_commands.txt
+Functionality: <br>
+	Long term: Server implementation following the project SwA, with capability to serve multiple app-clients over both WebSockets and HTTP protocols in parallel.<br>
+	Short term limitations: <br>
+		- Max two parallel app-clients for each of HTTP and Websoclket protocols. <br>
+		- Access restriction not implemented. <br>
+		- Responses for error cases may not be correct (or even have JSON format).<br>
+		- Only one service manager can register with the core server.<br>
+		- The service manager returns dummy values for get.<br>
+		- The service manager does not update values for set.<br>
+		- The service manager returns dummy values every five secs for subscription.<br>
 
 Implementation language: Go for server, JS for app-clients.
 
@@ -13,35 +17,36 @@ Implementation language: Go for server, JS for app-clients.
 ## Build instructions:
 Run the following go programs in separate terminal windows, then start the app client in a browser.
 
-Server core:
-$ go build
-$ ./server-core
-
-Service manager mgr:
-$ go run service_mgr.go
-
-Websocket protocol mgr:
-$ go run ws_mgr.go
-
-Start websocket app-client:
-Click on wsclient.html (or wsclient2.html)
-
+Server core:<br>
+$ go build<br>
+$ ./server-core<br>
+Service manager mgr:<br>
+$ go run service_mgr.go<br>
+Websocket protocol mgr:<br>
+$ go run ws_mgr.go<br>
+HTTP protocol mgr:<br>
+$ go run http_mgr.go<br>
+Start websocket app-client:<br>
+Click on wsclient.html (and/or wsclient2.html)<br>
+Start HTTP app-client:<br>
+Click on httpclient.html (and/or httpclient2.html)<br>
 The order of starting the different programs should be:
 1. servercore.go
 2. service_mgr.go
-3. ws_mgr.go
-4. wsclient.html
+3. ws_mgr.go and/or http_mgr.go
+4. wsclient.html and/or httpclient.html
 
 After the startup sequence above, write any VISS request with correct JSON syntax in the app client input field, e. g.:
 {"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":123}
-and after pushing Send a response starting with "Server:" followed by the JSON formatted request in which '"Mgrid":xxxx, "ClientId":yyy' has been inserted before the initial request payload, will be returned. 
+and after pushing Send a response starting with "Server:" followed by the JSON formatted response, will be shown in the client browser tab. 
 If the path in the request have several matches in the tree, the response will be concatenated by the number of matches (the example above 8 times).
-It is possible to start a second app-client (wsclient2.html) and send request from one or the other client. 
-The Mgrid and Clientid are server internal routing data, and should be removed from the response before reaching the app-client, but kept here for improved error checking.
+It is possible to start a second app-client and send request from one or the other client (see restrictions at the top). 
 
-Terminate client by closing browser tab.
+To terminate a client close the browser tab.
 
-Terminate core server, websocket transport manager, and service manager by Ctrl-C in respective terminal window.
+Terminate core server, websocket/HTTP transport managers, and service manager by Ctrl-C in respective terminal window.
+
+The appclient_commands.txt file contains a few examples of requests that can be copied into the send fields of the clients. Feel free to modify the request before sending.
 
 ## Software implementation
 Figures 1 and 2 shows the design of the core server and the Websocket transport manager, respectively. The design is based on the high level Sw Architecture description found in the README of the root directory.<br>
@@ -69,3 +74,6 @@ The Websocket transport protocol manager is partitioned in the following logical
 * Fig. 2 Websocket transport manager design<br>
 The Websocket hub and WS servers run in separate Go routines, each having separate frontend and a backend go routine, and communicate with each other via Go channels.<br>
 The data communication with the core server uses the Websocket protocol, as well as its communication with the app-clients.<br>
+The HTTP manager has the same architecture as the WS manager. It converts the request data from the HTTP call into the Websocket format before sending it to the core server, and it converts the Websocket response from the core server into the HTTP response before sending it back to the app-client.<br>
+The HTTP manager supports the same functional set of requests as the Websocket manager, except for subscription.<br>
+The pattern for the access restriction use case is slightly different, as the token is to be included in the get/set request, and not sent as a separate request as in the WS pattern. However, currently the support for access restriction is not implemented.
