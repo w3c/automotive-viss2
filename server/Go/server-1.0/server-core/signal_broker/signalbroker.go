@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"google.golang.org/grpc"
-	"W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/proto_files"
+	"os"
+	"../proto_files"
 	log "github.com/sirupsen/logrus"
 	// "W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/util"
 )
 
 const (
-	broker_adress = "10.251.177.181:50051"
+	broker_adress = "localhost:50051"
 )
 // print current configuration to the console
 func PrintSignalTree(clientconnection *grpc.ClientConn) {
@@ -102,10 +103,11 @@ type VehiclesList struct{
 	Vehicles []settings `json:vehicles`
 }
 
+/*
 func getHardCodedSignalSettings(vin string)(*settings){
 	data := &settings{
 		Namespaces: []spaces{
-			{Name: " BodyCANhs",
+			{Name: "BodyCANhs",
 				Frames: []framee{
 					{Frameid: "DDMBodyFr01",
 						Sigids: []signalid{
@@ -120,6 +122,12 @@ func getHardCodedSignalSettings(vin string)(*settings){
 							{Identifier: "DevDataForPrkgAssi9Byte0"},
 							{Identifier: "DevDataForPrkgAssi9Byte1"},
 							{Identifier: "DevDataForPrkgAssi9Byte2"},
+						},
+					},
+					{Frameid: "CEMBodyFr28",
+					
+						Sigids: []signalid{
+							{Identifier: "VehSpdIndcdVal"},
 						},
 					},
 				},
@@ -169,6 +177,26 @@ func getHardCodedSignalSettings(vin string)(*settings){
 
 	return data;
 }
+*/
+
+func getHardCodedSignalSettings(vin string)(*settings){
+	data := &settings{
+		Namespaces: []spaces{
+			{Name: "BodyCANhs",
+				Frames: []framee{
+					{Frameid: "CEMBodyFr28",
+					
+						Sigids: []signalid{
+							{Identifier: "VehSpdIndcdVal"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return data;
+}
 
 func getSignaId(signalName string,namespaceName string) *base.SignalId{
 	return &base.SignalId{
@@ -207,7 +235,7 @@ func readVehicleSettingsFromDB(vin string)(string,*base.SubscriberConfig){
 		Signals: &base.SignalIds{
 			SignalId:signalids,
 		},
-		OnChange: false,
+		OnChange: true,
 	}
 
 	// assign namespace to first
@@ -218,11 +246,12 @@ func readVehicleSettingsFromDB(vin string)(string,*base.SubscriberConfig){
 func GetResponseReceiver()(*grpc.ClientConn,base.NetworkService_SubscribeToSignalsClient){
 	conn, err := grpc.Dial(broker_adress,grpc.WithInsecure())
 	if (err != nil){
-		log.Debug("could not connect to broker", err);
+		log.Error("could not connect to broker", err);
+		os.Exit(-1);
 	}
 
 	_, signals := readVehicleSettingsFromDB("sommevin");
-	PrintSignalTree(conn);
+	//PrintSignalTree(conn);
 	c := base.NewNetworkServiceClient(conn);
 
 	response, err := c.SubscribeToSignals(context.Background(),signals);

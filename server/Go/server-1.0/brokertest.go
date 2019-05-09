@@ -2,17 +2,19 @@ package main
 
 import(
 	log "github.com/sirupsen/logrus"
-	"W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/util"
-	"W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/signal_broker"
+	"./server-core/util"
+	"./server-core/signal_broker"
 )
 
 func main() {
 	util.InitLogger()
 	// Test connection
 	conn,response := signal_broker.GetResponseReceiver();
+
 	defer conn.Close();
 
 	for { // infinit loop
+		log.Info("wait...");
 		msg, err := response.Recv(); // wait for a subscription msg
 		if (err != nil) {
 			log.Debug(" error ", err);
