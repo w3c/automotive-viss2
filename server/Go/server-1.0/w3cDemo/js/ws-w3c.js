@@ -1,5 +1,5 @@
 available_signals = {
-    "Speed":"#ws-speedometer"
+    "Vehicle.Drivetrain.Transmission.Speed":"#ws-speedometer"
 };
 
 class W3CWebSocket extends W3CClient{
@@ -9,10 +9,9 @@ class W3CWebSocket extends W3CClient{
      }
 
     setup(){
-        this.socket = new WebSocket('ws://192.168.150.131:8080/');
+        this.socket = new WebSocket('ws://192.168.254.165:8080/');
         this.socket.onclose = this.websocket_onclose;
         this.socket.onmessage = this.websocket_onmessage;
-
     }
 
     websocket_onclose(event){
@@ -23,17 +22,20 @@ class W3CWebSocket extends W3CClient{
         W3CClient.prototype.handleRequest(request) // does nothing atm
         W3CWebSocket.prototype.addLog(event.data, 'ws-receive-log-list');
         switch(request.action){
-			
+
             case "get":
-                if (request.path in available_signals) {
-                    W3CWebSocket.prototype.updateSpeedometerValue(self.available_signals[request.path], request.value);
-                }
+                //if (request.path in available_signals) {
+                    //W3CWebSocket.prototype.updateSpeedometerValue(self.available_signals[request.path], request.value);
+                    W3CWebSocket.prototype.updateSpeedometerValue("#ws-speedometer", request.value);
+                //}
                 break;
             case "subscription":
-				
-                if (request.path in available_signals) {
-                    W3CWebSocket.prototype.updateSpeedometerValue(self.available_signals[request.path], request.value);
-                }
+                //console.log(request.path);
+                //if (request.path in available_signals) {
+                    //console.log("Hello!!!");
+                    //W3CWebSocket.prototype.updateSpeedometerValue(self.available_signals[request.path], request.value);
+                    W3CWebSocket.prototype.updateSpeedometerValue("#ws-speedometer", request.value);
+                //}
                 break;
             default:
         }
@@ -53,8 +55,8 @@ class W3CWebSocket extends W3CClient{
 
 	subscribe(path){
 		//{"action":"subscribe", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":"234"}
-		var msg = JSON.stringify({ 'action': 'subscribe', 'path': path, 'requestId': 234})
-		socket.send(msg);
+		var msg = JSON.stringify({ 'action': 'subscribe', 'path': path, 'requestId': 234});
+		this.socket.send(msg);
 		this.addLog(msg, 'ws-send-log-list');
 	}
 
