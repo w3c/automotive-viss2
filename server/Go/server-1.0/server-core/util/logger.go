@@ -1,4 +1,4 @@
-package main
+package util
 
 /************************************************************************************
 
@@ -23,7 +23,7 @@ import (
 )
 
 
-func initLogger(){
+func InitLogger(){
 	log.SetFormatter(&log.JSONFormatter{})
 
 	// Output to stdout instead of the default stderr
