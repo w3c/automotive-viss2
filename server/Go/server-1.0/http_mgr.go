@@ -182,7 +182,6 @@ func backendHttpAppSession(message string, w *http.ResponseWriter){
 
         }
         resp := []byte(response)
-        (*w).Header().Set("Access-Control-Allow-Origin", "*")
         (*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
         (*w).Header().Set("Access-Control-Allow-Origin", "*") 
 
