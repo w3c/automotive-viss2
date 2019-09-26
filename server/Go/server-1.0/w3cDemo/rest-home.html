@@ -1,0 +1,84 @@
+<html>
+    <link href="css/speedometer.css" rel="stylesheet" type="text/css" />
+    <link href="css/bootstrap.css" rel="stylesheet" type="text/css" />
+    <link href="css/bootstrap-grid.css" rel="stylesheet" type="text/css" />
+    <script src="js/jquery-3.4.0.min.js"></script>
+    <script src="js/speedometer.js"></script>
+    <script src="js/popper.min.js"></script>
+    <script src="js/bootstrap.js"></script>
+    
+    <script src="js/w3c-client.js"></script>
+    <script src="js/rest-w3c.js"></script>
+    <script type="text/javascript">
+        $(document).ready(
+        function() {
+            $("#rest-speedometer").addSpeedometer();
+        });
+        
+        var client = new W3CRestClient();
+        client.setup();
+        
+        function getXSignalValue(){
+            client.requestGet("Vehicle/Cabin/Door/Row1/Right/IsOpen");
+        }
+
+        function setXSignalValue(){
+            client.requestSet("Vehicle/Cabin/Door/Row1/Right/IsOpen", 3);
+        }
+        
+    </script>
+    <style>
+        /* scroll to bottom of log */
+        .list-group{
+            max-height: 300px;
+            margin-bottom: 10px;
+            overflow:scroll;
+        }
+    </style>
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <div class="collapse navbar-collapse justify-content-center">
+                <div class="navbar-nav">
+                    <a class="nav-item nav-link" href="ws-home.html">WebSocket</a>
+                    <a class="nav-item nav-link" href="rest-home.html">REST/Http</a>
+                </div>
+            </div>
+        </nav>
+        <div class="container">
+            <div class="row">
+                <div class="col text-center">
+                    <h3>REST/Http W3c Example</h3>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col text-center">
+                    <button type="button" class="btn" onclick="getXSignalValue();">Get Signal Value</button>
+                    <button type="button" class="btn" onclick="setXSignalValue();">Set Signal Value</button>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <!-- add some other buttons and gauges here-->
+                </div>
+                <div class="col border">
+                    <!-- sadly this simple speedometer only works by hooking into a input element, but we can hide it.-->
+                    <div align="center"><input id="rest-speedometer" type="hidden"/></div> 
+                </div>
+                <div class="col">
+                    <!-- add some other buttons and gauges here-->
+                </div>
+            </div>
+            <div class="row" id="rest-log-content">
+                <div class="col-6">
+                    <ul class="list-group " id="rest-send-log-list">
+                </div>
+                <div class="col-6">
+                    <ul class="list-group" id="rest-receive-log-list">
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
+
+
+    

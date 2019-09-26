@@ -205,8 +205,9 @@ func backendHttpAppSession(message string, w *http.ResponseWriter){
 
         }
         resp := []byte(response)
-        (*w).Header().Set("Access-Control-Allow-Origin", "*")
         (*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
+        (*w).Header().Set("Access-Control-Allow-Origin", "*") 
+
         written, err := (*w).Write(resp)
         if (err != nil) {
             fmt.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
@@ -227,7 +228,9 @@ func makeappClientHandler(appClientChannel []chan string) func(http.ResponseWrit
 func initClientServer(muxServer *http.ServeMux) {
     appClientHandler := makeappClientHandler(appClientChan)
     muxServer.HandleFunc("/", appClientHandler)
+
     log.Fatal(http.ListenAndServe(hostIP + ":8888", muxServer))
+
 }
 
 func finalizeResponse(responseMap map[string]interface{}) string {

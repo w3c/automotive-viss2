@@ -9,17 +9,17 @@
 package main
 
 import (
-    "fmt"
+    "encoding/json"
     "flag"
+    "fmt"
     "github.com/gorilla/websocket"
     "log"
     "math/rand"
-    "time"
     "net/http"
     "net/url"
     "strconv"
-    "encoding/json"
     "strings"
+    "time"
 )
 
 // #include <stdlib.h>
@@ -597,6 +597,8 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 }
 
 func main() {
+
+
     if !initVssFile(){
         log.Fatal(" Tree file not found")
         return
