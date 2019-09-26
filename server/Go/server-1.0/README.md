@@ -3,6 +3,7 @@
 Functionality: <br>
 	Long term: Server implementation following the project SwA, with capability to serve multiple app-clients over both WebSockets and HTTP protocols in parallel.<br>
 	Short term limitations: <br>
+                - The transport protocols are not the secure versions of Websockets and HTTP. <br>
 		- Max two parallel app-clients for each of HTTP and Websoclket protocols. <br>
 		- Access restriction not implemented. <br>
 		- Responses for error cases may not be correct (or even have JSON format).<br>
@@ -11,7 +12,7 @@ Functionality: <br>
 		- The service manager does not update values for set.<br>
 		- The service manager returns dummy values every five secs for subscription.<br>
 
-Implementation language: Go for server, JS for app-clients.
+Implementation language: Go for server, JS for app-clients (clients also found in clients/clients-1.0 directory).
 
 
 ## Build instructions:
