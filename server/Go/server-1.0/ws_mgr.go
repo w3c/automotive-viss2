@@ -1,4 +1,5 @@
 /**
+* (C) 2019 Geotab
 * (C) 2019 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
@@ -16,6 +17,7 @@ import (
     "github.com/gorilla/websocket"
     "net/http"
     "net/url"
+    "net"
     "time"
     "encoding/json"
     "strconv"
@@ -50,6 +52,27 @@ var regData RegData
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+}
+
+const isClientLocal = false
+var hostIP string
+
+
+// Get preferred outbound ip of this machine, or sets it to localhost
+func GetOutboundIP() string {
+    if (isClientLocal == true) {
+        return "localhost"
+    }
+    conn, err := net.Dial("udp", "8.8.8.8:80")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+
+    localAddr := conn.LocalAddr().(*net.UDPAddr)
+    fmt.Println("Host IP:", localAddr.IP)
+
+    return localAddr.IP.String()
 }
 
 /**
@@ -177,7 +200,8 @@ func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan stri
     serverIndex := 0
     appClientHandler := makeappClientHandler(appClientChan, clientBackendChannel, &serverIndex)
     muxServer.HandleFunc("/", appClientHandler)
-    log.Fatal(http.ListenAndServe(":8080", muxServer))
+    log.Fatal(http.ListenAndServe(hostIP + ":8080", muxServer))
+
 }
 
 func extractPayload(request string, rMap *map[string]interface{}) {
@@ -226,6 +250,7 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
+    hostIP = GetOutboundIP()
     registerAsTransportMgr(&regData)
     go initClientServer(muxServer[0], clientBackendChan)  // go routine needed due to listenAndServe call...
     fmt.Printf("initClientServer() done\n")
