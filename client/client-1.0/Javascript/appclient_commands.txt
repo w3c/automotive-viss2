@@ -1,4 +1,4 @@
-// Websocket requests
+// Websocket request examples
 
 {"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":"123"}
 
@@ -13,18 +13,18 @@
 {"action":"getmetadata", "path":"Vehicle.Cabin.Door.Row1.Right?$spec", "requestId":"234"}
 
 
-// HTTP requests
+// HTTP request examples
 
 Get command
 HTTP GET 
-URL=Vehicle/Cabin/Door/Row1/Right/IsOpen
+URL field input: Vehicle/Cabin/Door/Row1/Right/IsOpen
 
 Set command
 HTTP POST 
-URL=Vehicle/Cabin/Door/Row1/Right/IsOpen
-Payload=123
+URL field input: Vehicle/Cabin/Door/Row1/Right/IsOpen
+Payload field input: 123
 
 Getmetadata command
 HTTP GET 
-URL=Vehicle/Cabin/Door/Row1/Right?$spec
+URL field input: Vehicle/Cabin/Door/Row1/Right?$spec
 

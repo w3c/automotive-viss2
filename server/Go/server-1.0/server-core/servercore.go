@@ -9,17 +9,18 @@
 package main
 
 import (
-    "encoding/json"
+//    "fmt"
     "flag"
-    "fmt"
     "github.com/gorilla/websocket"
-    "log"
+//    "log"
     "math/rand"
+    "time"
     "net/http"
     "net/url"
     "strconv"
+    "encoding/json"
     "strings"
-    "time"
+    "server-1.0/utils"
 )
 
 // #include <stdlib.h>
@@ -29,11 +30,11 @@ import (
 import "C"
 
 import "unsafe"
-var nodeHandle C.long
+var rootHandle C.long
 
 type searchData_t struct {  // searchData_t defined in vssparserutilities.h
     responsePath [512]byte  // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-    foundNodeHandles int64  // defined as long in vssparserutilities.h
+    foundNodeHandle int64  // defined as long in vssparserutilities.h
 }
 
 var transportRegChan chan int
@@ -130,7 +131,7 @@ func routerTableAdd(mgrId int, mgrIndex int) {
 func routerTableSearchForMgrIndex(mgrId int) int {
     for _, element := range routerTable {
         if (element.mgrId == mgrId) {
-            fmt.Printf("routerTableSearchForMgrIndex: Found index=%d\n", element.mgrIndex)
+            utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d\n", element.mgrIndex)
             return element.mgrIndex
         }
     }
@@ -145,8 +146,7 @@ func getPayloadMgrId(request string) int {
     var payload Payload
     err := decoder.Decode(&payload)
     if err != nil {
-        fmt.Printf("Server core-getPayloadMgrId: JSON decode failed for request:%s\n", request)
-        panic(err)
+        utils.Error.Printf("Server core-getPayloadMgrId: JSON decode failed for request:%s\n", request)
         return -1
     }
     return payload.MgrId
@@ -162,7 +162,7 @@ func getPayloadMgrId(request string) int {
 */
 func maketransportRegisterHandler(transportRegChannel chan int) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
-    fmt.Printf("transportRegisterServer():url=%s\n", req.URL.Path)
+    utils.Info.Printf("transportRegisterServer():url=%s\n", req.URL.Path)
     mgrIndex := -1
     if (req.URL.Path != "/transport/reg") {
         http.Error(w, "404 url path not found.", 404)
@@ -178,7 +178,7 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
         if err != nil {
             panic(err)
         }
-    fmt.Printf("transportRegisterServer():POST request=%s\n", payload.Protocol)
+    utils.Info.Printf("transportRegisterServer():POST request=%s\n", payload.Protocol)
         for key, value := range supportedProtocols {
             if (payload.Protocol == value) {
                 mgrIndex = key
@@ -191,7 +191,7 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 	    w.Header().Set("Content-Type", "application/json")
             response := "{ \"Portnum\" : " + strconv.Itoa(transportDataPortNum + mgrIndex) + " , \"Urlpath\" : \"/transport/data/" + strconv.Itoa(mgrIndex) + "\"" + " , \"Mgrid\" : " + strconv.Itoa(mgrId) + " }"
             
-            fmt.Printf("transportRegisterServer():POST response=%s\n", response)
+            utils.Info.Printf("transportRegisterServer():POST response=%s\n", response)
             w.Write([]byte(response)) // correct JSON?
             routerTableAdd(mgrId, mgrIndex)
         } else {
@@ -202,16 +202,16 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 }
 
 func initTransportRegisterServer(transportRegChannel chan int) {
-    fmt.Printf("initTransportRegisterServer():localhost:8081/transport/reg\n")
+    utils.Info.Printf("initTransportRegisterServer():localhost:8081/transport/reg\n")
     transportRegisterHandler := maketransportRegisterHandler(transportRegChannel)
     muxServer[0].HandleFunc("/transport/reg", transportRegisterHandler)
-    log.Fatal(http.ListenAndServe("localhost:8081", muxServer[0]))
+    utils.Error.Fatal(http.ListenAndServe("localhost:8081", muxServer[0]))
 }
 
 func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
     err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
     if (err != nil) {
-        log.Print("Service datachannel write error:", err)
+        utils.Error.Printf("Service datachannel write error:", err)
     }
 }
 
@@ -219,18 +219,17 @@ func extractPayload(message string, rMap *map[string]interface{}) {
     decoder := json.NewDecoder(strings.NewReader(message))
     err := decoder.Decode(rMap)
     if err != nil {
-        fmt.Printf("Server core-extractPayload: JSON decode failed for message:%s\n", message)
-        return 
+        utils.Error.Printf("Server core-extractPayload: JSON decode failed for message:%s\n", message)
     }
 }
 
 func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan string, serviceIndex int) {
     for {
         _, response, err := dataConn.ReadMessage()
-        fmt.Printf("Server core: Response from service mgr:%s\n", string(response))
+        utils.Info.Printf("Server core: Response from service mgr:%s\n", string(response))
         var responseMap = make(map[string]interface{})
         if err != nil {
-            log.Println("Service datachannel read error:", err)
+            utils.Error.Println("Service datachannel read error:", err)
             response = []byte(finalizeMessage(errorResponseMap))  // needs improvement
         } else {
             extractPayload(string(response), &responseMap)
@@ -251,11 +250,11 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel []chan string) (dataConn *websocket.Conn) {
     var addr = flag.String("addr", "localhost:" + strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
     dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/"+strconv.Itoa(serviceIndex)}
-    fmt.Printf("Connecting to:%s\n", dataSessionUrl.String())
+    utils.Info.Printf("Connecting to:%s\n", dataSessionUrl.String())
     dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin":{"*"}})
 //    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
     if err != nil {
-        log.Fatal("Service data session dial error:", err)
+        utils.Error.Fatal("Service data session dial error:", err)
         return nil
     }
     go backendServiceDataComm(dataConn, backendChannel, serviceIndex)
@@ -265,20 +264,19 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendC
 func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string) {
     time.Sleep(3*time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
     muxIndex := (len(muxServer) -2)/2 + 1 + (serviceIndex +1)  //could be more intuitive...
-    fmt.Printf("initServiceClientSession: muxIndex=%d\n", muxIndex)
+    utils.Info.Printf("initServiceClientSession: muxIndex=%d\n", muxIndex)
     dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel)
     for {
         select {
             case request := <- serviceDataChannel:
                 frontendServiceDataComm(dataConn, request)
-//            default:
         }
     }
 }
 
 func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
-    fmt.Printf("serviceRegisterServer():url=%s\n", req.URL.Path)
+    utils.Info.Printf("serviceRegisterServer():url=%s\n", req.URL.Path)
     if (req.URL.Path != "/service/reg") {
         http.Error(w, "404 url path not found.", 404)
     } else if (req.Method != "POST") {
@@ -293,7 +291,7 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
         if err != nil {
             panic(err)
         }
-        fmt.Printf("serviceRegisterServer(index=%d):received POST request=%s\n", *serviceIndex, payload.Rootnode)
+        utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s\n", *serviceIndex, payload.Rootnode)
         if (*serviceIndex < 2) {  // communicate: port no + root node to server hub, port no + url path to transport mgr, and start a client session
             serviceRegChannel <- strconv.Itoa(serviceDataPortNum + *serviceIndex)
             serviceRegChannel <- payload.Rootnode
@@ -301,21 +299,21 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 	    w.Header().Set("Content-Type", "application/json")
             response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum + *serviceIndex-1) + " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex-1) + "\"" + " }"
             
-            fmt.Printf("serviceRegisterServer():POST response=%s\n", response)
+            utils.Info.Printf("serviceRegisterServer():POST response=%s\n", response)
             w.Write([]byte(response))
             go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1, backendChannel)
         } else {
-            fmt.Printf("serviceRegisterServer():Max number of services already registered.\n")
+            utils.Info.Printf("serviceRegisterServer():Max number of services already registered.\n")
         }
     }
     }
 }
 
 func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) {
-    fmt.Printf("initServiceRegisterServer():localhost:8082/service/reg\n")
+    utils.Info.Printf("initServiceRegisterServer():localhost:8082/service/reg\n")
     serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex, backendChannel)
     muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
-    log.Fatal(http.ListenAndServe("localhost:8082", muxServer[1]))
+    utils.Error.Fatal(http.ListenAndServe("localhost:8082", muxServer[1]))
 }
 
 func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string){
@@ -323,11 +321,11 @@ func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan strin
     for {
         _, msg, err := conn.ReadMessage()
         if err != nil {
-            log.Print("read error data WS protocol.", err)
+            utils.Error.Printf("read error data WS protocol.", err)
             break
         }
 
-        fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+        utils.Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
         transportDataChannel <- string(msg) // send request to server hub
         response := <- transportDataChannel    // wait for response from server hub
 
@@ -340,10 +338,10 @@ func backendWSDataSession(conn *websocket.Conn, backendChannel chan string){
     for {
         message := <- backendChannel
 
-        fmt.Printf("%s Transport mgr server: message= %s \n", conn.RemoteAddr(), message)
+        utils.Info.Printf("%s Transport mgr server: message= %s \n", conn.RemoteAddr(), message)
         err := conn.WriteMessage(websocket.TextMessage, []byte(message)); 
         if err != nil {
-            log.Print("write error data WS protocol.", err)
+            utils.Error.Printf("write error data WS protocol.", err)
             break
         }
     }
@@ -352,14 +350,14 @@ func backendWSDataSession(conn *websocket.Conn, backendChannel chan string){
 func makeTransportDataHandler(transportDataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
-            fmt.Printf("we are upgrading to a websocket connection\n")
+            utils.Info.Printf("we are upgrading to a websocket connection\n")
             upgrader.CheckOrigin = func(r *http.Request) bool { return true }
             conn, err := upgrader.Upgrade(w, req, nil)
             if err != nil {
-                log.Print("upgrade:", err)
+                utils.Error.Printf("upgrade:", err)
                 return
             }
-            fmt.Printf("WS data session initiated.\n")
+            utils.Info.Printf("WS data session initiated.\n")
             go frontendWSDataSession(conn, transportDataChannel, backendChannel)
             go backendWSDataSession(conn, backendChannel)
         }else{
@@ -372,10 +370,10 @@ func makeTransportDataHandler(transportDataChannel chan string, backendChannel c
 *  All transport data servers implement a WS server which communicates with a transport protocol manager.
 **/
 func initTransportDataServer(mgrIndex int, muxServer *http.ServeMux, transportDataChannel []chan string, backendChannel []chan string) {
-    fmt.Printf("initTransportDataServer():mgrIndex=%d\n", mgrIndex)
+    utils.Info.Printf("initTransportDataServer():mgrIndex=%d\n", mgrIndex)
     transportDataHandler := makeTransportDataHandler(transportDataChannel[mgrIndex], backendChannel[mgrIndex])
     muxServer.HandleFunc("/transport/data/" + strconv.Itoa(mgrIndex), transportDataHandler)
-    log.Fatal(http.ListenAndServe("localhost:" + strconv.Itoa(transportDataPortNum+mgrIndex), muxServer))
+    utils.Error.Fatal(http.ListenAndServe("localhost:" + strconv.Itoa(transportDataPortNum+mgrIndex), muxServer))
 }
 
 func initTransportDataServers(transportDataChannel []chan string, backendChannel []chan string) {
@@ -385,32 +383,29 @@ func initTransportDataServers(transportDataChannel []chan string, backendChannel
 }
 
 func updateServiceRouting(portNo string, rootNode string) {
-    fmt.Printf("updateServiceRouting(): portnum=%s, rootNode=%s\n", portNo, rootNode)
+    utils.Info.Printf("updateServiceRouting(): portnum=%s, rootNode=%s\n", portNo, rootNode)
 }
 
 func initVssFile() bool{
 	filePath := "vss_rel_1.0.cnative"
 	cfilePath := C.CString(filePath)
-	nodeHandle = C.VSSReadTree(cfilePath)
+	rootHandle = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
 
-	if (nodeHandle == 0) {
-//		log.Error("Tree file not found")
+	if (rootHandle == 0) {
+//		utils.Error.Println("Tree file not found")
 		return false
 	}
-
-//	nodeName := C.GoString(C.getName(nodeHandle))
-//	log.Trace("Root node name = ", nodeName)
 
 	return true
 }
 
 func searchTree(path string, searchData *searchData_t) int {
-    fmt.Printf("getMatches(): path=%s\n", path)
+    utils.Info.Printf("getMatches(): path=%s\n", path)
     if (len(path) > 0) {
         // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
         cpath := C.CString(path)
-        var matches C.int = C.VSSSearchNodes(cpath, nodeHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
+        var matches C.int = C.VSSSearchNodes(cpath, rootHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
         C.free(unsafe.Pointer(cpath))
         return int(matches)
     } else {
@@ -449,7 +444,11 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
     searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
     matches := searchTree(requestMap["path"].(string), &searchData[0])
     if (matches == 0) {
-        transportDataChan[tDChanIndex] <- "No match in tree for requested path."  // should be error response
+        errorResponseMap["MgrId"] = requestMap["MgrId"]
+        errorResponseMap["ClientId"] = requestMap["ClientId"]
+        errorResponseMap["action"] = requestMap["action"]
+        errorResponseMap["requestId"] = requestMap["requestId"]
+        transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
     } else {
         if (matches == 1) {
             pathLen := getPathLen(string(searchData[0].responsePath[:]))
@@ -474,10 +473,93 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 func finalizeMessage(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
-        fmt.Printf("Server core-finalizeMessage: JSON encode failed.\n")
-        return "JSON marshal error"   // what to do here?
+        utils.Error.Printf("Server core-finalizeMessage: JSON encode failed.\n")
+        return "{\"error\":\"JSON marshal error\"}"   // what to do here?
     }
     return string(response)
+}
+
+
+func removeQuery(path string) string {
+    pathEnd := strings.Index(path, "?$spec")
+    if (pathEnd != -1) {
+        return path[:pathEnd]
+    }
+    return path
+}
+
+// vssparserutilities.h: nodeTypes_t; 0-9 -> the data types, 10-16 -> the node types. Should be separated in the C code declarations...
+func nodeTypesToString(nodeType int) string {
+    switch (nodeType) {
+      case 0:  return "int8"
+      case 1: return "uint8"
+      case 2: return "int16"
+      case 3: return "uint16"
+      case 4: return "int32"
+      case 5:  return "uint32"
+      case 6: return "double"
+      case 7: return "float"
+      case 8: return "boolean"
+      case 9: return "string"
+      case 10: return "sensor"
+      case 11: return "actuator"
+      case 12: return "stream"
+      case 13: return "attribute"
+      case 14:  return "branch"
+      case 15: return "rbranch"
+      case 16: return "element"
+      default:
+          return ""
+    }
+}
+
+func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string) string{
+    var newJsonBuffer string
+    nodeName := C.GoString(C.getName(nodeHandle))
+    newJsonBuffer += `"` + nodeName + `":{`
+    nodeType := int(C.getType(nodeHandle))
+    newJsonBuffer += `"type":` + `"` + nodeTypesToString(nodeType) + `",`
+    nodeDescr := C.GoString(C.getDescr(nodeHandle))
+    newJsonBuffer += `"description":` + `"` + nodeDescr + `",`
+    nodeNumofChildren := int(C.getNumOfChildren(nodeHandle))
+    switch (nodeType) {
+      case 14:  // branch
+      case 15: // rbranch
+      case 16: // element
+      case 10: // sensor
+          fallthrough
+      case 11: // actuator
+          fallthrough
+      case 13: // attribute
+          nodeDatatype := int(C.getDatatype(nodeHandle))
+          newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
+      case 12: // stream
+      default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...
+    }
+    if (nodeNumofChildren > 0) {
+        newJsonBuffer += `"children":` + "{"
+    }
+    for i := 0 ; i < nodeNumofChildren ; i++ {
+        childNode := C.long(C.getChild(nodeHandle, C.int(i)))
+        newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer)
+    }
+    if (nodeNumofChildren > 0) {
+        newJsonBuffer += "}"
+    }
+    newJsonBuffer += "}"
+    return jsonBuffer + newJsonBuffer
+}
+
+func synthesizeJsonTree(path string) string {
+    var jsonBuffer string
+    searchData := [150]searchData_t {}  // vssparserutilities.h: #define MAXFOUNDNODES 150
+    matches := searchTree(path, &searchData[0])
+    if (matches == 0) {
+        return ""
+    }
+    rootNode := C.long(searchData[0].foundNodeHandle)
+    jsonBuffer = jsonifyTreeNode(rootNode, jsonBuffer)
+    return "{" + jsonBuffer + "}"
 }
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
@@ -494,37 +576,44 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
             serviceDataChan[sDChanIndex] <- request
             response := <- serviceDataChan[sDChanIndex]
             transportDataChan[tDChanIndex] <- response
-//        case "getmetadata":
-//        case "authorize":
+        case "getmetadata":
+            path := removeQuery(requestMap["path"].(string))
+            requestMap["metadata"] = synthesizeJsonTree(path)  //TODO handle error case
+            delete(requestMap, "path")
+            requestMap["timestamp"] = 1234
+            transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
+//        case "authorize":  //TODO
         default:
-            fmt.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
-            errorResponseMap["MgrId"] = requestMap["MgrId"]
-            errorResponseMap["ClientId"] = requestMap["ClientId"]
+            utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
+            errorResponseMap["MgrId"] = 0 //??
+            errorResponseMap["ClientId"] = 0 //??
             transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
     }
 }
 
 func updateTransportRoutingTable(mgrId int, portNum int) {
-    fmt.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d\n", mgrId, portNum)
+    utils.Info.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d\n", mgrId, portNum)
 }
 
 func main() {
-
+    logFile := utils.InitLogFile("servercore-log.txt")
+    utils.InitLog(logFile, logFile, logFile)
+    defer logFile.Close()
 
     if !initVssFile(){
-        log.Fatal(" Tree file not found")
+        utils.Error.Fatal(" Tree file not found")
         return
     }
 
     initTransportDataServers(transportDataChan, backendChan)
-    fmt.Printf("main():initTransportDataServers() executed...\n")
+    utils.Info.Printf("main():initTransportDataServers() executed...\n")
     transportRegChan := make(chan int, 2*2)
     go initTransportRegisterServer(transportRegChan)
-    fmt.Printf("main():initTransportRegisterServer() executed...\n")
+    utils.Info.Printf("main():initTransportRegisterServer() executed...\n")
     serviceRegChan := make(chan string, 2)
     serviceIndex := 0  // index assigned to registered services
     go initServiceRegisterServer(serviceRegChan, &serviceIndex, backendChan)
-    fmt.Printf("main():starting loop for channel receptions...\n")
+    utils.Info.Printf("main():starting loop for channel receptions...\n")
     for {
         select {
         case portNum := <- transportRegChan:  // save port no + transport mgr Id in routing table
@@ -540,6 +629,7 @@ func main() {
             updateServiceRouting(portNo, rootNode)
 //        case xxx := <- serviceDataChan[0]:    // for asynchronous routing, instead of the synchronous above. ToDo?
         default:
+            time.Sleep(50*time.Millisecond)
         }
     }
 }

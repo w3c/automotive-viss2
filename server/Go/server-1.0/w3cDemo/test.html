@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"></head><body>
+<div>
+	<button onclick="doAjax()">Do Ajax</button>
+	<button onclick="doRequest()">Do XMLHttpRequest</button>
+	<button onclick="doFetch()">Do Fetch</button>
+	<button onclick="doJquery()">Do Jquery</button>
+</div>
+
+	
+	
+
+<script src="js/jquery-3.4.0.min.js"></script>
+
+<script type="text/javascript">
+var url = "http://192.168.150.131:8888/Vehicle/Cabin/Door/Row1/Right/IsOpen"
+	function doAjax(){
+		$.ajax({
+			type: "GET",
+			//headers: {'Access-Control-Allow-Origin': "*"},
+			url: url
+			}).done(function (data) {
+				console.log(data);
+		});
+	}
+	
+	function doRequest(){
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", url, true);
+		//xhr.setRequestHeader('Access-Control-Allow-Origin', "*");
+		xhr.onload = function () {
+			console.log(xhr.responseText);
+		};
+		xhr.send();
+	}
+	function doFetch(){
+		var myHeaders = new Headers();
+		//myHeaders.append('Access-Control-Allow-Origin', "*");
+		fetch(url, {
+			headers: myHeaders
+		}).then(function (response) {
+			return response.json();
+		}).then(function (json) {
+			console.log(json);
+		});
+	}
+	function doJquery(){
+		$.getJSON(url,
+		{
+			//headers: {'Access-Control-Allow-Origin': "*"},
+		},
+		function(result) {
+			if (result.readStatus == '1') {
+				alert("ACCEPTED");
+			}
+			else if (result.readStatus == '0') {
+				alert("NOT ACCEPTED");
+			}
+			else {
+				alert(result.readStatus);
+			}
+		});
+	}
+</script>
+
+</body></html>
