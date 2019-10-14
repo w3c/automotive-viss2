@@ -10,9 +10,9 @@ package main
 
 import (
     "bytes"
-    "fmt"
+//    "fmt"
     "io/ioutil"
-    "log"
+//    "log"
     "flag"
     "github.com/gorilla/websocket"
     "net/http"
@@ -22,6 +22,7 @@ import (
     "encoding/json"
     "strconv"
     "strings"
+    "server-1.0/utils"
 )
  
 // the number of elements in muxServer and appClientChan arrays sets the max number of parallel app clients
@@ -65,12 +66,12 @@ func GetOutboundIP() string {
     }
     conn, err := net.Dial("udp", "8.8.8.8:80")
     if err != nil {
-        log.Fatal(err)
+        utils.Error.Fatal(err)
     }
     defer conn.Close()
 
     localAddr := conn.LocalAddr().(*net.UDPAddr)
-    fmt.Println("Host IP:", localAddr.IP)
+    utils.Info.Println("Host IP:", localAddr.IP)
 
     return localAddr.IP.String()
 }
@@ -87,7 +88,7 @@ func registerAsTransportMgr(regData *RegData) {
 
     req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
     if err != nil {
-        log.Fatal("registerAsTransportMgr: Error reading request. ", err)
+        utils.Error.Fatal("registerAsTransportMgr: Error reading request. ", err)
     }
 
     // Set headers
@@ -98,27 +99,27 @@ func registerAsTransportMgr(regData *RegData) {
     client := &http.Client{Timeout: time.Second * 10}
 
     // Validate headers are attached
-    fmt.Println(req.Header)
+    utils.Info.Println(req.Header)
 
     // Send request
     resp, err := client.Do(req)
     if err != nil {
-        log.Fatal("registerAsTransportMgr: Error reading response. ", err)
+        utils.Error.Fatal("registerAsTransportMgr: Error reading response. ", err)
     }
     defer resp.Body.Close()
 
-    fmt.Println("response Status:", resp.Status)
-    fmt.Println("response Headers:", resp.Header)
+    utils.Info.Println("response Status:", resp.Status)
+    utils.Info.Println("response Headers:", resp.Header)
 
     body, err := ioutil.ReadAll(resp.Body)
     if err != nil {
-        log.Fatal("Error reading response. ", err)
+        utils.Error.Fatal("Error reading response. ", err)
     }
-    fmt.Printf("%s\n", body)
+    utils.Info.Printf("%s\n", body)
 
     err = json.Unmarshal(body, regData)
     if (err != nil) {
-        log.Fatal("Error JSON decoding of response. ", err)
+        utils.Error.Fatal("Error JSON decoding of response. ", err)
     }
 }
 
@@ -132,7 +133,7 @@ func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
     dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 //    defer dataConn.Close() //???
     if err != nil {
-        log.Fatal("Data session dial error:", err)
+        utils.Error.Fatal("Data session dial error:", err)
         return nil
     }
     return dataConn
@@ -143,11 +144,11 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
     for {
         _, msg, err := conn.ReadMessage()
         if err != nil {
-            log.Print("App client read error:", err)
+            utils.Error.Printf("App client read error:", err)
             break
         }
 
-        fmt.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), string(msg), len(msg))
+        utils.Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), string(msg), len(msg))
 
         clientChannel <- string(msg) // forward to mgr hub, 
         response := <- clientChannel    //  and wait for response
@@ -161,13 +162,13 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string)
     for {
         message := <- clientBackendChannel  
 
-        fmt.Printf("backendWSAppSession(): Message received=%s\n", message)
+        utils.Info.Printf("backendWSAppSession(): Message received=%s\n", message)
         // Write message back to app client
         response := []byte(message)
 
         err := conn.WriteMessage(websocket.TextMessage, response); 
         if err != nil {
-           log.Print("App client write error:", err)
+           utils.Error.Print("App client write error:", err)
            break
         }
     }
@@ -176,11 +177,11 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string)
 func makeappClientHandler(appClientChannel []chan string, clientBackendChannel []chan string, serverIndex *int) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
-            fmt.Printf("we are upgrading to a websocket connection. Server index=%d\n", *serverIndex)
+            utils.Info.Printf("we are upgrading to a websocket connection. Server index=%d\n", *serverIndex)
             upgrader.CheckOrigin = func(r *http.Request) bool { return true }
             conn, err := upgrader.Upgrade(w, req, nil)
             if err != nil {
-                log.Print("upgrade:", err)
+                utils.Error.Print("upgrade error:", err)
                 return
            }
            if (*serverIndex < len(appClientChannel)) {
@@ -188,10 +189,10 @@ func makeappClientHandler(appClientChannel []chan string, clientBackendChannel [
                go backendWSAppSession(conn, clientBackendChannel[*serverIndex])
                *serverIndex += 1
            } else {
-               fmt.Printf("not possible to start more app client sessions.\n")
+               utils.Warning.Printf("not possible to start more app client sessions.\n")
            }
         } else {
-            fmt.Printf("Client must set up a Websocket session.\n")
+            utils.Warning.Printf("Client must set up a Websocket session.\n")
         }
     }
 }
@@ -200,23 +201,21 @@ func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan stri
     serverIndex := 0
     appClientHandler := makeappClientHandler(appClientChan, clientBackendChannel, &serverIndex)
     muxServer.HandleFunc("/", appClientHandler)
-    log.Fatal(http.ListenAndServe(hostIP + ":8080", muxServer))
-
+    utils.Error.Fatal(http.ListenAndServe(hostIP + ":8080", muxServer))
 }
 
 func extractPayload(request string, rMap *map[string]interface{}) {
     decoder := json.NewDecoder(strings.NewReader(request))
     err := decoder.Decode(rMap)
     if err != nil {
-        fmt.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
-        return 
+        utils.Error.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
     }
 }
 
 func finalizeResponse(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
-        fmt.Printf("WS transport mgr-finalizeResponse: JSON encode failed.\n")
+        utils.Error.Printf("WS transport mgr-finalizeResponse: JSON encode failed.\n")
         return "JSON marshal error"   // what to do here?
     }
     return string(response)
@@ -226,10 +225,10 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
     for {
         _, response, err := dataConn.ReadMessage()
         if err != nil {
-            log.Println("Datachannel read error:", err)
+            utils.Error.Println("Datachannel read error:", err)
             return  // ??
         }
-        fmt.Printf("Server hub: Response from server core:%s\n", string(response))
+        utils.Info.Printf("Server hub: Response from server core:%s\n", string(response))
         var responseMap = make(map[string]interface{})
         extractPayload(string(response), &responseMap)
         clientId := int(responseMap["ClientId"].(float64))
@@ -250,23 +249,27 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
+    logFile := utils.InitLogFile("ws-mgr-log.txt")
+    utils.InitLog(logFile, logFile, logFile)
+    defer logFile.Close()
+
     hostIP = GetOutboundIP()
     registerAsTransportMgr(&regData)
     go initClientServer(muxServer[0], clientBackendChan)  // go routine needed due to listenAndServe call...
-    fmt.Printf("initClientServer() done\n")
+    utils.Info.Printf("initClientServer() done\n")
     dataConn := initDataSession(muxServer[1], regData)
     go transportHubFrontendWSsession(dataConn, appClientChan, clientBackendChan) // receives messages from server core
-    fmt.Printf("initDataSession() done\n")
+    utils.Info.Printf("initDataSession() done\n")
     for {
         select {
         case reqMessage := <- appClientChan[0]:
-            fmt.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
+            utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
             // add mgrId + clientId=0 to message, forward to server core
             newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {
-                log.Print("Datachannel write error:", err)
+                utils.Error.Printf("Datachannel write error:", err)
             }
         case reqMessage := <- appClientChan[1]:
             // add mgrId + clientId=1 to message, forward to server core
@@ -274,7 +277,7 @@ func main() {
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {
-                log.Print("Datachannel write error:", err)
+                utils.Error.Printf("Datachannel write error:", err)
             }
         }
     }
