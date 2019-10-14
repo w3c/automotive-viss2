@@ -10,8 +10,9 @@ package main
 
 import (
     "bytes"
-    "fmt"
+//    "fmt"
     "io/ioutil"
+//    "os"
     "log"
     "flag"
     "github.com/gorilla/websocket"
@@ -22,6 +23,7 @@ import (
     "encoding/json"
     "strconv"
     "strings"
+    "server-1.0/utils"
 )
  
 // the number of elements in muxServer and appClientChan arrays sets the max number of parallel app clients
@@ -57,12 +59,12 @@ func GetOutboundIP() string {
     }
     conn, err := net.Dial("udp", "8.8.8.8:80")
     if err != nil {
-        log.Fatal(err)
+        utils.Error.Fatal(err.Error())
     }
     defer conn.Close()
 
     localAddr := conn.LocalAddr().(*net.UDPAddr)
-    fmt.Println("Host IP:", localAddr.IP)
+    utils.Info.Println("Host IP:", localAddr.IP)
 
     return localAddr.IP.String()
 }
@@ -79,7 +81,7 @@ func registerAsTransportMgr(regData *RegData) {
 
     req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
     if err != nil {
-        log.Fatal("registerAsTransportMgr: Error reading request. ", err)
+        utils.Error.Fatal("registerAsTransportMgr: Error reading request. " + err.Error())
     }
 
     // Set headers
@@ -90,27 +92,27 @@ func registerAsTransportMgr(regData *RegData) {
     client := &http.Client{Timeout: time.Second * 10}
 
     // Validate headers are attached
-    fmt.Println(req.Header)
+    utils.Info.Println(req.Header)
 
     // Send request
     resp, err := client.Do(req)
     if err != nil {
-        log.Fatal("registerAsTransportMgr: Error reading response. ", err)
+        utils.Error.Fatal("registerAsTransportMgr: Error reading response. " + err.Error())
     }
     defer resp.Body.Close()
 
-    fmt.Println("response Status:", resp.Status)
-    fmt.Println("response Headers:", resp.Header)
+    utils.Info.Println("response Status:", resp.Status)
+    utils.Info.Println("response Headers:", resp.Header)
 
     body, err := ioutil.ReadAll(resp.Body)
     if err != nil {
-        log.Fatal("Error reading response. ", err)
+        utils.Error.Fatal("Error reading response. " + err.Error())
     }
-    fmt.Printf("%s\n", body)
+    utils.Info.Println(body)
 
     err = json.Unmarshal(body, regData)
     if (err != nil) {
-        log.Fatal("Error JSON decoding of response. ", err)
+        utils.Error.Fatal("Error JSON decoding of response. " + err.Error())
     }
 }
 
@@ -124,8 +126,7 @@ func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
     dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 //    defer dataConn.Close() //???
     if err != nil {
-        log.Fatal("Data session dial error:", err)
-        return nil
+        utils.Error.Fatal("Data session dial error:" + err.Error())
     }
     return dataConn
 }
@@ -143,7 +144,7 @@ func pathToUrl(path string) string {  // not needed?
 // TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string){
     path := urlToPath(req.RequestURI)
-    fmt.Printf("HTTP method:%s, path: %s\n", req.Method, path)
+    utils.Info.Printf("HTTP method:%s, path: %s\n", req.Method, path)
     var requestMap = make(map[string]interface{})
     switch req.Method {
       case "GET":  // get/getmetadata
@@ -164,7 +165,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
            requestTag++
       default:
           http.Error(w, "400 Unsupported method", http.StatusBadRequest)
-          fmt.Printf("Only GET and POST methods are supported.")
+          utils.Warning.Printf("Only GET and POST methods are supported.")
           return
     }
     clientChannel <- finalizeResponse(requestMap) // forward to mgr hub, 
@@ -177,13 +178,13 @@ func extractPayload(message string, rMap *map[string]interface{}) {
     decoder := json.NewDecoder(strings.NewReader(message))
     err := decoder.Decode(rMap)
     if err != nil {
-        fmt.Printf("HTTP transport mgr-extractPayload: JSON decode failed for message:%s\n", message)
+        utils.Error.Printf("HTTP transport mgr-extractPayload: JSON decode failed for message:%s\n", message)
         return 
     }
 }
 
 func backendHttpAppSession(message string, w *http.ResponseWriter){
-        fmt.Printf("backendWSAppSession(): Message received=%s\n", message)
+        utils.Info.Printf("backendWSAppSession(): Message received=%s\n", message)
 
         var responseMap = make(map[string]interface{})
         extractPayload(message, &responseMap)
@@ -205,12 +206,11 @@ func backendHttpAppSession(message string, w *http.ResponseWriter){
 
         }
         resp := []byte(response)
+        (*w).Header().Set("Access-Control-Allow-Origin", "*")
         (*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
-        (*w).Header().Set("Access-Control-Allow-Origin", "*") 
-
         written, err := (*w).Write(resp)
         if (err != nil) {
-            fmt.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
+            utils.Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
         }
 }
 
@@ -218,7 +218,7 @@ func makeappClientHandler(appClientChannel []chan string) func(http.ResponseWrit
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
             http.Error(w, "400 Incorrect port number", http.StatusBadRequest)
-            fmt.Printf("Client call to incorrect port number for websocket connection.\n")
+            utils.Warning.Printf("Client call to incorrect port number for websocket connection.\n")
             return
         }
         /*go*/ frontendHttpAppSession(w, req, appClientChannel[0])  // array not needed
@@ -228,15 +228,13 @@ func makeappClientHandler(appClientChannel []chan string) func(http.ResponseWrit
 func initClientServer(muxServer *http.ServeMux) {
     appClientHandler := makeappClientHandler(appClientChan)
     muxServer.HandleFunc("/", appClientHandler)
-
-    log.Fatal(http.ListenAndServe(hostIP + ":8888", muxServer))
-
+    utils.Info.Println(http.ListenAndServe(hostIP + ":8888", muxServer))
 }
 
 func finalizeResponse(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
-        fmt.Printf("WS transport mgr-finalizeResponse: JSON encode failed.\n")
+        utils.Error.Printf("WS transport mgr-finalizeResponse: JSON encode failed.\n")
         return "JSON marshal error"   // what to do here?
     }
     return string(response)
@@ -246,10 +244,10 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
     for {
         _, response, err := dataConn.ReadMessage()
         if err != nil {
-            log.Println("Datachannel read error:", err)
+            log.Println("Datachannel read error:" + err.Error())
             return  // ??
         }
-        fmt.Printf("Server hub: Response from server core:%s\n", string(response))
+        utils.Info.Printf("Server hub: Response from server core:%s\n", string(response))
         var responseMap = make(map[string]interface{})
         extractPayload(string(response), &responseMap)
         clientId := int(responseMap["ClientId"].(float64))
@@ -266,23 +264,26 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
+    logFile := utils.InitLogFile("http-mgr-log.txt")
+    utils.InitLog(logFile, logFile, logFile)
+    defer logFile.Close()
     hostIP = GetOutboundIP()
     registerAsTransportMgr(&regData)
     go initClientServer(muxServer[0])  // go routine needed due to listenAndServe call...
-    fmt.Printf("initClientServer() done\n")
     dataConn := initDataSession(muxServer[1], regData)
     go transportHubFrontendWSsession(dataConn, appClientChan) // receives messages from server core
-    fmt.Printf("initDataSession() done\n")
+    utils.Info.Println("**** HTTP manager entering server loop... ****")
+    loopIter := 0
     for {
         select {
         case reqMessage := <- appClientChan[0]:
-            fmt.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
+            utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
             // add mgrId + clientId=0 to message, forward to server core
             newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {
-                log.Print("Datachannel write error:", err)
+                utils.Warning.Println("Datachannel write error:" + err.Error())
             }
         case reqMessage := <- appClientChan[1]:
             // add mgrId + clientId=1 to message, forward to server core
@@ -290,8 +291,12 @@ func main() {
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {
-                log.Print("Datachannel write error:", err)
+                utils.Warning.Println("Datachannel write error:" + err.Error())
             }
+        }
+        loopIter++
+        if (loopIter%1000 == 0) {
+            utils.TrimLogFile(logFile)
         }
     }
 }
