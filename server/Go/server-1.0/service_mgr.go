@@ -10,15 +10,16 @@ package main
 
 import (
     "bytes"
-    "fmt"
+//    "fmt"
     "io/ioutil"
-    "log"
+//    "log"
     "github.com/gorilla/websocket"
     "net/http"
     "time"
     "encoding/json"
     "strconv"
     "strings"
+    "server-1.0/utils"
 )
 
 // one muxServer component for service registration, one for the data communication
@@ -50,7 +51,7 @@ func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 
     req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
     if err != nil {
-        log.Fatal("registerAsServiceMgr: Error creating request. ", err)
+        utils.Error.Fatal("registerAsServiceMgr: Error creating request. ", err)
     }
 
     // Set headers
@@ -61,30 +62,30 @@ func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
     client := &http.Client{Timeout: time.Second * 10}
 
     // Validate headers are attached
-    fmt.Println(req.Header)
+    utils.Info.Println(req.Header)
 
     // Send request
     resp, err := client.Do(req)
     if err != nil {
-        log.Fatal("registerAsServiceMgr: Error reading response. ", err)
+        utils.Error.Fatal("registerAsServiceMgr: Error reading response. ", err)
     }
     defer resp.Body.Close()
 
-    fmt.Println("response Status:", resp.Status)
-    fmt.Println("response Headers:", resp.Header)
+    utils.Info.Println("response Status:", resp.Status)
+    utils.Info.Println("response Headers:", resp.Header)
 
     body, err := ioutil.ReadAll(resp.Body)
     if err != nil {
-        log.Fatal("Error reading response. ", err)
+        utils.Error.Fatal("Error reading response. ", err)
     }
-    fmt.Printf("%s\n", body)
+    utils.Info.Printf("%s\n", body)
 
     err = json.Unmarshal(body, regResponse)
     if (err != nil) {
-        log.Fatal("Service mgr: Error JSON decoding of response. ", err)
+        utils.Error.Fatal("Service mgr: Error JSON decoding of response. ", err)
     }
     if (regResponse.Portnum <= 0) {
-        fmt.Printf("Service registration denied.\n")
+        utils.Warning.Printf("Service registration denied.\n")
         return 0
     }
     return 1
@@ -95,10 +96,10 @@ func frontendWSdataSession(conn *websocket.Conn, clientChannel chan string, back
     for {
         _, msg, err := conn.ReadMessage()
         if err != nil {
-            log.Print("Service data read error:", err)
+            utils.Error.Printf("Service data read error:", err)
             break
         }
-        fmt.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+        utils.Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
 
         clientChannel <- string(msg) // forward to mgr hub, 
         message := <- clientChannel    //  and wait for response
@@ -112,13 +113,13 @@ func backendWSdataSession(conn *websocket.Conn, backendChannel chan string){
     for {
         message := <- backendChannel  
 
-        fmt.Printf("Service:backendWSdataSession(): message received=%s\n", message)
+        utils.Info.Printf("Service:backendWSdataSession(): message received=%s\n", message)
         // Write message back to server core
         response := []byte(message)
 
         err := conn.WriteMessage(websocket.TextMessage, response)
         if err != nil {
-           log.Print("Service data write error:", err)
+           utils.Error.Printf("Service data write error:", err)
            break
         }
     }
@@ -127,17 +128,17 @@ func backendWSdataSession(conn *websocket.Conn, backendChannel chan string){
 func makeServiceDataHandler(dataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
         if  req.Header.Get("Upgrade") == "websocket" {
-            fmt.Printf("we are upgrading to a websocket connection.\n")
+            utils.Info.Printf("we are upgrading to a websocket connection.\n")
             upgrader.CheckOrigin = func(r *http.Request) bool { return true }
             conn, err := upgrader.Upgrade(w, req, nil)
             if err != nil {
-                log.Print("upgrade:", err)
+                utils.Error.Printf("upgrade:", err)
                 return
            }
            go frontendWSdataSession(conn, dataChannel, backendChannel)
            go backendWSdataSession(conn, backendChannel)
         } else {
-            fmt.Printf("Client must set up a Websocket session.\n")
+            utils.Warning.Printf("Client must set up a Websocket session.\n")
         }
     }
 }
@@ -145,8 +146,8 @@ func makeServiceDataHandler(dataChannel chan string, backendChannel chan string)
 func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendChannel chan string, regResponse RegResponse) {
     serviceDataHandler := makeServiceDataHandler(dataChannel, backendChannel)
     muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
-    fmt.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
-    log.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
+    utils.Info.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
+    utils.Error.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
 var subscriptionTrigger time.Duration = 5000 // used for triggering subscription events every 5000 ms
@@ -180,8 +181,7 @@ func extractPayload(request string, rMap *map[string]interface{}) {
     decoder := json.NewDecoder(strings.NewReader(request))
     err := decoder.Decode(rMap)
     if err != nil {
-        fmt.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
-        return 
+        utils.Error.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
     }
 }
 
@@ -192,7 +192,7 @@ func finalizeResponse(responseMap map[string]interface{}, responseStatus bool) s
     responseMap["timestamp"] = 1234
     response, err := json.Marshal(responseMap)
     if err != nil {
-        fmt.Printf("Server core-finalizeResponse: JSON encode failed.\n")
+        utils.Error.Printf("Server core-finalizeResponse: JSON encode failed.\n")
         return ""
     }
     return string(response)
@@ -201,6 +201,10 @@ func finalizeResponse(responseMap map[string]interface{}, responseStatus bool) s
 var dummyValue int  // used as return value in get
 
 func main() {
+    logFile := utils.InitLogFile("service-mgr-log.txt")
+    utils.InitLog(logFile, logFile, logFile)
+    defer logFile.Close()
+
     var regResponse RegResponse
     dataChan := make(chan string)
     backendChan := make(chan string)
@@ -211,12 +215,12 @@ func main() {
         return
     }
     go initDataServer(muxServer[1], dataChan, backendChan, regResponse)
-    fmt.Printf("initDataServer() done\n")
+    utils.Info.Printf("initDataServer() done\n")
     var subscriptionMap = make(map[string]interface{})  // only one subscription is supported!
     for {
         select {
         case request := <- dataChan:  // request from server core
-            fmt.Printf("Service manager: Request from Server core:%s\n", request)
+            utils.Info.Printf("Service manager: Request from Server core:%s\n", request)
             // use template as response  TODO: 1. update template, 2. include error handling, 3. connect to a vehicle data source
             var requestMap = make(map[string]interface{})
             var responseMap = make(map[string]interface{})

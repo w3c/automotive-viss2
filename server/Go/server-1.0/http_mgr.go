@@ -267,6 +267,7 @@ func main() {
     logFile := utils.InitLogFile("http-mgr-log.txt")
     utils.InitLog(logFile, logFile, logFile)
     defer logFile.Close()
+
     hostIP = GetOutboundIP()
     registerAsTransportMgr(&regData)
     go initClientServer(muxServer[0])  // go routine needed due to listenAndServe call...
