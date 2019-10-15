@@ -1,0 +1,2 @@
+INFO: 2019/10/14 14:52:18 service_mgr.go:65: map[Content-Type:[application/json] Host:[localhost:8082]]
+ERROR: 2019/10/14 14:52:18 service_mgr.go:70: registerAsServiceMgr: Error reading response. Post http://localhost:8082/service/reg: dial tcp [::1]:8082: connect: connection refused

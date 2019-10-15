@@ -4,7 +4,7 @@
 *.dll
 *.so
 *.dylib
-
+.DS_Store
 # Test binary, built with `go test -c`
 *.test
 
@@ -14,5 +14,8 @@
 # Go Land IDE specific files.
 **/.idea/workspace.xml
 ***/.idea/tasks.xml
+
+# Server core binary
+server-core
 
 

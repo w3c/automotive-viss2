@@ -1,0 +1,7 @@
+INFO: 2019/10/14 14:52:04 ws_mgr.go:74: Host IP: 10.99.12.145
+INFO: 2019/10/14 14:52:04 ws_mgr.go:102: map[Content-Type:[application/json] Host:[localhost:8081]]
+INFO: 2019/10/14 14:52:04 ws_mgr.go:111: response Status: 404 Not Found
+INFO: 2019/10/14 14:52:04 ws_mgr.go:112: response Headers: map[Content-Length:[19] Content-Type:[text/plain; charset=utf-8] Date:[Mon, 14 Oct 2019 21:52:04 GMT] X-Content-Type-Options:[nosniff]]
+INFO: 2019/10/14 14:52:04 ws_mgr.go:118: 404 page not found
+
+ERROR: 2019/10/14 14:52:04 ws_mgr.go:122: Error JSON decoding of response. invalid character 'p' after top-level value
