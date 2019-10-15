@@ -215,14 +215,6 @@ func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
     }
 }
 
-func extractPayload(message string, rMap *map[string]interface{}) {
-    decoder := json.NewDecoder(strings.NewReader(message))
-    err := decoder.Decode(rMap)
-    if err != nil {
-        utils.Error.Printf("Server core-extractPayload: JSON decode failed for message:%s\n", message)
-    }
-}
-
 func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan string, serviceIndex int) {
     for {
         _, response, err := dataConn.ReadMessage()
@@ -232,7 +224,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
             utils.Error.Println("Service datachannel read error:", err)
             response = []byte(finalizeMessage(errorResponseMap))  // needs improvement
         } else {
-            extractPayload(string(response), &responseMap)
+            utils.ExtractPayload(string(response), &responseMap)
         }
         if responseMap["action"] == "subscription" {
             mgrIndex := routerTableSearchForMgrIndex(int(responseMap["MgrId"].(float64)))
@@ -428,10 +420,10 @@ func aggregateValue(oldValue string, newValue string) string {
 
 func aggregateResponse(iterator int, response string, aggregatedResponseMap *map[string]interface{}) {
     if (iterator == 0) {
-        extractPayload(response, aggregatedResponseMap)
+        utils.ExtractPayload(response, aggregatedResponseMap)
     } else {
         var multipleResponseMap map[string]interface{}
-        extractPayload(response, &multipleResponseMap)
+        utils.ExtractPayload(response, &multipleResponseMap)
         switch multipleResponseMap["action"] {
         case "get":
             (*aggregatedResponseMap)["value"] = aggregateValue((*aggregatedResponseMap)["value"].(string), multipleResponseMap["value"].(string))
@@ -564,7 +556,7 @@ func synthesizeJsonTree(path string) string {
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
     var requestMap = make(map[string]interface{})
-    extractPayload(request, &requestMap)
+    utils.ExtractPayload(request, &requestMap)
     switch requestMap["action"] {
         case "get":
             retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
