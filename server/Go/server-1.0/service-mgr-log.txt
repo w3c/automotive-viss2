@@ -1,0 +1,15 @@
+INFO: 2019/10/14 15:11:08 service_mgr.go:65: map[Content-Type:[application/json] Host:[localhost:8082]]
+INFO: 2019/10/14 15:11:08 service_mgr.go:74: response Status: 200 OK
+INFO: 2019/10/14 15:11:08 service_mgr.go:75: response Headers: map[Content-Length:[52] Content-Type:[application/json] Date:[Mon, 14 Oct 2019 22:11:08 GMT]]
+INFO: 2019/10/14 15:11:08 service_mgr.go:81: { "Portnum" : 8200 , "Urlpath" : "/service/data/0" }
+INFO: 2019/10/14 15:11:08 service_mgr.go:218: initDataServer() done
+INFO: 2019/10/14 15:11:08 service_mgr.go:149: initDataServer: URL:/service/data/0, Portno:8200
+INFO: 2019/10/14 15:11:11 service_mgr.go:131: we are upgrading to a websocket connection.
+INFO: 2019/10/14 15:49:45 service_mgr.go:65: map[Content-Type:[application/json] Host:[localhost:8082]]
+ERROR: 2019/10/14 15:49:45 service_mgr.go:70: registerAsServiceMgr: Error reading response. Post http://localhost:8082/service/reg: dial tcp [::1]:8082: connect: connection refused
+INFO: 2019/10/14 15:49:49 service_mgr.go:65: map[Content-Type:[application/json] Host:[localhost:8082]]
+ERROR: 2019/10/14 15:49:49 service_mgr.go:70: registerAsServiceMgr: Error reading response. Post http://localhost:8082/service/reg: dial tcp [::1]:8082: connect: connection refused
+INFO: 2019/10/14 15:49:52 service_mgr.go:65: map[Host:[localhost:8082] Content-Type:[application/json]]
+ERROR: 2019/10/14 15:49:52 service_mgr.go:70: registerAsServiceMgr: Error reading response. Post http://localhost:8082/service/reg: dial tcp [::1]:8082: connect: connection refused
+INFO: 2019/10/14 15:50:37 service_mgr.go:65: map[Content-Type:[application/json] Host:[localhost:8082]]
+ERROR: 2019/10/14 15:50:37 service_mgr.go:70: registerAsServiceMgr: Error reading response. Post http://localhost:8082/service/reg: dial tcp [::1]:8082: connect: connection refused

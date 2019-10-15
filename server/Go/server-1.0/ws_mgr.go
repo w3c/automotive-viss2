@@ -10,19 +10,19 @@ package main
 
 import (
     "bytes"
-//    "fmt"
+    //    "fmt"
     "io/ioutil"
-//    "log"
+    "utils"
+    "encoding/json"
+    //    "log"
     "flag"
     "github.com/gorilla/websocket"
+    "net"
     "net/http"
     "net/url"
-    "net"
-    "time"
-    "encoding/json"
     "strconv"
     "strings"
-    "server-1.0/utils"
+    "time"
 )
  
 // the number of elements in muxServer and appClientChan arrays sets the max number of parallel app clients

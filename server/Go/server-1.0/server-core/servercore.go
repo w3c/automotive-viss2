@@ -20,7 +20,7 @@ import (
     "strconv"
     "encoding/json"
     "strings"
-    "server-1.0/utils"
+    "utils"
 )
 
 // #include <stdlib.h>
