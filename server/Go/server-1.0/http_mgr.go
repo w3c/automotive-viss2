@@ -21,6 +21,12 @@ import (
     "net"
     "net/http"
     "net/url"
+<<<<<<< HEAD
+=======
+//    "net"
+    "time"
+    "encoding/json"
+>>>>>>> master
     "strconv"
     "strings"
     "time"
@@ -48,26 +54,8 @@ var regData RegData
 
 var requestTag int  //common source for all requestIds
 
-const isClientLocal = false
 var hostIP string
 
-
-// Get preferred outbound ip of this machine, or sets it to localhost
-func GetOutboundIP() string {
-    if (isClientLocal == true) {
-        return "localhost"
-    }
-    conn, err := net.Dial("udp", "8.8.8.8:80")
-    if err != nil {
-        utils.Error.Fatal(err.Error())
-    }
-    defer conn.Close()
-
-    localAddr := conn.LocalAddr().(*net.UDPAddr)
-    utils.Info.Println("Host IP:", localAddr.IP)
-
-    return localAddr.IP.String()
-}
 
 /**
 * registerAsTransportMgr:
@@ -124,26 +112,15 @@ func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
     var addr = flag.String("addr", "localhost:" + strconv.Itoa(regData.Portnum), "http service address")
     dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: regData.Urlpath}
     dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
-//    defer dataConn.Close() //???
     if err != nil {
         utils.Error.Fatal("Data session dial error:" + err.Error())
     }
     return dataConn
 }
 
-func urlToPath(url string) string {
-	var path string = strings.TrimPrefix(strings.Replace(url, "/", ".", -1), ".")
-	return path[:]
-}
-
-func pathToUrl(path string) string {  // not needed?
-	var url string = strings.Replace(path, ".", "/", -1)
-	return "/" + url
-}
-
 // TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string){
-    path := urlToPath(req.RequestURI)
+    path := utils.UrlToPath(req.RequestURI)
     utils.Info.Printf("HTTP method:%s, path: %s\n", req.Method, path)
     var requestMap = make(map[string]interface{})
     switch req.Method {
@@ -174,20 +151,11 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
     backendHttpAppSession(response, &w)
 }
 
-func extractPayload(message string, rMap *map[string]interface{}) {
-    decoder := json.NewDecoder(strings.NewReader(message))
-    err := decoder.Decode(rMap)
-    if err != nil {
-        utils.Error.Printf("HTTP transport mgr-extractPayload: JSON decode failed for message:%s\n", message)
-        return 
-    }
-}
-
 func backendHttpAppSession(message string, w *http.ResponseWriter){
         utils.Info.Printf("backendWSAppSession(): Message received=%s\n", message)
 
         var responseMap = make(map[string]interface{})
-        extractPayload(message, &responseMap)
+        utils.ExtractPayload(message, &responseMap)
         var response string
         if (responseMap["error"] != nil) {
             http.Error(*w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
@@ -249,7 +217,7 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
         }
         utils.Info.Printf("Server hub: Response from server core:%s\n", string(response))
         var responseMap = make(map[string]interface{})
-        extractPayload(string(response), &responseMap)
+        utils.ExtractPayload(string(response), &responseMap)
         clientId := int(responseMap["ClientId"].(float64))
         delete(responseMap, "MgrId")
         delete(responseMap, "ClientId")
@@ -268,7 +236,7 @@ func main() {
     utils.InitLog(logFile, logFile, logFile)
     defer logFile.Close()
 
-    hostIP = GetOutboundIP()
+    hostIP = utils.GetOutboundIP()
     registerAsTransportMgr(&regData)
     go initClientServer(muxServer[0])  // go routine needed due to listenAndServe call...
     dataConn := initDataSession(muxServer[1], regData)

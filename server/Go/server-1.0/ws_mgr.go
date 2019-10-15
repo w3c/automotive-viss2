@@ -20,6 +20,12 @@ import (
     "net"
     "net/http"
     "net/url"
+<<<<<<< HEAD
+=======
+//    "net"
+    "time"
+    "encoding/json"
+>>>>>>> master
     "strconv"
     "strings"
     "time"
@@ -58,23 +64,6 @@ var upgrader = websocket.Upgrader{
 const isClientLocal = false
 var hostIP string
 
-
-// Get preferred outbound ip of this machine, or sets it to localhost
-func GetOutboundIP() string {
-    if (isClientLocal == true) {
-        return "localhost"
-    }
-    conn, err := net.Dial("udp", "8.8.8.8:80")
-    if err != nil {
-        utils.Error.Fatal(err)
-    }
-    defer conn.Close()
-
-    localAddr := conn.LocalAddr().(*net.UDPAddr)
-    utils.Info.Println("Host IP:", localAddr.IP)
-
-    return localAddr.IP.String()
-}
 
 /**
 * registerAsTransportMgr:
@@ -148,9 +137,10 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
             break
         }
 
-        utils.Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), string(msg), len(msg))
+        payload := utils.UrlToPath(string(msg))  // if path in payload slash delimited, replace with dot delimited
+        utils.Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), payload, len(payload))
 
-        clientChannel <- string(msg) // forward to mgr hub, 
+        clientChannel <- payload // forward to mgr hub, 
         response := <- clientChannel    //  and wait for response
 
         clientBackendChannel <- response 
@@ -204,14 +194,6 @@ func initClientServer(muxServer *http.ServeMux, clientBackendChannel []chan stri
     utils.Error.Fatal(http.ListenAndServe(hostIP + ":8080", muxServer))
 }
 
-func extractPayload(request string, rMap *map[string]interface{}) {
-    decoder := json.NewDecoder(strings.NewReader(request))
-    err := decoder.Decode(rMap)
-    if err != nil {
-        utils.Error.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
-    }
-}
-
 func finalizeResponse(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
@@ -230,7 +212,7 @@ func transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []
         }
         utils.Info.Printf("Server hub: Response from server core:%s\n", string(response))
         var responseMap = make(map[string]interface{})
-        extractPayload(string(response), &responseMap)
+        utils.ExtractPayload(string(response), &responseMap)
         clientId := int(responseMap["ClientId"].(float64))
         delete(responseMap, "MgrId")
         delete(responseMap, "ClientId")
@@ -253,7 +235,7 @@ func main() {
     utils.InitLog(logFile, logFile, logFile)
     defer logFile.Close()
 
-    hostIP = GetOutboundIP()
+    hostIP = utils.GetOutboundIP()
     registerAsTransportMgr(&regData)
     go initClientServer(muxServer[0], clientBackendChan)  // go routine needed due to listenAndServe call...
     utils.Info.Printf("initClientServer() done\n")
