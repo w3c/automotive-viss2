@@ -15,3 +15,22 @@ stopme() {
     #screen -wipe
 }
 
+configureme() {
+    #ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0 $GOPATH/src/server-1.0
+}
+
+if [ $1 = startme ]
+then
+startme
+fi
+
+if [ $1 = stopme ]
+then
+stopme
+fi
+
+if [ $1 = configureme ]
+then
+configureme
+fi
+

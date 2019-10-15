@@ -18,7 +18,7 @@ import (
     "time"
     "encoding/json"
     "strconv"
-    "strings"
+//    "strings"
     "server-1.0/utils"
 )
 
@@ -177,14 +177,6 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
     }
 }
 
-func extractPayload(request string, rMap *map[string]interface{}) {
-    decoder := json.NewDecoder(strings.NewReader(request))
-    err := decoder.Decode(rMap)
-    if err != nil {
-        utils.Error.Printf("Service manager-extractPayload: JSON decode failed for request:%s\n", request)
-    }
-}
-
 func finalizeResponse(responseMap map[string]interface{}, responseStatus bool) string {
     if (responseStatus == false) {
     responseMap["error"] = "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}" // TODO
@@ -224,7 +216,7 @@ func main() {
             // use template as response  TODO: 1. update template, 2. include error handling, 3. connect to a vehicle data source
             var requestMap = make(map[string]interface{})
             var responseMap = make(map[string]interface{})
-            extractPayload(request, &requestMap)
+            utils.ExtractPayload(request, &requestMap)
             responseMap["MgrId"] = requestMap["MgrId"]
             responseMap["ClientId"] = requestMap["ClientId"]
             responseMap["action"] = requestMap["action"]
