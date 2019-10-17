@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+var requestTag int
+
 var muxServer = []*http.ServeMux {
 	http.NewServeMux(),  // for app client HTTP sessions on port number 8888
 	http.NewServeMux(),  // for data session with core server on port number provided at registration

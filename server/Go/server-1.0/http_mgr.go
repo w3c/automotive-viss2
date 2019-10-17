@@ -10,7 +10,6 @@ package main
 
 import (
     "github.com/gorilla/websocket"
-    "net/http"
     "strconv"
     "strings"
     "utils"
@@ -18,41 +17,12 @@ import (
  
 
 
-var requestTag int  //common source for all requestIds
+ //common source for all requestIds
 
 // TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
 
 
-func backendHttpAppSession(message string, w *http.ResponseWriter){
-        utils.Info.Printf("backendWSAppSession(): Message received=%s\n", message)
 
-        var responseMap = make(map[string]interface{})
-        utils.ExtractPayload(message, &responseMap)
-        var response string
-        if (responseMap["error"] != nil) {
-            http.Error(*w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
-            return
-        }
-        switch responseMap["action"] {
-          case "get":
-              response = responseMap["value"].(string)
-          case "getmetadata":
-              response = responseMap["metadata"].(string)
-          case "set":
-              response = "200 OK"  //??
-          default:
-              http.Error(*w, "500 Internal error", http.StatusInternalServerError)  // TODO select error code from responseMap-error:number
-              return
-
-        }
-        resp := []byte(response)
-        (*w).Header().Set("Access-Control-Allow-Origin", "*")
-        (*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
-        written, err := (*w).Write(resp)
-        if (err != nil) {
-            utils.Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
-        }
-}
 /**
 * Websocket transport manager tasks:
 *     - register with core server 
@@ -65,7 +35,7 @@ func main() {
 
     hostIP = utils.GetOutboundIP()
     registerAsTransportMgr(&regData)
-    
+
     go  HttpServer{}.initClientServer(muxServer[0])  // go routine needed due to listenAndServe call...
     dataConn := initDataSession(muxServer[1], regData)
 
@@ -94,7 +64,7 @@ func main() {
         }
         loopIter++
         if (loopIter%1000 == 0) {
-            utils.TrimLogFile(logFile)
+            utils.TrimLogFile(utils.Logfile)
         }
     }
 }

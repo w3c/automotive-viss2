@@ -3,8 +3,8 @@ package utils
 
 
 import (
+    "github.com/sirupsen/logrus"
     "io"
-    logrus "github.com/sirupsen/logrus"
     "log"
     "os"
 )
@@ -25,7 +25,7 @@ var (
 */
 
 // const LOG_FILE = "servercore-log.txt"
-var logfile *os.File
+var Logfile *os.File
 
 func InitLog(filename string) {
 
@@ -34,20 +34,20 @@ func InitLog(filename string) {
     logger.SetOutput(os.Stdout)
 
 
-    logfile,err := os.OpenFile(filename,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0755)
+    Logfile,err := os.OpenFile(filename,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0755)
     if err != nil {
         logger.Fatal(err)
     }
 
-    logger.SetOutput(logfile)
+    logger.SetOutput(Logfile)
     logrus.RegisterExitHandler(CloseLogFile)
 
     Info,Warning,Error = logger,logger,logger
 }
 
 func CloseLogFile(){
-    if logfile != nil{
-        logfile.Close()
+    if Logfile != nil{
+        Logfile.Close()
     }
 
 }

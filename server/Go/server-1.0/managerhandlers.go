@@ -16,6 +16,37 @@ import (
 )
 
 
+func backendHttpAppSession(message string, w *http.ResponseWriter){
+	utils.Info.Printf("backendWSAppSession(): Message received=%s\n", message)
+
+	var responseMap = make(map[string]interface{})
+	utils.ExtractPayload(message, &responseMap)
+	var response string
+	if (responseMap["error"] != nil) {
+		http.Error(*w, "400 Error", http.StatusBadRequest)  // TODO select error code from responseMap-error:number
+		return
+	}
+	switch responseMap["action"] {
+	case "get":
+		response = responseMap["value"].(string)
+	case "getmetadata":
+		response = responseMap["metadata"].(string)
+	case "set":
+		response = "200 OK"  //??
+	default:
+		http.Error(*w, "500 Internal error", http.StatusInternalServerError)  // TODO select error code from responseMap-error:number
+		return
+
+	}
+	resp := []byte(response)
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
+	written, err := (*w).Write(resp)
+	if (err != nil) {
+		utils.Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
+	}
+}
+
 func frontendWSdataSession(conn *websocket.Conn, clientChannel chan string, backendChannel chan string){
 	defer conn.Close()
 	for {
