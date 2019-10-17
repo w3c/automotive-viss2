@@ -66,7 +66,7 @@ type WsServer struct{
 }
 
 
-/***********SERVER CORE COMMUNICATIONS ********************************************************************************/
+/***********Server Core Communications ********************************************************************************/
 type TransportHubFrontendWSSession interface{
 	transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string)
 }

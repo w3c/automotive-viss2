@@ -142,17 +142,6 @@ func registerAsTransportMgr(regData *RegData) {
 }
 
 
-func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string)func(http.ResponseWriter, *http.Request){
-	return func(w http.ResponseWriter, req *http.Request) {
-		if  req.Header.Get("Upgrade") == "websocket" {
-			http.Error(w, "400 Incorrect port number", http.StatusBadRequest)
-			utils.Warning.Printf("Client call to incorrect port number for websocket connection.\n")
-			return
-		}
-		/*go*/ frontendHttpAppSession(w, req, appClientChannel[0])  // array not needed
-	}
-}
-
 func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string){
 	defer conn.Close()
 	for {
@@ -189,6 +178,18 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string)
 	}
 }
 
+
+func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string)func(http.ResponseWriter, *http.Request){
+	return func(w http.ResponseWriter, req *http.Request) {
+		if  req.Header.Get("Upgrade") == "websocket" {
+			http.Error(w, "400 Incorrect port number", http.StatusBadRequest)
+			utils.Warning.Printf("Client call to incorrect port number for websocket connection.\n")
+			return
+		}
+		frontendHttpAppSession(w, req, appClientChannel[0])
+	}
+}
+
 func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if  req.Header.Get("Upgrade") == "websocket" {
@@ -219,7 +220,7 @@ func (server HttpServer)initClientServer(muxServer *http.ServeMux){
 	utils.Info.Println(http.ListenAndServe(hostIP + ":8888", muxServer))
 }
 
-func (server WsServer ) initClientServer(muxServer *http.ServeMux){
+func (server WsServer) initClientServer(muxServer *http.ServeMux){
 		serverIndex := 0
 		appClientHandler := WsChannel{server.clientBackendChannel, &serverIndex}.makeappClientHandler(appClientChan)
 		muxServer.HandleFunc("/", appClientHandler)
@@ -235,7 +236,7 @@ func finalizeResponse(responseMap map[string]interface{}) string {
 	return string(response)
 }
 
-func (httpCoreSession HttpWSsession)transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
+func (httpCoreSocketSession HttpWSsession) transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
 	for {
 		_, response, err := dataConn.ReadMessage()
 		if err != nil {
@@ -252,7 +253,7 @@ func (httpCoreSession HttpWSsession)transportHubFrontendWSsession(dataConn *webs
 	}
 }
 
-func (wscoresocket WsWSsession) transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
+func (wsCoreSocketSession WsWSsession) transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
 	for {
 		_, response, err := dataConn.ReadMessage()
 		if err != nil {
@@ -266,7 +267,7 @@ func (wscoresocket WsWSsession) transportHubFrontendWSsession(dataConn *websocke
 		delete(responseMap, "MgrId")
 		delete(responseMap, "ClientId")
 		if (responseMap["action"] == "subscription") {
-			wscoresocket.clientBackendChannel[clientId] <- finalizeResponse(responseMap)  //subscription notification
+			wsCoreSocketSession.clientBackendChannel[clientId] <- finalizeResponse(responseMap)  //subscription notification
 		} else {
 			appClientChannel[clientId] <- finalizeResponse(responseMap)
 		}

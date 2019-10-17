@@ -1,19 +1,19 @@
 package utils
 
-// cf. https://www.ardanlabs.com/blog/2013/11/using-log-package-in-go.html
+
 
 import (
     "io"
-//    "io/ioutil"
+    logrus "github.com/sirupsen/logrus"
     "log"
     "os"
 )
 
 var (
 //    Trace   *log.Logger
-    Info    *log.Logger
-    Warning *log.Logger
-    Error   *log.Logger
+    Info    *logrus.Logger
+    Warning *logrus.Logger
+    Error   *logrus.Logger
 )
 
 /*
@@ -23,42 +23,34 @@ var (
 * os.Stderr)
 * utils.LogFile
 */
-func InitLog(
-//    traceHandle io.Writer,
-    infoHandle io.Writer,
-    warningHandle io.Writer,
-    errorHandle io.Writer) {
 
-/*    Trace = log.New(traceHandle,
-        "TRACE: ",
-        log.Ldate|log.Ltime|log.Lshortfile)
-*/
-    Info = log.New(infoHandle,
-        "INFO: ",
-        log.Ldate|log.Ltime|log.Lshortfile)
+const LOG_FILE = "servercore-log.txt"
+var logfile *os.File
 
-    Warning = log.New(warningHandle,
-        "WARNING: ",
-        log.Ldate|log.Ltime|log.Lshortfile)
+func InitLog() {
 
-    Error = log.New(errorHandle,
-        "ERROR: ",
-        log.Ldate|log.Ltime|log.Lshortfile)
-}
+    logger := logrus.New()
+    logger.Formatter = &logrus.JSONFormatter{}
+    logger.SetOutput(os.Stdout)
 
-/**
-* Must be called before InitLog() if log should be written to log.
-* Caller should take responsibility of closing log file before terminating itself.
-**/
-func InitLogFile(logFileName string) *os.File {
-    file, err:= os.OpenFile(logFileName, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+
+    logfile,err := os.OpenFile(LOG_FILE,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0755)
     if err != nil {
-        log.Fatalln("Failed to open log file", os.Stdout, ":", err)
-        return nil
+        logger.Fatal(err)
     }
-    return file
+
+    logger.SetOutput(logfile)
+    logrus.RegisterExitHandler(CloseLogFile)
+
+    Info,Warning,Error = logger,logger,logger
 }
 
+func CloseLogFile(){
+    if logfile != nil{
+        logfile.Close()
+    }
+
+}
 /**
 * The log file is trimmed to 20% of its size when exceeding 10MB.
 **/
