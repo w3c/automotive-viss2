@@ -10,28 +10,15 @@ package main
 
 import (
     "bytes"
-    //    "fmt"
-    "io/ioutil"
-    "utils"
     "encoding/json"
-    //    "log"
-    "github.com/gorilla/websocket"
+    "io/ioutil"
     "net/http"
     "strconv"
-<<<<<<< HEAD
-    "strings"
     "time"
-=======
-//    "strings"
-    "server-1.0/utils"
->>>>>>> master
+    "utils"
 )
 
 // one muxServer component for service registration, one for the data communication
-var muxServer = []*http.ServeMux {
-    http.NewServeMux(),  // 0 = for registration
-    http.NewServeMux(),  // 1 = for data session
-}
 
 
 type RegRequest struct {
@@ -43,10 +30,7 @@ type RegResponse struct {
     Urlpath string
 }
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
+
 
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 
@@ -96,39 +80,6 @@ func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
     return 1
 }
 
-func frontendWSdataSession(conn *websocket.Conn, clientChannel chan string, backendChannel chan string){
-    defer conn.Close()
-    for {
-        _, msg, err := conn.ReadMessage()
-        if err != nil {
-            utils.Error.Printf("Service data read error:", err)
-            break
-        }
-        utils.Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
-
-        clientChannel <- string(msg) // forward to mgr hub, 
-        message := <- clientChannel    //  and wait for response
-
-        backendChannel <- message 
-    }
-}
-
-func backendWSdataSession(conn *websocket.Conn, backendChannel chan string){
-    defer conn.Close()
-    for {
-        message := <- backendChannel  
-
-        utils.Info.Printf("Service:backendWSdataSession(): message received=%s\n", message)
-        // Write message back to server core
-        response := []byte(message)
-
-        err := conn.WriteMessage(websocket.TextMessage, response)
-        if err != nil {
-           utils.Error.Printf("Service data write error:", err)
-           break
-        }
-    }
-}
 
 func makeServiceDataHandler(dataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
     return func(w http.ResponseWriter, req *http.Request) {
@@ -177,19 +128,19 @@ func deactivateSubscription() {
 func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionMap map[string]interface{}) {
     select {
         case <- subscriptionChannel:
-            backendChannel <- finalizeResponse(subscriptionMap, true)
+            backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
         default: // no subscription, so return
     }
 }
 
-func finalizeResponse(responseMap map[string]interface{}, responseStatus bool) string {
+func finalizeResponse_smgr(responseMap map[string]interface{}, responseStatus bool) string {
     if (responseStatus == false) {
     responseMap["error"] = "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}" // TODO
     }
     responseMap["timestamp"] = 1234
     response, err := json.Marshal(responseMap)
     if err != nil {
-        utils.Error.Printf("Server core-finalizeResponse: JSON encode failed.\n")
+        utils.Error.Printf(err.Error() , " Server core-finalizeResponse: JSON encode failed.\n")
         return ""
     }
     return string(response)
@@ -250,7 +201,7 @@ func main() {
                 default:
                     responseStatus = false
             }
-            dataChan <- finalizeResponse(responseMap, responseStatus)
+            dataChan <- finalizeResponse_smgr(responseMap, responseStatus)
         default:
             checkSubscription(subscriptionChan, backendChan, subscriptionMap)
             time.Sleep(50*time.Millisecond)

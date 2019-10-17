@@ -593,7 +593,7 @@ func main() {
     defer logFile.Close()
 
     if !initVssFile(){
-        utils.Error.Fatal(" Tree file not found")
+        utils.Error.Fatal(" Trete file not found")
         return
     }
 
