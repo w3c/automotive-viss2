@@ -61,13 +61,11 @@ func backendHttpAppSession(message string, w *http.ResponseWriter){
 **/
 func main() {
     transportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
-
-    logFile := utils.InitLogFile("http-mgr-log.txt")
-    utils.InitLog(logFile, logFile, logFile)
-    defer logFile.Close()
+    utils.InitLog("http-mgr-log.txt")
 
     hostIP = utils.GetOutboundIP()
     registerAsTransportMgr(&regData)
+    
     go  HttpServer{}.initClientServer(muxServer[0])  // go routine needed due to listenAndServe call...
     dataConn := initDataSession(muxServer[1], regData)
 

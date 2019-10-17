@@ -24,17 +24,17 @@ var (
 * utils.LogFile
 */
 
-const LOG_FILE = "servercore-log.txt"
+// const LOG_FILE = "servercore-log.txt"
 var logfile *os.File
 
-func InitLog() {
+func InitLog(filename string) {
 
     logger := logrus.New()
     logger.Formatter = &logrus.JSONFormatter{}
     logger.SetOutput(os.Stdout)
 
 
-    logfile,err := os.OpenFile(LOG_FILE,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0755)
+    logfile,err := os.OpenFile(filename,os.O_WRONLY | os.O_CREATE | os.O_APPEND, 0755)
     if err != nil {
         logger.Fatal(err)
     }

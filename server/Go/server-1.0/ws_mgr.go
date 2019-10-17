@@ -33,9 +33,7 @@ const isClientLocal = false
 func main() {
     transportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
 
-    logFile := utils.InitLogFile("ws-mgr-log.txt")
-    utils.InitLog(logFile, logFile, logFile)
-    defer logFile.Close()
+    utils.InitLog("ws-mgr-log.txt")
 
     hostIP = utils.GetOutboundIP()
     registerAsTransportMgr(&regData)

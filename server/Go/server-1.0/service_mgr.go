@@ -149,9 +149,7 @@ func finalizeResponse_smgr(responseMap map[string]interface{}, responseStatus bo
 var dummyValue int  // used as return value in get
 
 func main() {
-    logFile := utils.InitLogFile("service-mgr-log.txt")
-    utils.InitLog(logFile, logFile, logFile)
-    defer logFile.Close()
+    utils.InitLog("service-mgr-log.txt")
 
     var regResponse RegResponse
     dataChan := make(chan string)

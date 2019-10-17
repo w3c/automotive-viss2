@@ -588,7 +588,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 }
 
 func main() {
-    utils.InitLog()
+    utils.InitLog("servercore-log.txt")
 
     if !initVssFile(){
         utils.Error.Fatal(" Trete file not found")
