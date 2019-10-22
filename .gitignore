@@ -6,6 +6,12 @@
 *.dylib
 .DS_Store
 
+#log files
+ws-mgr-log.txt
+service-mgr-log.txt
+http-mgr-log.txt
+server-core.txt
+
 # Test binary, built with `go test -c`
 *.test
 *.DS_store

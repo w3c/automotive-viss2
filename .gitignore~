@@ -4,12 +4,8 @@
 *.dll
 *.so
 *.dylib
-<<<<<<< HEAD
 .DS_Store
-=======
-.DS_store
 
->>>>>>> master
 # Test binary, built with `go test -c`
 *.test
 *.DS_store
