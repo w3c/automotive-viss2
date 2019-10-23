@@ -17,6 +17,7 @@ stopme() {
 
 configureme() {
     #ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0 $GOPATH/src/server-1.0
+    ln -s /home/ubjorken/Proj/w3c/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0 $GOPATH/src/server-1.0
 }
 
 if [ $1 = startme ]
