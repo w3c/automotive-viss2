@@ -20,7 +20,7 @@ import (
     "strconv"
     "encoding/json"
     "strings"
-    "server-1.0/utils"
+    "utils"
 )
 
 // #include <stdlib.h>
@@ -465,7 +465,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 func finalizeMessage(responseMap map[string]interface{}) string {
     response, err := json.Marshal(responseMap)
     if err != nil {
-        utils.Error.Printf("Server core-finalizeMessage: JSON encode failed.\n")
+        utils.Error.Printf("Server core-finalizeMessage: JSON encode failed. ", err)
         return "{\"error\":\"JSON marshal error\"}"   // what to do here?
     }
     return string(response)
@@ -588,12 +588,10 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 }
 
 func main() {
-    logFile := utils.InitLogFile("servercore-log.txt")
-    utils.InitLog(logFile, logFile, logFile)
-    defer logFile.Close()
+    utils.InitLog("servercore-log.txt")
 
     if !initVssFile(){
-        utils.Error.Fatal(" Tree file not found")
+        utils.Error.Fatal(" Trete file not found")
         return
     }
 
