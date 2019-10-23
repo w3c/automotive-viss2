@@ -1,0 +1,97 @@
+<!-- 
+/**
+* (C) 2019 Geotab
+* (C) 2019 Volvo Cars
+*
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* are licensed under the provisions of the license provided by the LICENSE file in this repository.
+*
+**/
+ -->
+
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>HTTP client example</h2>
+
+<div>
+<input id="host-ip" type="text" placeholder="host ip"/>
+<button onclick="setHostIP()">Server IP</button>
+</div>
+<div>
+<input id="post-path" type="text" placeholder="url path"/>
+<input id="post-value" type="text" placeholder="input value" />
+<button onclick="sendPost()">POST</button>
+<pre id="post-output"></pre>
+</div>
+<div>
+<input id="get-path" type="text" placeholder="url path" />
+<button onclick="sendGet()">GET</button>
+<pre id="get-output"></pre>
+</div>
+
+<script>
+    var externHostIp = document.getElementById("host-ip");
+    var hostIP = "Host unknown";
+    var postPath = document.getElementById("post-path");
+    var postValue = document.getElementById("post-value");
+    var getPath = document.getElementById("get-path");
+    var postOutput = document.getElementById("post-output");
+    var getOutput = document.getElementById("get-output");
+
+    try {
+        function sendPost() {
+          if (hostIP == "Host unknown") {
+              postOutput.innerHTML += "Host unknown. Please specify.";
+              return;
+          }
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+              postOutput.innerHTML += "Server: " + this.responseText + "\n";
+          };
+          var params = postValue.value;
+          xhttp.open("POST", "http://" + hostIP + ":8888/" + postPath.value, true);
+          xhttp.send(params);
+          postPath.value = "";
+          postValue.value = "";
+        }
+    } catch(err) {
+        postOutput.innerHTML += "Error. " + err.message + "\n";
+    }
+
+    try {
+        function sendGet() {
+          if (hostIP == "Host unknown") {
+              getOutput.innerHTML += "Host unknown. Please specify.";
+              return;
+          }
+          var xhttp2 = new XMLHttpRequest();
+          xhttp2.onreadystatechange = function() {
+              if (this.readyState == 4 && this.status == 200) {
+                  getOutput.innerHTML += "Server: " + this.responseText + "\n";
+              } else {
+                  getOutput.innerHTML += "Server: readyState=" + this.readyState + ", status=" + this.status + "\n";
+              }
+          };
+          xhttp2.open("GET", "http://" + hostIP + ":8888/" + getPath.value, true);
+          xhttp2.send(null);
+          getPath.value = "";
+        }
+    } catch(err) {
+        getOutput.innerHTML += "Error. " + err.message + "\n";
+    }
+
+    try {
+        function setHostIP() {
+            hostIP = externHostIp.value;
+        }
+    } catch(err) {
+        getOutput.innerHTML += "Host IP error. " + err.message + "\n";
+    }
+
+</script>
+
+</body>
+</html>
+
