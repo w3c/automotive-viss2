@@ -2,7 +2,6 @@ package main
 
 import(
 	log "github.com/sirupsen/logrus"
-	"W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/util"
 	"W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/signal_broker"
 )
 
