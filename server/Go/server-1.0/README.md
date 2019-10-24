@@ -16,38 +16,24 @@ Implementation language: Go for server, JS for app-clients (clients also found i
 
 
 ## Build instructions:
-Run the following go programs in separate terminal windows, then start the app client in a browser.
+The most convenient way to run the server is to use the script file W3CServer.sh, which can facilitate both starting and stopping all executables that together realize the server.
+To start:
+$ ./W3CServer.sh startme
+To stop:
+$ ./W3CServer.sh stopme
 
-Server core:<br>
-$ go build<br>
-$ ./server-core<br>
-Service manager mgr:<br>
-$ go run service_mgr.go<br>
-Websocket protocol mgr:<br>
-$ go run ws_mgr.go<br>
-HTTP protocol mgr:<br>
-$ go run http_mgr.go<br>
-Start websocket app-client:<br>
-Click on wsclient.html (and/or wsclient2.html)<br>
-Start HTTP app-client:<br>
-Click on httpclient.html (and/or httpclient2.html)<br>
-The order of starting the different programs should be:
+The script also facilitates setting up the GO build environment by providing a symlink command that creates a logical link between the your local git directory and your local GO environment. To get this to work you must however first edit the command in the script file so that your local git directory is correctly pointed to. It is also required that the GOPATH variable is correctly set.
+Then the symlink can be activated:
+$ ./W3CServer.sh configureme
+
+To build manually, copy the commands from the script file. The order of starting the different programs must be the following for them to interact correctly:
 1. servercore.go
 2. service_mgr.go
 3. ws_mgr.go and/or http_mgr.go
-4. wsclient.html and/or httpclient.html
 
-After the startup sequence above, write any VISS request with correct JSON syntax in the app client input field, e. g.:
-{"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":123}
-and after pushing Send a response starting with "Server:" followed by the JSON formatted response, will be shown in the client browser tab. 
-If the path in the request have several matches in the tree, the response will be concatenated by the number of matches (the example above 8 times).
-It is possible to start a second app-client and send request from one or the other client (see restrictions at the top). 
-
-To terminate a client close the browser tab.
-
-Terminate core server, websocket/HTTP transport managers, and service manager by Ctrl-C in respective terminal window.
-
-The appclient_commands.txt file contains a few examples of requests that can be copied into the send fields of the clients. Feel free to modify the request before sending.
+After starting the server, one or more clients can be started. There are basic Javascript based clients available for both HTTP and Websocket communication with the server in the webclients directory. These clients can either be run from the same machine as the server is running on, or from a different machine, provided the machines can connect over TCP/IP. 
+To run a client, just open the HTML-file in a browser. Then first input the IP address to the server, and after that requests can be sent to the server, and responses will be displayed. 
+Example requests can be found in the file appclient_commands.txt, which can be copied into the client UI. The server has access to a copy of the complete VSS tree from the VSS repository, so the example requests can be modified for accessing any path within this tree. However, currently only dummy values are returned. 
 
 ## Software implementation
 Figures 1 and 2 shows the design of the core server and the Websocket transport manager, respectively. The design is based on the high level Sw Architecture description found in the README of the root directory.<br>
