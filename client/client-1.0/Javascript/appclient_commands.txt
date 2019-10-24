@@ -1,30 +1,32 @@
 // Websocket request examples
 
-{"action":"get", "path":"Vehicle.Cabin.Door.*.*.IsOpen", "requestId":"123"}
+Get request:
+{"action":"get", "path":"Vehicle/Cabin/Door/*/*/IsOpen", "requestId":"123"}
+{"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
 
-{"action":"get", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":"234"}
-
-{"action":"subscribe", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "requestId":"234"}  // "filters" key-value left out
-
+Subscribe request:
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}  // "filters" key-value left out
 {"action":"unsubscribe", "subscriptionId":"789", "requestId":"234"}
 
-{"action":"set", "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen", "value":"999", "requestId":"234"}
+Get request:
+{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"234"}
 
-{"action":"getmetadata", "path":"Vehicle.Cabin.Door.Row1.Right?$spec", "requestId":"234"}
+Service discovery request:
+{"action":"getmetadata", "path":"Vehicle/Cabin/Door/Row1/Right?$spec", "requestId":"234"}
 
 
 // HTTP request examples
 
-Get command
+Get request:
 HTTP GET 
-URL field input: Vehicle/Cabin/Door/Row1/Right/IsOpen
+URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
 
-Set command
+Set request:
 HTTP POST 
-URL field input: Vehicle/Cabin/Door/Row1/Right/IsOpen
-Payload field input: 123
+URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
+Payload: 999
 
-Getmetadata command
+Service discovery request:
 HTTP GET 
-URL field input: Vehicle/Cabin/Door/Row1/Right?$spec
+URL: Vehicle/Cabin/Door/Row1/Right?$spec
 
