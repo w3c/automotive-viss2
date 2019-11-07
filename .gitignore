@@ -6,6 +6,7 @@
 *.dylib
 .DS_Store
 
+
 #log files
 ws-mgr-log.txt
 service-mgr-log.txt
@@ -23,6 +24,8 @@ DS_Store
 # Go Land IDE specific files.
 **/.idea/workspace.xml
 ***/.idea/tasks.xml
+.idea/
+vendor/
 
 # Server core binary
 server-core
