@@ -1,4 +1,4 @@
-module github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server
+module github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/tree/mgcleanup/server
 
 go 1.13
 
