@@ -9,7 +9,7 @@
 package main
 
 import (
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"time"
 
-	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/manager"
+	mgr "github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/server/manager"
 )
 
 // one muxServer component for service registration, one for the data communication
