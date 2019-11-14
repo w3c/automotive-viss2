@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	mgr "github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/server/manager"
-	"github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils"
+	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/manager"
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 
 	"github.com/gorilla/websocket"
 )

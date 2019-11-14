@@ -29,8 +29,8 @@ DS_Store
 
 # Server binaries
 server-core
-servicemgr
-wsmgr
+service_mgr
+ws_mgr
 
 # Folders
 !server/servicemgr/

@@ -1,12 +1,5 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl v0.0.0-20191024091733-cfeb4843dd44 h1:rGnDYCBWdbc+WMt+09dtJsfMvbxmrG6JXRd/p5o6SRc=
-github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl v0.0.0-20191024091733-cfeb4843dd44 h1:xihStxa4c+mchzWmyAh4QhfJjBBYDMTXM6LYzeqb0wU=
-github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl v0.0.0-20191107161701-414c0a5dfa7e h1:Tz/L84vEwbmLRMi4TUOkG0JuW4H9wdUXnt96QBNS6mM=
-github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191107161701-414c0a5dfa7e h1:ln5w16NUTgM25GkUSgze7Klpb0OI7obALqd4JJcQUUE=
-github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191107161701-414c0a5dfa7e/go.mod h1:DjK6qmDRyUJ89dWy/Ms3A+ZYoG1bPweDuvBsU/jQwjM=
-github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191107161701-414c0a5dfa7e h1:Yan8wdATVNt4pgAEHEdx6//t5QTgTbmbq3AcUXbMads=
-github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191107161701-414c0a5dfa7e/go.mod h1:u0kY4P+ctuH4BxNHF1UhAt41GeyIHeATluX/W3ATbrQ=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

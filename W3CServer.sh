@@ -1,13 +1,14 @@
-#!/bin/bash  
+#!/bin/bash
 
 
 
 startme() {
     echo "starting ..."
-    screen -d -m -S serverCore bash -c 'cd server-core  && go build && ./server-core'
-    screen -d -m -S serviceMgr bash -c 'go build service_mgr.go managerdata.go managerhandlers.go  && ./service_mgr'
-    screen -d -m -S wsMgr bash -c 'go build ws_mgr.go managerdata.go managerhandlers.go  && ./ws_mgr'
-    screen -d -m -S httpMgr bash -c 'go build http_mgr.go managerdata.go managerhandlers.go  && ./http_mgr'
+    screen -d -m -S serverCore bash -c 'cd server/server-core  && go build && ./server-core'
+    sleep 5s
+    screen -d -m -S serviceMgr bash -c 'cd server/servicemgr && go build service_mgr.go && ./service_mgr'
+    screen -d -m -S wsMgr bash -c 'cd server/wsmgr && go build ws_mgr.go && ./ws_mgr'
+    screen -d -m -S httpMgr bash -c 'cd server/httpmgr && go build http_mgr.go && ./http_mgr'
 }
 
 stopme() {
@@ -18,9 +19,9 @@ stopme() {
     #screen -wipe
 }
 
-configureme() {
-    ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
-}
+#configureme() {
+    #ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
+#}
 
 if [ "$1" = "startme" ]
 then
@@ -32,8 +33,7 @@ then
 stopme
 fi
 
-if [ "$1" = "configureme" ]
-then
-configureme
-fi
-
+#if [ "$1" = "configureme" ]
+#then
+#configureme
+#fi

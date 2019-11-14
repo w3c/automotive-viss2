@@ -12,7 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils"
+	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/manager"
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 
 	"github.com/gorilla/websocket"
 )
@@ -28,16 +29,18 @@ import (
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
-	transportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
+	mgr.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("http-mgr-log.txt")
 
-	hostIP = utils.GetOutboundIP()
-	registerAsTransportMgr(&regData)
+	mgr.HostIP = utils.GetOutboundIP()
 
-	go HttpServer{}.initClientServer(muxServer[0]) // go routine needed due to listenAndServe call...
-	dataConn := initDataSession(muxServer[1], regData)
+	regData := mgr.RegData{}
+	mgr.RegisterAsTransportMgr(&regData)
 
-	go HttpWSsession{}.transportHubFrontendWSsession(dataConn, appClientChan) // receives messages from server core
+	go mgr.HttpServer{}.InitClientServer(mgr.MuxServer[0]) // go routine needed due to listenAndServe call...
+	dataConn := mgr.InitDataSession(mgr.MuxServer[1], regData)
+
+	go mgr.HttpWSsession{}.TransportHubFrontendWSsession(dataConn, appClientChan) // receives messages from server core
 	utils.Info.Println("**** HTTP manager entering server loop... ****")
 	loopIter := 0
 	for {
