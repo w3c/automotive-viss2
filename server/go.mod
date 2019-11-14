@@ -9,5 +9,3 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	google.golang.org/grpc v1.25.0
 )
-
-replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => /home/moss/workspace/go/src/W3C_VehicleSignalInterfaceImpl/utils
