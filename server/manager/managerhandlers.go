@@ -11,7 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"utils"
+
+	"github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils"
 
 	"github.com/gorilla/websocket"
 )
@@ -113,7 +114,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	backendHttpAppSession(response, &w)
 }
 
-func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *websocket.Conn) {
+func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *websocket.Conn) {
 	var addr = flag.String("addr", "localhost:"+strconv.Itoa(regData.Portnum), "http service address")
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: regData.Urlpath}
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
@@ -127,7 +128,7 @@ func initDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
 * registerAsTransportMgr:
 * Registers with servercore as WebSocket protocol manager, and stores response in regData
 **/
-func registerAsTransportMgr(regData *RegData) {
+func RegisterAsTransportMgr(regData *RegData) {
 	url := "http://localhost:8081/transport/reg"
 
 	data := []byte(`{"protocol": "WebSocket"}`)
@@ -240,30 +241,30 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 	}
 }
 
-func (server HttpServer) initClientServer(muxServer *http.ServeMux) {
+func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 
-	appClientHandler := HttpChannel{}.makeappClientHandler(appClientChan)
+	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	utils.Info.Println(http.ListenAndServe(hostIP+":8888", muxServer))
+	utils.Info.Println(http.ListenAndServe(HostIP+":8888", muxServer))
 }
 
-func (server WsServer) initClientServer(muxServer *http.ServeMux) {
+func (server WsServer) InitClientServer(muxServer *http.ServeMux) {
 	serverIndex := 0
-	appClientHandler := WsChannel{server.clientBackendChannel, &serverIndex}.makeappClientHandler(appClientChan)
+	appClientHandler := WsChannel{server.ClientBackendChannel, &serverIndex}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	utils.Error.Fatal(http.ListenAndServe(hostIP+":8080", muxServer))
+	utils.Error.Fatal(http.ListenAndServe(HostIP+":8080", muxServer))
 }
 
 func finalizeResponse(responseMap map[string]interface{}) string {
 	response, err := json.Marshal(responseMap)
 	if err != nil {
-		utils.Error.Printf(err.Error(), " ", transportErrorMessage)
+		utils.Error.Printf(err.Error(), " ", TransportErrorMessage)
 		return "JSON marshal error" // what to do here?
 	}
 	return string(response)
 }
 
-func (httpCoreSocketSession HttpWSsession) transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
+func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
 	for {
 		_, response, err := dataConn.ReadMessage()
 		if err != nil {
@@ -280,7 +281,7 @@ func (httpCoreSocketSession HttpWSsession) transportHubFrontendWSsession(dataCon
 	}
 }
 
-func (wsCoreSocketSession WsWSsession) transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
+func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
 	for {
 		_, response, err := dataConn.ReadMessage()
 		if err != nil {
@@ -294,7 +295,7 @@ func (wsCoreSocketSession WsWSsession) transportHubFrontendWSsession(dataConn *w
 		delete(responseMap, "MgrId")
 		delete(responseMap, "ClientId")
 		if responseMap["action"] == "subscription" {
-			wsCoreSocketSession.clientBackendChannel[clientId] <- finalizeResponse(responseMap) //subscription notification
+			wsCoreSocketSession.ClientBackendChannel[clientId] <- finalizeResponse(responseMap) //subscription notification
 		} else {
 			appClientChannel[clientId] <- finalizeResponse(responseMap)
 		}

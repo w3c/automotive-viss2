@@ -14,7 +14,7 @@ var MuxServer = []*http.ServeMux{
 }
 
 // the number of channel array elements sets the limit for max number of parallel app clients
-var appClientChan = []chan string{
+var AppClientChan = []chan string{
 	make(chan string),
 	make(chan string),
 }
@@ -25,16 +25,16 @@ type RegData struct {
 	Mgrid   int
 }
 
-var transportErrorMessage string
+var TransportErrorMessage string
 
-var regData RegData
+//var RegisterData RegData
 
 var Upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
 
-var hostIP string
+var HostIP string
 
 /********************************************************************** Client response handlers **********************/
 type ClientHandler interface {
@@ -52,13 +52,13 @@ type WsChannel struct {
 /**********Client server initialization *******************************************************************************/
 
 type ClientServer interface {
-	initClientServer(muxServer *http.ServeMux)
+	InitClientServer(muxServer *http.ServeMux)
 }
 
 type HttpServer struct {
 }
 type WsServer struct {
-	clientBackendChannel []chan string
+	ClientBackendChannel []chan string
 }
 
 /***********Server Core Communications ********************************************************************************/
@@ -70,5 +70,5 @@ type HttpWSsession struct {
 }
 
 type WsWSsession struct {
-	clientBackendChannel []chan string
+	ClientBackendChannel []chan string
 }

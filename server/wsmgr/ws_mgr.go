@@ -9,9 +9,11 @@
 package main
 
 import (
-	"W3C_VehicleSignalInterfaceImpl/utils"
 	"strconv"
 	"strings"
+
+	mgr "github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/server/manager"
+	"github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils"
 
 	"github.com/gorilla/websocket"
 )
@@ -30,30 +32,33 @@ const isClientLocal = false
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
-	transportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
+	mgr.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
 
 	utils.InitLog("ws-mgr-log.txt")
+	regData := mgr.RegData{}
 
-	hostIP = utils.GetOutboundIP()
-	registerAsTransportMgr(&regData)
-	go WsServer{clientBackendChan}.initClientServer(muxServer[0]) // go routine needed due to listenAndServe call...
+	mgr.HostIP = utils.GetOutboundIP()
+	mgr.RegisterAsTransportMgr(&regData)
+
+	go mgr.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(mgr.MuxServer[0]) // go routine needed due to listenAndServe call...
 
 	utils.Info.Printf("initClientServer() done\n")
-	dataConn := initDataSession(muxServer[1], regData)
-	go WsWSsession{clientBackendChan}.transportHubFrontendWSsession(dataConn, appClientChan) // receives messages from server core
+	dataConn := mgr.InitDataSession(mgr.MuxServer[1], regData)
+	go mgr.WsWSsession{clientBackendChan}.TransportHubFrontendWSsession(dataConn, mgr.AppClientChan) // receives messages from server core
 	utils.Info.Printf("initDataSession() done\n")
+
 	for {
 		select {
-		case reqMessage := <-appClientChan[0]:
+		case reqMessage := <-mgr.AppClientChan[0]:
 			utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
 			// add mgrId + clientId=0 to message, forward to server core
 			newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
 			request := strings.Replace(reqMessage, "{", newPrefix, 1)
 			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 			if err != nil {
-				utils.Error.Printf("Datachannel write error:", err)
+				utils.Error.Printf("Datachannel write error: %s", err)
 			}
-		case reqMessage := <-appClientChan[1]:
+		case reqMessage := <-mgr.AppClientChan[1]:
 			// add mgrId + clientId=1 to message, forward to server core
 			newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
 			request := strings.Replace(reqMessage, "{", newPrefix, 1)

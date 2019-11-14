@@ -1,0 +1,37 @@
+{"level":"info","msg":"initTransportDataServer():mgrIndex=1\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"main():initTransportDataServers() executed...\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"main():initTransportRegisterServer() executed...\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"main():starting loop for channel receptions...\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"initTransportDataServer():mgrIndex=0\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"initServiceRegisterServer():localhost:8082/service/reg\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"initTransportRegisterServer():localhost:8081/transport/reg\n","time":"2019-11-07T00:41:04-08:00"}
+{"level":"info","msg":"initTransportDataServer():mgrIndex=0\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"main():initTransportDataServers() executed...\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"main():initTransportRegisterServer() executed...\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"main():starting loop for channel receptions...\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"initTransportDataServer():mgrIndex=1\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"initTransportRegisterServer():localhost:8081/transport/reg\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"initServiceRegisterServer():localhost:8082/service/reg\n","time":"2019-11-12T05:15:57-08:00"}
+{"level":"info","msg":"serviceRegisterServer():url=/service/reg\n","time":"2019-11-12T05:16:54-08:00"}
+{"level":"info","msg":"serviceRegisterServer(index=0):received POST request=Vehicle\n","time":"2019-11-12T05:16:54-08:00"}
+{"level":"info","msg":"serviceRegisterServer():POST response={ \"Portnum\" : 8200 , \"Urlpath\" : \"/service/data/0\" }\n","time":"2019-11-12T05:16:54-08:00"}
+{"level":"info","msg":"updateServiceRouting(): portnum=8200, rootNode=Vehicle\n","time":"2019-11-12T05:16:54-08:00"}
+{"level":"info","msg":"initServiceClientSession: muxIndex=4\n","time":"2019-11-12T05:16:57-08:00"}
+{"level":"info","msg":"Connecting to:ws://localhost:8200/service/data/0\n","time":"2019-11-12T05:16:57-08:00"}
+{"level":"info","msg":"transportRegisterServer():url=/transport/reg\n","time":"2019-11-12T05:18:12-08:00"}
+{"level":"info","msg":"transportRegisterServer():POST request=WebSocket\n","time":"2019-11-12T05:18:12-08:00"}
+{"level":"info","msg":"transportRegisterServer():POST response={ \"Portnum\" : 8101 , \"Urlpath\" : \"/transport/data/1\" , \"Mgrid\" : 53126 }\n","time":"2019-11-12T05:18:12-08:00"}
+{"level":"info","msg":"we are upgrading to a websocket connection\n","time":"2019-11-12T05:18:12-08:00"}
+{"level":"info","msg":"WS data session initiated.\n","time":"2019-11-12T05:18:12-08:00"}
+{"level":"info","msg":"Dummy updateTransportRoutingTable, mgrId=53126, portnum=8101\n","time":"2019-11-12T05:18:12-08:00"}
+{"level":"info","msg":"127.0.0.1:50724 request: \"github.com.MagnusGun.W3C_VehicleSignalInterfaceImpl.utils\" \n","time":"2019-11-12T05:21:22-08:00"}
+{"level":"info","msg":"extractPayload: JSON decode failed for request:\"github.com.MagnusGun.W3C_VehicleSignalInterfaceImpl.utils\"\n","time":"2019-11-12T05:21:22-08:00"}
+{"level":"info","msg":"serveRequest():not implemented/unknown action=%!s(\u003cnil\u003e)\n","time":"2019-11-12T05:21:22-08:00"}
+{"level":"info","msg":"127.0.0.1:50724 Transport mgr server: message= {\"ClientId\":0,\"MgrId\":0,\"action\":\"unknown\",\"error\":\"{\\\"number\\\":99, \\\"reason\\\": \\\"BBB\\\", \\\"message\\\": \\\"CCC\\\"}\",\"requestId\":\"XXX\",\"timestamp\":1234} \n","time":"2019-11-12T05:21:22-08:00"}
+{"level":"info","msg":"127.0.0.1:50724 request: { \"MgrId\" : 53126 , \"ClientId\" : 0 , \"action\":\"getmetadata\", \"path\":\"Vehicle.Cabin.Door.Row1.Right?$spec\", \"requestId\":\"234\"} \n","time":"2019-11-12T05:22:46-08:00"}
+{"level":"info","msg":"getMatches(): path=Vehicle.Cabin.Door.Row1.Right\n","time":"2019-11-12T05:22:46-08:00"}
+{"level":"info","msg":"127.0.0.1:50724 Transport mgr server: message= {\"ClientId\":0,\"MgrId\":53126,\"action\":\"getmetadata\",\"metadata\":\"{\\\"Right\\\":{\\\"type\\\":\\\"branch\\\",\\\"description\\\":\\\"Right front door\\\",\\\"children\\\":{\\\"IsChildLockActive\\\":{\\\"type\\\":\\\"sensor\\\",\\\"description\\\":\\\"Is door child lock engaged. True = Engaged. False = Disengaged.\\\",\\\"datatype:\\\"\\\"boolean\\\",}\\\"IsLocked\\\":{\\\"type\\\":\\\"actuator\\\",\\\"description\\\":\\\"Is door locked or unlocked. True = Locked. False = Unlocked.\\\",\\\"datatype:\\\"\\\"boolean\\\",}\\\"Shade\\\":{\\\"type\\\":\\\"branch\\\",\\\"description\\\":\\\"Side window shade\\\",\\\"children\\\":{\\\"Position\\\":{\\\"type\\\":\\\"actuator\\\",\\\"description\\\":\\\"Position of side window blind. 0 = Fully retracted. 100 = Fully deployed.\\\",\\\"datatype:\\\"\\\"uint8\\\",}\\\"Switch\\\":{\\\"type\\\":\\\"actuator\\\",\\\"description\\\":\\\"Switch controlling sliding action such as window, sunroof, or blind.\\\",\\\"datatype:\\\"\\\"string\\\",}}}\\\"Window\\\":{\\\"type\\\":\\\"branch\\\",\\\"description\\\":\\\"Door window status\\\",\\\"children\\\":{\\\"Position\\\":{\\\"type\\\":\\\"sensor\\\",\\\"description\\\":\\\"Window position. 0 = Fully closed 100 = Fully opened.\\\",\\\"datatype:\\\"\\\"uint8\\\",}\\\"ChildLock\\\":{\\\"type\\\":\\\"sensor\\\",\\\"description\\\":\\\"Is door child lock engaged. True = Engaged. False = Disengaged.\\\",\\\"datatype:\\\"\\\"boolean\\\",}\\\"Switch\\\":{\\\"type\\\":\\\"actuator\\\",\\\"description\\\":\\\"Switch controlling sliding action such as window, sunroof, or blind.\\\",\\\"datatype:\\\"\\\"string\\\",}\\\"isOpen\\\":{\\\"type\\\":\\\"sensor\\\",\\\"description\\\":\\\"Is door open or closed\\\",\\\"datatype:\\\"\\\"boolean\\\",}}}\\\"IsOpen\\\":{\\\"type\\\":\\\"actuator\\\",\\\"description\\\":\\\"Is door open or closed\\\",\\\"datatype:\\\"\\\"boolean\\\",}}}}\",\"requestId\":\"234\",\"timestamp\":1234} \n","time":"2019-11-12T05:22:46-08:00"}
+{"level":"info","msg":"127.0.0.1:50724 request: { \"MgrId\" : 53126 , \"ClientId\" : 0 , \"action\":\"set\", \"path\":\"Vehicle.Cabin.Door.Row1.Right.IsOpen\", \"value\":\"999\", \"requestId\":\"234\"} \n","time":"2019-11-12T05:23:11-08:00"}
+{"level":"info","msg":"getMatches(): path=Vehicle.Cabin.Door.Row1.Right.IsOpen\n","time":"2019-11-12T05:23:11-08:00"}
+{"level":"info","msg":"Server core: Response from service mgr:{\"ClientId\":0,\"MgrId\":53126,\"action\":\"set\",\"requestId\":\"234\",\"timestamp\":1234}\n","time":"2019-11-12T05:23:11-08:00"}
+{"level":"info","msg":"127.0.0.1:50724 Transport mgr server: message= {\"ClientId\":0,\"MgrId\":53126,\"action\":\"set\",\"requestId\":\"234\",\"timestamp\":1234} \n","time":"2019-11-12T05:23:11-08:00"}
