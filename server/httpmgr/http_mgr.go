@@ -1,0 +1,71 @@
+/**
+* (C) 2019 Geotab
+* (C) 2019 Volvo Cars
+*
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* are licensed under the provisions of the license provided by the LICENSE file in this repository.
+*
+**/
+package main
+
+import (
+	"strconv"
+	"strings"
+
+	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/manager"
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+
+	"github.com/gorilla/websocket"
+)
+
+//common source for all requestIds
+
+// TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
+
+/**
+* Websocket transport manager tasks:
+*     - register with core server
+      - spawn a WS server for every connecting app client
+      - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
+**/
+func main() {
+	mgr.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
+	utils.InitLog("http-mgr-log.txt")
+
+	mgr.HostIP = utils.GetOutboundIP()
+
+	regData := mgr.RegData{}
+	mgr.RegisterAsTransportMgr(&regData)
+
+	go mgr.HttpServer{}.InitClientServer(mgr.MuxServer[0]) // go routine needed due to listenAndServe call...
+	dataConn := mgr.InitDataSession(mgr.MuxServer[1], regData)
+
+	go mgr.HttpWSsession{}.TransportHubFrontendWSsession(dataConn, appClientChan) // receives messages from server core
+	utils.Info.Println("**** HTTP manager entering server loop... ****")
+	loopIter := 0
+	for {
+		select {
+		case reqMessage := <-appClientChan[0]:
+			utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
+			// add mgrId + clientId=0 to message, forward to server core
+			newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
+			request := strings.Replace(reqMessage, "{", newPrefix, 1)
+			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
+			if err != nil {
+				utils.Warning.Println("Datachannel write error:" + err.Error())
+			}
+		case reqMessage := <-appClientChan[1]:
+			// add mgrId + clientId=1 to message, forward to server core
+			newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
+			request := strings.Replace(reqMessage, "{", newPrefix, 1)
+			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
+			if err != nil {
+				utils.Warning.Println("Datachannel write error:" + err.Error())
+			}
+		}
+		loopIter++
+		if loopIter%1000 == 0 {
+			utils.TrimLogFile(utils.Logfile)
+		}
+	}
+}

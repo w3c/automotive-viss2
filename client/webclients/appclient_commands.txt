@@ -1,0 +1,32 @@
+// Websocket request examples
+
+Get request:
+{"action":"get", "path":"Vehicle/Cabin/Door/*/*/IsOpen", "requestId":"123"}
+{"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
+
+Subscribe request:
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}  // "filters" key-value left out
+{"action":"unsubscribe", "subscriptionId":"789", "requestId":"234"}
+
+Get request:
+{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"234"}
+
+Service discovery request:
+{"action":"getmetadata", "path":"Vehicle/Cabin/Door/Row1/Right?$spec", "requestId":"234"}
+
+
+// HTTP request examples
+
+Get request:
+HTTP GET 
+URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
+
+Set request:
+HTTP POST 
+URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
+Payload: 999
+
+Service discovery request:
+HTTP GET 
+URL: Vehicle/Cabin/Door/Row1/Right?$spec
+
