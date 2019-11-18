@@ -38,7 +38,7 @@ func main() {
 	regData := mgr.RegData{}
 
 	mgr.HostIP = utils.GetOutboundIP()
-	mgr.RegisterAsTransportMgr(&regData)
+	mgr.RegisterAsTransportMgr(&regData, "WebSocket")
 
 	go mgr.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(mgr.MuxServer[0]) // go routine needed due to listenAndServe call...
 
@@ -54,6 +54,7 @@ func main() {
 			// add mgrId + clientId=0 to message, forward to server core
 			newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
 			request := strings.Replace(reqMessage, "{", newPrefix, 1)
+//                      utils.Info.Println("WS mgr message to core server:" + request)
 			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 			if err != nil {
 				utils.Error.Printf("Datachannel write error: %s", err)
@@ -62,6 +63,7 @@ func main() {
 			// add mgrId + clientId=1 to message, forward to server core
 			newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
 			request := strings.Replace(reqMessage, "{", newPrefix, 1)
+//                      utils.Info.Println("WS mgr message to core server:" + request)
 			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 			if err != nil {
 				utils.Error.Printf("Datachannel write error:", err)

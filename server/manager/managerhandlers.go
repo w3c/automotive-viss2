@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"io/ioutil"
-	"log"
+//	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -128,10 +128,11 @@ func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
 * registerAsTransportMgr:
 * Registers with servercore as WebSocket protocol manager, and stores response in regData
 **/
-func RegisterAsTransportMgr(regData *RegData) {
+func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	url := "http://localhost:8081/transport/reg"
 
-	data := []byte(`{"protocol": "WebSocket"}`)
+//	data := []byte(`{"protocol": "WebSocket"}`)
+	data := []byte(`{"protocol": "` + protocol + `"}`)
 	//    data := []byte(`{"protocol": "HTTP"}`)  // use in HTTP manager
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
@@ -268,16 +269,18 @@ func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataCon
 	for {
 		_, response, err := dataConn.ReadMessage()
 		if err != nil {
-			log.Println("Datachannel read error:" + err.Error())
+			utils.Error.Println("Datachannel read error:" + err.Error())
 			return // ??
 		}
-		utils.Info.Printf("Server hub: Response from server core:%s\n", string(response))
+		utils.Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
 		var responseMap = make(map[string]interface{})
 		utils.ExtractPayload(string(response), &responseMap)
 		clientId := int(responseMap["ClientId"].(float64))
+//              utils.Info.Printf("Client id: %s", clientId)
 		delete(responseMap, "MgrId")
 		delete(responseMap, "ClientId")
 		appClientChannel[clientId] <- finalizeResponse(responseMap) // no need for clientBackendChannel as subscription notifications not supported
+//              utils.Info.Println("HTTP core server hub channel message to transport frontend:" + finalizeResponse(responseMap))
 	}
 }
 
@@ -288,16 +291,18 @@ func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *w
 			utils.Error.Println("Datachannel read error:", err)
 			return // ??
 		}
-		utils.Info.Printf("Server hub: Response from server core:%s\n", string(response))
+		utils.Info.Printf("Server hub: WS response from server core:%s\n", string(response))
 		var responseMap = make(map[string]interface{})
 		utils.ExtractPayload(string(response), &responseMap)
 		clientId := int(responseMap["ClientId"].(float64))
+//              utils.Info.Printf("Client id: %s", clientId)
 		delete(responseMap, "MgrId")
 		delete(responseMap, "ClientId")
 		if responseMap["action"] == "subscription" {
 			wsCoreSocketSession.ClientBackendChannel[clientId] <- finalizeResponse(responseMap) //subscription notification
 		} else {
 			appClientChannel[clientId] <- finalizeResponse(responseMap)
+//                      utils.Info.Println("WS core server hub channel message to transport frontend:" + finalizeResponse(responseMap))
 		}
 	}
 }
