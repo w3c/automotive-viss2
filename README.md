@@ -4,13 +4,37 @@ Playground for evaluating the second iteration of the W3C automotive specificati
 In order to keep some structure on this playground, the players should try to follow the guidelines below.
 
 Playing shall be done within any of the directories
-	1. server
+ 	1. server
 	2. client
 	3. pre_dev
-These directories each kontain language specific directories for respective playing dialect. If directory for dialect of interest is missing, just create it.
+
+These directories each contain language specific directories for respective playing dialect. If directory for dialect of interest is missing, just create it.
 
 # 3. pre_dev
 The real playing should be done under this directory, where new ideas, etc can be evaluated. Please create a directory for the play, and create a README.md file from the template.
+
+
+
+# Starting and building the server
+
+This project requires Go version 1.13 or above, make sure your GOROOT and GOPATH are correctly configured. Since this project uses Go modules all dependencies will automatically download when building the project the first time.
+
+launch core-server and all managers by running
+
+```bash
+#start the servers
+$ ./W3CServer.sh startme
+#stop the servers
+$ ./W3CServer.sh stopme
+```
+
+To speed up the first time build you can run the command below in ./ and ./server directory
+
+```bash
+$ go mod tidy
+```
+
+
 
 # 1. server
 Playing under the server directory should align with the project common software architecture. Significant deviations should be documented in the README.md file.
