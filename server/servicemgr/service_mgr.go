@@ -200,6 +200,7 @@ func main() {
 				responseStatus = false
 			}
 			dataChan <- finalizeResponse_smgr(responseMap, responseStatus)
+//                      utils.Info.Println("Service mgr channel message to core server frontend:" + finalizeResponse_smgr(responseMap, responseStatus))
 		default:
 			checkSubscription(subscriptionChan, backendChan, subscriptionMap)
 			time.Sleep(50 * time.Millisecond)
