@@ -45,10 +45,12 @@ func main() {
     for {
         select {
         case reqMessage := <- appClientChan[0]:
+            utils.Info.Println(" bloody var ", testvar)
             utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
             // add mgrId + clientId=0 to message, forward to server core
             newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
+            utils.Info.Println(" client channel 0 request ", request)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {
                 utils.Warning.Println("Datachannel write error:" + err.Error())
@@ -57,6 +59,7 @@ func main() {
             // add mgrId + clientId=1 to message, forward to server core
             newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
+            utils.Info.Println(" client channel 1 request ", request)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {
                 utils.Warning.Println("Datachannel write error:" + err.Error())

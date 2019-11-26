@@ -46,6 +46,8 @@ func main() {
     for {
         select {
         case reqMessage := <- appClientChan[0]:
+            testvar = 123456;
+            //utils.Info.Print(" test var is", testvar )
             utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
             // add mgrId + clientId=0 to message, forward to server core
             newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
@@ -56,7 +58,7 @@ func main() {
             }
         case reqMessage := <- appClientChan[1]:
             // add mgrId + clientId=1 to message, forward to server core
-            newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
+            newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 1 , "
             request := strings.Replace(reqMessage, "{", newPrefix, 1)
             err := dataConn.WriteMessage(websocket.TextMessage, []byte(request)); 
             if (err != nil) {

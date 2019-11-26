@@ -5,6 +5,8 @@ import (
 	"net/http"
 )
 
+
+var testvar int
 var requestTag int
 
 var muxServer = []*http.ServeMux {

@@ -588,6 +588,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 }
 
 func main() {
+
     utils.InitLog("servercore-log.txt")
 
     if !initVssFile(){
