@@ -1,3 +1,12 @@
+/**
+* (C) 2019 Geotab Inc
+* (C) 2019 Volvo Cars
+*
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* are licensed under the provisions of the license provided by the LICENSE file in this repository.
+*
+**/
+
 package manager
 
 import (
@@ -9,7 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
+//	"strings"
 	"time"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
@@ -18,7 +27,7 @@ import (
 )
 
 func backendHttpAppSession(message string, w *http.ResponseWriter) {
-	utils.Info.Printf("backendWSAppSession(): Message received=%s\n", message)
+	utils.Info.Printf("backendHttpAppSession(): Message received=%s\n", message)
 
 	var responseMap = make(map[string]interface{})
 	utils.ExtractPayload(message, &responseMap)
@@ -29,9 +38,11 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	}
 	switch responseMap["action"] {
 	case "get":
-		response = responseMap["value"].(string)
-	case "getmetadata":
-		response = responseMap["metadata"].(string)
+                if _, ok := responseMap["value"]; ok {
+                    response = responseMap["value"].(string)
+                } else {
+		    response = responseMap["metadata"].(string)
+                }
 	case "set":
 		response = "200 OK" //??
 	default:
@@ -87,12 +98,8 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	utils.Info.Printf("HTTP method:%s, path: %s\n", req.Method, path)
 	var requestMap = make(map[string]interface{})
 	switch req.Method {
-	case "GET": // get/getmetadata
-		if strings.Contains(path, "$spec") {
-			requestMap["action"] = "getmetadata"
-		} else {
-			requestMap["action"] = "get"
-		}
+	case "GET":
+		requestMap["action"] = "get"
 		requestMap["path"] = path
 		requestMap["requestId"] = strconv.Itoa(requestTag)
 		requestTag++
@@ -131,9 +138,7 @@ func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
 func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	url := "http://localhost:8081/transport/reg"
 
-//	data := []byte(`{"protocol": "WebSocket"}`)
 	data := []byte(`{"protocol": "` + protocol + `"}`)
-	//    data := []byte(`{"protocol": "HTTP"}`)  // use in HTTP manager
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
@@ -222,22 +227,23 @@ func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string) fu
 func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Upgrade") == "websocket" {
-			utils.Info.Printf("we are upgrading to a websocket connection. Server index=%d\n", *wsH.serverIndex)
+			utils.Info.Printf("we are upgrading to a websocket connection. Server index=%d", *wsH.serverIndex)
 			Upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 			conn, err := Upgrader.Upgrade(w, req, nil)
 			if err != nil {
 				utils.Error.Print("upgrade error:", err)
 				return
 			}
+			utils.Info.Printf("len(appClientChannel)=%d", len(appClientChannel))
 			if *wsH.serverIndex < len(appClientChannel) {
 				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex])
 				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex])
 				*wsH.serverIndex += 1
 			} else {
-				utils.Warning.Printf("not possible to start more app client sessions.\n")
+				utils.Error.Printf("not possible to start more app client sessions.")
 			}
 		} else {
-			utils.Warning.Printf("Client must set up a Websocket session.\n")
+			utils.Error.Printf("Client must set up a Websocket session.")
 		}
 	}
 }
@@ -249,9 +255,9 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 	utils.Info.Println(http.ListenAndServe(HostIP+":8888", muxServer))
 }
 
-func (server WsServer) InitClientServer(muxServer *http.ServeMux) {
-	serverIndex := 0
-	appClientHandler := WsChannel{server.ClientBackendChannel, &serverIndex}.makeappClientHandler(AppClientChan)
+func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *int) {
+	*serverIndex = 0
+	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
 	utils.Error.Fatal(http.ListenAndServe(HostIP+":8080", muxServer))
 }
