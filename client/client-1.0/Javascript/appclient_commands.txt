@@ -4,20 +4,20 @@ Get request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
 
 Get request with search:
-{"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"123"}
+{"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}
 
 Service discovery request:
-{"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right?$specEQ0", "requestId":"234"}
+{"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right?$specEQ0", "requestId":"236"}
 
 Set request:
-{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"234"}
+{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"237"}
 
 Subscribe request:
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen?$intervalEQ2", "requestId":"234"}
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen?$intervalEQ2AND$rangeGT5", "requestId":"234"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen?$intervalEQ2", "requestId":"238"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position?$rangeGT15AND$changeGT5", "requestId":"239"}
 
 Unsubscribe request:
-{"action":"unsubscribe", "subscriptionId":"789", "requestId":"234"}
+{"action":"unsubscribe", "subscriptionId":"1", "requestId":"240"}
 
 
 
