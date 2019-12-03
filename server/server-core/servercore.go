@@ -1,4 +1,5 @@
 /**
+* (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
@@ -38,6 +39,12 @@ var rootHandle C.long
 type searchData_t struct { // searchData_t defined in vssparserutilities.h
 	responsePath    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
 	foundNodeHandle int64     // defined as long in vssparserutilities.h
+}
+
+type filterDef_t struct {
+    name string
+    operator string
+    value string
 }
 
 var transportRegChan chan int
@@ -294,11 +301,11 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 				w.Header().Set("Content-Type", "application/json")
 				response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum+*serviceIndex-1) + " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex-1) + "\"" + " }"
 
-				utils.Info.Printf("serviceRegisterServer():POST response=%s\n", response)
+				utils.Info.Printf("serviceRegisterServer():POST response=%s", response)
 				w.Write([]byte(response))
 				go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1, backendChannel)
 			} else {
-				utils.Info.Printf("serviceRegisterServer():Max number of services already registered.\n")
+				utils.Info.Printf("serviceRegisterServer():Max number of services already registered.")
 			}
 		}
 	}
@@ -320,7 +327,7 @@ func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan strin
 			break
 		}
 
-		utils.Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+		utils.Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
 		transportDataChannel <- string(msg) // send request to server hub
 		response := <-transportDataChannel  // wait for response from server hub
 
@@ -333,7 +340,7 @@ func backendWSDataSession(conn *websocket.Conn, backendChannel chan string) {
 	for {
 		message := <-backendChannel
 
-		utils.Info.Printf("%s Transport mgr server: message= %s \n", conn.RemoteAddr(), message)
+		utils.Info.Printf("%s Transport mgr server: message= %s", conn.RemoteAddr(), message)
 		err := conn.WriteMessage(websocket.TextMessage, []byte(message))
 		if err != nil {
 			utils.Error.Printf("write error data WS protocol.", err)
@@ -345,14 +352,14 @@ func backendWSDataSession(conn *websocket.Conn, backendChannel chan string) {
 func makeTransportDataHandler(transportDataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Upgrade") == "websocket" {
-			utils.Info.Printf("we are upgrading to a websocket connection\n")
+			utils.Info.Printf("we are upgrading to a websocket connection.")
 			upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 			conn, err := upgrader.Upgrade(w, req, nil)
 			if err != nil {
 				utils.Error.Printf("upgrade:", err)
 				return
 			}
-			utils.Info.Printf("WS data session initiated.\n")
+			utils.Info.Printf("WS data session initiated.")
 			go frontendWSDataSession(conn, transportDataChannel, backendChannel)
 			go backendWSDataSession(conn, backendChannel)
 		} else {
@@ -435,9 +442,9 @@ func aggregateResponse(iterator int, response string, aggregatedResponseMap *map
 	}
 }
 
-func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
+func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
-	matches := searchTree(requestMap["path"].(string), &searchData[0])
+	matches := searchTree(removeQuery(requestMap["path"].(string)), &searchData[0])
 	if matches == 0 {
 		errorResponseMap["MgrId"] = requestMap["MgrId"]
 		errorResponseMap["ClientId"] = requestMap["ClientId"]
@@ -447,7 +454,8 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 	} else {
 		if matches == 1 {
 			pathLen := getPathLen(string(searchData[0].responsePath[:]))
-			requestMap["path"] = string(searchData[0].responsePath[:pathLen])
+			requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
+//                        if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 			serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 			response := <-serviceDataChan[sDChanIndex]
 			transportDataChan[tDChanIndex] <- response
@@ -455,7 +463,8 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			var aggregatedResponseMap map[string]interface{}
 			for i := 0; i < matches; i++ {
 				pathLen := getPathLen(string(searchData[i].responsePath[:]))
-				requestMap["path"] = string(searchData[0].responsePath[:pathLen])
+				requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
+//                                if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 				serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 				response := <-serviceDataChan[sDChanIndex]
 				aggregateResponse(i, response, &aggregatedResponseMap)
@@ -475,11 +484,19 @@ func finalizeMessage(responseMap map[string]interface{}) string {
 }
 
 func removeQuery(path string) string {
-	pathEnd := strings.Index(path, "?$spec")
+	pathEnd := strings.Index(path, "?")
 	if pathEnd != -1 {
 		return path[:pathEnd]
 	}
 	return path
+}
+
+func addQuery(path string) string {
+	queryStart := strings.Index(path, "?")
+	if queryStart != -1 {
+		return path[queryStart:]
+	}
+	return ""
 }
 
 // vssparserutilities.h: nodeTypes_t; 0-9 -> the data types, 10-16 -> the node types. Should be separated in the C code declarations...
@@ -573,27 +590,148 @@ func synthesizeJsonTree(path string) string {
 	return "{" + jsonBuffer + "}"
 }
 
+/*
+func spaceRemoved(value string) string {
+    var valueStart, valueStop int
+    for index := 0 ; index < len(value) ; index++ {
+        if (value[index] != ' ') {
+            valueStart = index
+            break
+        }
+    }
+    for index := len(value)-1 ; index >= 0 ; index-- {
+        if (value[index] != ' ') {
+            valueStop = index
+            break
+        }
+    }
+    return value[valueStart:valueStop]
+}*/
+
+
+func processOneFilter(filter string, filterList *[]filterDef_t) string {
+    filterDef := filterDef_t{}
+    filterRemoved := false
+    if (strings.Contains(filter, "$spec") == true) {
+        filterDef.name = "$spec"
+        filterRemoved = true
+    } else if (strings.Contains(filter, "$path") == true) {
+        filterDef.name = "$path"
+        filterRemoved = true
+    } else if (strings.Contains(filter, "$data") == true) {
+        filterDef.name = "$data"
+        filterRemoved = true
+    }
+    if (filterRemoved == true) {
+        valueStart := strings.Index(filter, "EQ")
+        if (valueStart != -1) {
+            filterDef.operator = "eq"
+        } else {
+            valueStart = strings.Index(filter, "GT")
+            if (valueStart != -1) {
+                filterDef.operator = "gt"
+            } else {
+            valueStart = strings.Index(filter, "LT")
+                if (valueStart != -1) {
+                    filterDef.operator = "lt"
+                }
+            }
+        }
+        filterDef.value = filter[valueStart+2:]
+        *filterList = append(*filterList, filterDef)
+utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s\n", filterDef.name, filterDef.operator, filterDef.value)    
+        return ""
+    }
+    return filter
+}
+
+/**
+* Remove the filters $spec, $path, $data from the query component of the path, and add a list component for each removed filter. 
+* The logic behind this is that filters $interval, $range, $change are passed on to service mgr, while the removed ones are handled by the servercore.
+**/
+func processFilters(path string, filterList *[]filterDef_t) string {
+    queryDelim := strings.Index(path,"?")
+    query := path[queryDelim+1:]
+    if (queryDelim == -1) {
+        return path
+    }
+    numOfFilters := strings.Count(query,"AND") + 1 // 0=>1, 1=> 2, 2=>3, 3=>4
+utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)    
+    var processedQuery string = ""
+    filterStart := 0
+    for i:= 0 ; i < numOfFilters ;i++ {
+        filterEnd := strings.Index(query[filterStart:],"AND")
+        if (filterEnd == -1) {
+            filterEnd = len(query)
+        }
+        filter := query[filterStart:filterEnd]
+        if (len(processedQuery) == 0) {
+            processedQuery = processOneFilter(filter, filterList)
+        } else {
+            processedQuery += "AND" + processOneFilter(filter, filterList)
+        }
+        filterStart = filterEnd + 3   //len(AND)=3
+    }
+    if (len(processedQuery) > 0) {
+        processedQuery = "?" + processedQuery
+    }
+utils.Info.Printf("processFilters():processed path=%s\n", path[0:queryDelim] + processedQuery)    
+    return path[0:queryDelim] + processedQuery
+}
+
+
+func listContainsName(filterList []filterDef_t, name string) bool {
+    for i := 0 ; i < len(filterList) ; i++ {
+        if (filterList[i].name == name) {
+            return true
+        }
+    }
+    return false
+}
+
+func getListValue(filterList []filterDef_t, name string) string {
+    for i := 0 ; i < len(filterList) ; i++ {
+        if (filterList[i].name == name) {
+            return filterList[i].value
+        }
+    }
+    return ""
+}
+
+
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
+        filterList := []filterDef_t{}
+        if _, ok := requestMap["path"]; ok {
+            requestMap["path"] = processFilters(requestMap["path"].(string), &filterList)
+        }
 	switch requestMap["action"] {
 	case "get":
-		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
+                if (listContainsName(filterList, "$spec") == true) {
+                    requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string))) //TODO restrict tree to depth (handle error case)
+                    delete(requestMap, "path")
+                    requestMap["timestamp"] = 1234
+                    transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
+                } else {
+                    if (listContainsName(filterList, "$path") == true) {
+                        requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path")  //When/if VSS changes to slash delimiter, update here
+                    }
+		    retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
+                }
 	case "set":
-		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
+		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, nil)  // filters currently not used here
 	case "subscribe":
-		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex)
+                if (listContainsName(filterList, "$path") == true) {
+                    requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") + addQuery(requestMap["path"].(string))  //When/if VSS changes to slash delimiter, update here
+                }
+		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
+
 	case "unsubscribe":
+utils.Info.Printf("unsubscribe:request=%s", request)    
 		serviceDataChan[sDChanIndex] <- request
 		response := <-serviceDataChan[sDChanIndex]
 		transportDataChan[tDChanIndex] <- response
-	case "getmetadata":
-		path := removeQuery(requestMap["path"].(string))
-		requestMap["metadata"] = synthesizeJsonTree(path) //TODO handle error case
-		delete(requestMap, "path")
-		requestMap["timestamp"] = 1234
-		transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
-		//        case "authorize":  //TODO
 	default:
 		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
 		errorResponseMap["MgrId"] = 0    //??
