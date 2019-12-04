@@ -55,14 +55,6 @@ func main() {
 			if err != nil {
 				utils.Warning.Println("Datachannel write error:" + err.Error())
 			}
-		case reqMessage := <-mgr.AppClientChan[1]:
-			// add mgrId + clientId=1 to message, forward to server core
-			newPrefix := "{ MgrId: " + strconv.Itoa(regData.Mgrid) + " , ClientId: 1 , "
-			request := strings.Replace(reqMessage, "{", newPrefix, 1)
-			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
-			if err != nil {
-				utils.Warning.Println("Datachannel write error:" + err.Error())
-			}
 		}
 		loopIter++
 		if loopIter%1000 == 0 {

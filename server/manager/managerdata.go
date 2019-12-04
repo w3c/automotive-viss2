@@ -1,3 +1,12 @@
+/**
+* (C) 2019 Geotab Inc
+* (C) 2019 Volvo Cars
+*
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* are licensed under the provisions of the license provided by the LICENSE file in this repository.
+*
+**/
+
 package manager
 
 import (
@@ -13,8 +22,26 @@ var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for data session with core server on port number provided at registration
 }
 
-// the number of channel array elements sets the limit for max number of parallel app clients
+// the number of channel array elements sets the limit for max number of parallel WS app clients
 var AppClientChan = []chan string{
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
+	make(chan string),
 	make(chan string),
 	make(chan string),
 }
