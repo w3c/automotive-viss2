@@ -23,10 +23,6 @@ import (
 	//	"strings"
 	"time"
 
-	//"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
-
-	//"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
-	//"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 	"github.com/gorilla/websocket"
 )
 
