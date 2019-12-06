@@ -64,7 +64,7 @@ func FrontendWSdataSession(conn *websocket.Conn, clientChannel chan string, back
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			Error.Printf("Service data read error:", err)
+			Error.Printf("Service data read error: %s", err)
 			break
 		}
 		Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
@@ -87,7 +87,7 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 
 		err := conn.WriteMessage(websocket.TextMessage, response)
 		if err != nil {
-			Error.Printf("Service data write error:", err)
+			Error.Printf("Service data write error: %s", err)
 			break
 		}
 	}
@@ -182,7 +182,7 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			Error.Printf("App client read error:", err)
+			Error.Printf("App client read error: %s", err)
 			break
 		}
 
