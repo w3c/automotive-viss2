@@ -9,12 +9,11 @@
 package main
 
 import (
+	"os"
 	"strconv"
 	"strings"
 
-	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
-	utils "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
-
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,23 +28,25 @@ import (
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
-	mgr.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
-	utils.InitLog("http-mgr-log.txt")
+	utils.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
 
-	mgr.HostIP = utils.GetOutboundIP()
+	os.MkdirAll("./log", 0700)
+	utils.InitLog("./log/http-mgr-log.txt")
 
-	regData := mgr.RegData{}
-	mgr.RegisterAsTransportMgr(&regData, "HTTP")
+	utils.HostIP = utils.GetOutboundIP()
 
-	go mgr.HttpServer{}.InitClientServer(mgr.MuxServer[0]) // go routine needed due to listenAndServe call...
-	dataConn := mgr.InitDataSession(mgr.MuxServer[1], regData)
+	regData := utils.RegData{}
+	utils.RegisterAsTransportMgr(&regData, "HTTP")
 
-	go mgr.HttpWSsession{}.TransportHubFrontendWSsession(dataConn, mgr.AppClientChan) // receives messages from server core
+	go utils.HttpServer{}.InitClientServer(utils.MuxServer[0]) // go routine needed due to listenAndServe call...
+	dataConn := utils.InitDataSession(utils.MuxServer[1], regData)
+
+	go utils.HttpWSsession{}.TransportHubFrontendWSsession(dataConn, utils.AppClientChan) // receives messages from server core
 	utils.Info.Println("**** HTTP manager entering server loop... ****")
 	loopIter := 0
 	for {
 		select {
-		case reqMessage := <-mgr.AppClientChan[0]:
+		case reqMessage := <-utils.AppClientChan[0]:
 			utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
 			// add mgrId + clientId=0 to message, forward to server core
 			newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "

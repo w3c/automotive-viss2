@@ -59,6 +59,7 @@ func getEnv(key, fallback string) string {
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 	host := getEnv("SERVERCORE_HOST", "localhost")
 	url := "http://" + host + ":8082/service/reg"
+	utils.Info.Printf("ServerCore URL %s", url)
 
 	data := []byte(`{"Rootnode": "` + regRequest.Rootnode + `"}`)
 
@@ -281,7 +282,7 @@ func getIndexForInterval(filterList []filterDef_t) int {
 }
 
 func main() {
-	utils.InitLog("service-mgr-log.txt")
+	utils.InitLog("service-mgr-log.txt", "./logs")
 
 	var regResponse RegResponse
 	dataChan := make(chan string)

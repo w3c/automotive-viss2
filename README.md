@@ -34,7 +34,23 @@ To speed up the first time build you can run the command below in ./ and ./serve
 $ go mod tidy
 ```
 
+To update the dependencies to latest run
 
+```bash
+$ go get -u ./...
+```
+
+If working with a fix or investigating something in a dependency, you can have a local fork by adding a replace directive in the go.mod file, see below examples. 
+
+```
+replace example.com/some/dependency => example.com/some/dependency v1.2.3 
+replace example.com/original/import/path => /your/forked/import/path
+replace example.com/project/foo => ../foo
+```
+
+For more information see https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive
+
+Make sure not to push modified go.mod, go.sum files since that would probably break the master branch.
 
 # 1. server
 Playing under the server directory should align with the project common software architecture. Significant deviations should be documented in the README.md file.

@@ -9,6 +9,7 @@
 package main
 
 import (
+	"os"
 	"strconv"
 	"strings"
 
@@ -66,7 +67,8 @@ func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn 
 func main() {
 	utils.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
 
-	utils.InitLog("ws-mgr-log.txt")
+	os.MkdirAll("./log", 0700)
+	utils.InitLog("./log/ws-mgr-log.txt")
 	regData := utils.RegData{}
 
 	utils.HostIP = utils.GetOutboundIP()
