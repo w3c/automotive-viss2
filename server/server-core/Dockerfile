@@ -17,6 +17,8 @@ WORKDIR ${APP_PATH}
 
 COPY ${DEFAULT_SRCDIR} .
 COPY go.mod go.sum ./
+#RUN ln -s utils/ ./utils
+#RUN go get -u ./...
 
 #install gcc and std lib
 RUN apk add --no-cache gcc musl-dev
@@ -37,12 +39,12 @@ COPY --from=dev ${APP_PATH}/${APP_NAME} .
 COPY --from=dev ${APP_PATH}/${VSSTREE} .
 
 #transportRegPort, transportDataPort [8100-]
-EXPOSE 8081 
-EXPOSE 8100
+#EXPOSE 8081
+#EXPOSE 8100
 
 #serviceRegPort, serviceDataPort [8200-]
-EXPOSE 8082
-EXPOSE 8200
+#EXPOSE 8082
+#EXPOSE 8200
 
 ENTRYPOINT ./${APP_NAME}
 CMD ""

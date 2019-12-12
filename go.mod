@@ -2,6 +2,8 @@ module github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
 
 go 1.13
 
+replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d
+
 require (
 	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191209075010-f1ec4a6fa397
 	github.com/golang/protobuf v1.3.2

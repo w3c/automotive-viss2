@@ -4,6 +4,8 @@ github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191205204209-7
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191205204209-7ec3a85813f0/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191209075010-f1ec4a6fa397 h1:0DXNO0xhdATgyZLyBGDUEM7zU7610Qpd6ta5zv1SRZc=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191209075010-f1ec4a6fa397/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
+github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d h1:vVPi2F8sWn3kPjW/3CD4Am9pjnk9WP9Xb/utudau7wg=
+github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

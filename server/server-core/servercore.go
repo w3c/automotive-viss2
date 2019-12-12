@@ -12,7 +12,6 @@ package main
 import (
 	//    "fmt"
 	"flag"
-	"os"
 
 	"github.com/gorilla/websocket"
 	//    "log"
@@ -743,8 +742,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 }
 
 func main() {
-	os.MkdirAll("./log", 0700)
-	utils.InitLog("./log/servercore-log.txt")
+	utils.InitLog("servercore-log.txt", "./logs")
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Trete file not found")
