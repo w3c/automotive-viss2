@@ -7,7 +7,7 @@
 *
 **/
 
-package manager
+package utils
 
 import (
 	"net/http"

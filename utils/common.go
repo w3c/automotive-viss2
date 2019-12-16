@@ -1,9 +1,9 @@
 package utils
 
 import (
-    "net"
-    "encoding/json"
-    "strings"
+	"encoding/json"
+	"net"
+	"strings"
 )
 
 /* set to true if localhost to be returned */
@@ -11,27 +11,27 @@ const isClientLocal = false
 
 // Get preferred outbound ip of this machine, or sets it to localhost
 func GetOutboundIP() string {
-    if (isClientLocal == true) {
-        return "localhost"
-    }
-    conn, err := net.Dial("udp", "8.8.8.8:80")
-    if err != nil {
-        Error.Fatal(err.Error())
-    }
-    defer conn.Close()
+	if isClientLocal == true {
+		return "localhost"
+	}
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		Error.Fatal(err.Error())
+	}
+	defer conn.Close()
 
-    localAddr := conn.LocalAddr().(*net.UDPAddr)
-    Info.Println("Host IP:", localAddr.IP)
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	Info.Println("Host IP:", localAddr.IP)
 
-    return localAddr.IP.String()
+	return localAddr.IP.String()
 }
 
 func ExtractPayload(request string, rMap *map[string]interface{}) {
-    decoder := json.NewDecoder(strings.NewReader(request))
-    err := decoder.Decode(rMap)
-    if err != nil {
-        Error.Printf("extractPayload: JSON decode failed for request:%s\n", request)
-    }
+	decoder := json.NewDecoder(strings.NewReader(request))
+	err := decoder.Decode(rMap)
+	if err != nil {
+		Error.Printf("extractPayload: JSON decode failed for request:%s\n", request)
+	}
 }
 
 func UrlToPath(url string) string {
@@ -43,5 +43,3 @@ func PathToUrl(path string) string {
 	var url string = strings.Replace(path, ".", "/", -1)
 	return "/" + url
 }
-
-

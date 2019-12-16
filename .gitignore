@@ -11,7 +11,7 @@
 ws-mgr-log.txt
 service-mgr-log.txt
 http-mgr-log.txt
-server-core.txt
+servercore-log.txt
 
 # Test binary, built with `go test -c`
 *.test
@@ -31,6 +31,7 @@ DS_Store
 server-core
 service_mgr
 ws_mgr
+http_mgr
 
 # Folders
 !server/servicemgr/

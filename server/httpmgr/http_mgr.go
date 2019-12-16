@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/manager"
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	mgr "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	utils "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 
 	"github.com/gorilla/websocket"
 )
@@ -50,7 +50,7 @@ func main() {
 			// add mgrId + clientId=0 to message, forward to server core
 			newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
 			request := strings.Replace(reqMessage, "{", newPrefix, 1)
-                        //utils.Info.Println("HTTP mgr message to core server:" + request)
+			//utils.Info.Println("HTTP mgr message to core server:" + request)
 			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 			if err != nil {
 				utils.Warning.Println("Datachannel write error:" + err.Error())
