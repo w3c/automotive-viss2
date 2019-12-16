@@ -2,7 +2,9 @@ module github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
 
 go 1.13
 
-replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d
+//example on how to use replace to point to fork or local path
+//replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils master
+//replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => ./utils 
 
 require (
 	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191209075010-f1ec4a6fa397

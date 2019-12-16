@@ -17,7 +17,6 @@ WORKDIR ${APP_PATH}
 
 COPY ${DEFAULT_SRCDIR} .
 COPY go.mod go.sum ./
-#RUN ln -s utils/ ./utils
 #RUN go get -u ./...
 
 #install gcc and std lib
