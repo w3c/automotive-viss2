@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"unsafe"
+
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
@@ -32,8 +34,6 @@ import (
 // #include "vssparserutilities.h"
 import "C"
 
-import "unsafe"
-
 var rootHandle C.long
 
 type searchData_t struct { // searchData_t defined in vssparserutilities.h
@@ -42,9 +42,9 @@ type searchData_t struct { // searchData_t defined in vssparserutilities.h
 }
 
 type filterDef_t struct {
-    name string
-    operator string
-    value string
+	name     string
+	operator string
+	value    string
 }
 
 var transportRegChan chan int
@@ -455,7 +455,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 		if matches == 1 {
 			pathLen := getPathLen(string(searchData[0].responsePath[:]))
 			requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-//                        if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
+			//                        if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 			serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 			response := <-serviceDataChan[sDChanIndex]
 			transportDataChan[tDChanIndex] <- response
@@ -464,7 +464,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			for i := 0; i < matches; i++ {
 				pathLen := getPathLen(string(searchData[i].responsePath[:]))
 				requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-//                                if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
+				//                                if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 				serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 				response := <-serviceDataChan[sDChanIndex]
 				aggregateResponse(i, response, &aggregatedResponseMap)
@@ -608,127 +608,124 @@ func spaceRemoved(value string) string {
     return value[valueStart:valueStop]
 }*/
 
-
 func processOneFilter(filter string, filterList *[]filterDef_t) string {
-    filterDef := filterDef_t{}
-    filterRemoved := false
-    if (strings.Contains(filter, "$spec") == true) {
-        filterDef.name = "$spec"
-        filterRemoved = true
-    } else if (strings.Contains(filter, "$path") == true) {
-        filterDef.name = "$path"
-        filterRemoved = true
-    } else if (strings.Contains(filter, "$data") == true) {
-        filterDef.name = "$data"
-        filterRemoved = true
-    }
-    if (filterRemoved == true) {
-        valueStart := strings.Index(filter, "EQ")
-        if (valueStart != -1) {
-            filterDef.operator = "eq"
-        } else {
-            valueStart = strings.Index(filter, "GT")
-            if (valueStart != -1) {
-                filterDef.operator = "gt"
-            } else {
-            valueStart = strings.Index(filter, "LT")
-                if (valueStart != -1) {
-                    filterDef.operator = "lt"
-                }
-            }
-        }
-        filterDef.value = filter[valueStart+2:]
-        *filterList = append(*filterList, filterDef)
-utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s\n", filterDef.name, filterDef.operator, filterDef.value)    
-        return ""
-    }
-    return filter
+	filterDef := filterDef_t{}
+	filterRemoved := false
+	if strings.Contains(filter, "$spec") == true {
+		filterDef.name = "$spec"
+		filterRemoved = true
+	} else if strings.Contains(filter, "$path") == true {
+		filterDef.name = "$path"
+		filterRemoved = true
+	} else if strings.Contains(filter, "$data") == true {
+		filterDef.name = "$data"
+		filterRemoved = true
+	}
+	if filterRemoved == true {
+		valueStart := strings.Index(filter, "EQ")
+		if valueStart != -1 {
+			filterDef.operator = "eq"
+		} else {
+			valueStart = strings.Index(filter, "GT")
+			if valueStart != -1 {
+				filterDef.operator = "gt"
+			} else {
+				valueStart = strings.Index(filter, "LT")
+				if valueStart != -1 {
+					filterDef.operator = "lt"
+				}
+			}
+		}
+		filterDef.value = filter[valueStart+2:]
+		*filterList = append(*filterList, filterDef)
+		utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s\n", filterDef.name, filterDef.operator, filterDef.value)
+		return ""
+	}
+	return filter
 }
 
 /**
-* Remove the filters $spec, $path, $data from the query component of the path, and add a list component for each removed filter. 
+* Remove the filters $spec, $path, $data from the query component of the path, and add a list component for each removed filter.
 * The logic behind this is that filters $interval, $range, $change are passed on to service mgr, while the removed ones are handled by the servercore.
 **/
 func processFilters(path string, filterList *[]filterDef_t) string {
-    queryDelim := strings.Index(path,"?")
-    query := path[queryDelim+1:]
-    if (queryDelim == -1) {
-        return path
-    }
-    numOfFilters := strings.Count(query,"AND") + 1 // 0=>1, 1=> 2, 2=>3, 3=>4
-utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)    
-    var processedQuery string = ""
-    filterStart := 0
-    for i:= 0 ; i < numOfFilters ;i++ {
-        filterEnd := strings.Index(query[filterStart:],"AND")
-        if (filterEnd == -1) {
-            filterEnd = len(query)
-        }
-        filter := query[filterStart:filterEnd]
-        if (len(processedQuery) == 0) {
-            processedQuery = processOneFilter(filter, filterList)
-        } else {
-            processedQuery += "AND" + processOneFilter(filter, filterList)
-        }
-        filterStart = filterEnd + 3   //len(AND)=3
-    }
-    if (len(processedQuery) > 0) {
-        processedQuery = "?" + processedQuery
-    }
-utils.Info.Printf("processFilters():processed path=%s\n", path[0:queryDelim] + processedQuery)    
-    return path[0:queryDelim] + processedQuery
+	queryDelim := strings.Index(path, "?")
+	query := path[queryDelim+1:]
+	if queryDelim == -1 {
+		return path
+	}
+	numOfFilters := strings.Count(query, "AND") + 1 // 0=>1, 1=> 2, 2=>3, 3=>4
+	utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)
+	var processedQuery string = ""
+	filterStart := 0
+	for i := 0; i < numOfFilters; i++ {
+		filterEnd := strings.Index(query[filterStart:], "AND")
+		if filterEnd == -1 {
+			filterEnd = len(query)
+		}
+		filter := query[filterStart:filterEnd]
+		if len(processedQuery) == 0 {
+			processedQuery = processOneFilter(filter, filterList)
+		} else {
+			processedQuery += "AND" + processOneFilter(filter, filterList)
+		}
+		filterStart = filterEnd + 3 //len(AND)=3
+	}
+	if len(processedQuery) > 0 {
+		processedQuery = "?" + processedQuery
+	}
+	utils.Info.Printf("processFilters():processed path=%s\n", path[0:queryDelim]+processedQuery)
+	return path[0:queryDelim] + processedQuery
 }
 
-
 func listContainsName(filterList []filterDef_t, name string) bool {
-    for i := 0 ; i < len(filterList) ; i++ {
-        if (filterList[i].name == name) {
-            return true
-        }
-    }
-    return false
+	for i := 0; i < len(filterList); i++ {
+		if filterList[i].name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func getListValue(filterList []filterDef_t, name string) string {
-    for i := 0 ; i < len(filterList) ; i++ {
-        if (filterList[i].name == name) {
-            return filterList[i].value
-        }
-    }
-    return ""
+	for i := 0; i < len(filterList); i++ {
+		if filterList[i].name == name {
+			return filterList[i].value
+		}
+	}
+	return ""
 }
-
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
-        filterList := []filterDef_t{}
-        if _, ok := requestMap["path"]; ok {
-            requestMap["path"] = processFilters(requestMap["path"].(string), &filterList)
-        }
+	filterList := []filterDef_t{}
+	if _, ok := requestMap["path"]; ok {
+		requestMap["path"] = processFilters(requestMap["path"].(string), &filterList)
+	}
 	switch requestMap["action"] {
 	case "get":
-                if (listContainsName(filterList, "$spec") == true) {
-                    requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string))) //TODO restrict tree to depth (handle error case)
-                    delete(requestMap, "path")
-                    requestMap["timestamp"] = 1234
-                    transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
-                } else {
-                    if (listContainsName(filterList, "$path") == true) {
-                        requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path")  //When/if VSS changes to slash delimiter, update here
-                    }
-		    retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
-                }
+		if listContainsName(filterList, "$spec") == true {
+			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string))) //TODO restrict tree to depth (handle error case)
+			delete(requestMap, "path")
+			requestMap["timestamp"] = 1234
+			transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
+		} else {
+			if listContainsName(filterList, "$path") == true {
+				requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") //When/if VSS changes to slash delimiter, update here
+			}
+			retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
+		}
 	case "set":
-		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, nil)  // filters currently not used here
+		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, nil) // filters currently not used here
 	case "subscribe":
-                if (listContainsName(filterList, "$path") == true) {
-                    requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") + addQuery(requestMap["path"].(string))  //When/if VSS changes to slash delimiter, update here
-                }
+		if listContainsName(filterList, "$path") == true {
+			requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") + addQuery(requestMap["path"].(string)) //When/if VSS changes to slash delimiter, update here
+		}
 		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
 
 	case "unsubscribe":
-utils.Info.Printf("unsubscribe:request=%s", request)    
+		utils.Info.Printf("unsubscribe:request=%s", request)
 		serviceDataChan[sDChanIndex] <- request
 		response := <-serviceDataChan[sDChanIndex]
 		transportDataChan[tDChanIndex] <- response
@@ -745,7 +742,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 }
 
 func main() {
-	utils.InitLog("servercore-log.txt")
+	utils.InitLog("servercore-log.txt", "./logs")
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Trete file not found")

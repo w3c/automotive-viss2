@@ -59,6 +59,7 @@ func getEnv(key, fallback string) string {
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 	host := getEnv("SERVERCORE_HOST", "localhost")
 	url := "http://" + host + ":8082/service/reg"
+	utils.Info.Printf("ServerCore URL %s", url)
 
 	data := []byte(`{"Rootnode": "` + regRequest.Rootnode + `"}`)
 
@@ -129,7 +130,6 @@ func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendCh
 	utils.Error.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
-//var subscriptionTrigger time.Duration = 5000 // used for triggering subscription events every 5000 ms
 var subscriptionTicker [100]*time.Ticker
 var tickerIndexList [100]int // implicitly initialized with zeroes
 
@@ -176,20 +176,82 @@ func getSubcriptionStateIndex(subscriptionId int, subscriptionList []Subscriptio
 	return -1
 }
 
-func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState, subscriptionValue int) {
+func checkRangeChangeFilter(filterList []filterDef_t, latestValue int, currentValue int) bool {
+    for i := range filterList {
+        result := evaluateFilter(filterList[i], latestValue, currentValue)
+        if (result == false) {
+                return false
+        }
+    }
+    return true
+}
+
+func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool {
+    if (filter.name == "$range") {
+        if (filter.operator == "gt") {
+            filterValue, _ := strconv.Atoi(filter.value)
+            if (currentValue > filterValue) {
+                return true
+            }
+            return false
+        } else { // "lt"
+            filterValue, _ := strconv.Atoi(filter.value)
+            if (currentValue < filterValue) {
+                return true
+            }
+            return false
+        }
+    }
+    if (filter.name == "$change") {
+        if (filter.operator == "gt") {
+            filterValue, _ := strconv.Atoi(filter.value)
+            if (currentValue > latestValue + filterValue) {
+                return true
+            }
+            return false
+        } else if (filter.operator == "lt") {
+            filterValue, _ := strconv.Atoi(filter.value)
+            if (currentValue < latestValue + filterValue) {
+                return true
+            }
+            return false
+        } else { // "neq"
+            if (currentValue != latestValue) {
+                return true
+            }
+            return false
+        }
+    }
+    return false
+}
+
+func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState, currentValue int) {
 	var subscriptionMap = make(map[string]interface{})
 	subscriptionMap["action"] = "subscription"
 	select {
-	case subscriptionId := <-subscriptionChannel:
+	case subscriptionId := <-subscriptionChannel: // $interval triggered
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["MgrId"] = subscriptionState.mgrId
 		subscriptionMap["ClientId"] = subscriptionState.clientId
 		subscriptionMap["requestId"] = subscriptionState.requestId
-		subscriptionMap["value"] = subscriptionValue
+		subscriptionMap["value"] = currentValue
 		backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
 	default:
 		// check $range, $change trigger points
+                for i := range subscriptionList {
+                    doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestValue, currentValue)
+                    if (doTrigger == true) {
+ 		        subscriptionState := subscriptionList[i]
+		        subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
+		        subscriptionMap["MgrId"] = subscriptionState.mgrId
+		        subscriptionMap["ClientId"] = subscriptionState.clientId
+		        subscriptionMap["requestId"] = subscriptionState.requestId
+		        subscriptionMap["value"] = currentValue
+		        backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
+                    }
+                    subscriptionList[i].latestValue = currentValue
+                }
 	}
 }
 
@@ -241,13 +303,13 @@ func processOneFilter(filter string, filterList *[]filterDef_t) {
 }
 
 func processFilters(path string, filterList *[]filterDef_t) {
-	utils.Info.Printf("Service-mgr: Entering processFilters().")
+	utils.Info.Printf("Service-mgr: Entering processFilters().Filter=%s", path)
 	queryDelim := strings.Index(path, "?")
 	query := path[queryDelim+1:]
 	if queryDelim == -1 {
 		return
 	}
-	numOfFilters := strings.Count(query, "AND") + 1 // 0=>1, 1=> 2, 2=>3, 3=>4
+	numOfFilters := strings.Count(query, "AND") + 1
 	utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)
 	filterStart := 0
 	for i := 0; i < numOfFilters; i++ {
@@ -281,7 +343,7 @@ func getIndexForInterval(filterList []filterDef_t) int {
 }
 
 func main() {
-	utils.InitLog("service-mgr-log.txt")
+	utils.InitLog("service-mgr-log.txt", "./logs")
 
 	var regResponse RegResponse
 	dataChan := make(chan string)
@@ -298,7 +360,6 @@ func main() {
 	}
 	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
 	utils.Info.Printf("initDataServer() done\n")
-	//	var subscriptionMap = make(map[string]interface{}) // only one subscription is supported!
 	for {
 		select {
 		case request := <-dataChan: // request from server core
@@ -326,7 +387,7 @@ func main() {
 				subscriptionState.clientId = int(requestMap["ClientId"].(float64))
 				subscriptionState.requestId = requestMap["requestId"].(string)
 				subscriptionState.filterList = []filterDef_t{}
-				processFilters(requestMap["path"].(string), &(subscriptionState.filterList))
+				processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
 				subscriptionState.latestValue = subscriptionValue
 				subscriptionState.timestamp = time.Now()
 				subscriptionList = append(subscriptionList, subscriptionState)

@@ -13,8 +13,8 @@ Set request:
 {"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"237"}
 
 Subscribe request:
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen?$intervalEQ2", "requestId":"238"}
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position?$rangeGT15AND$changeGT5", "requestId":"239"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "filter":"$intervalEQ2", "requestId":"238"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position", "filter":"$rangeGT100AND$rangeLT110", "requestId":"239"}
 
 Unsubscribe request:
 {"action":"unsubscribe", "subscriptionId":"1", "requestId":"240"}

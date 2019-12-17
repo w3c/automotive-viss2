@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 )
@@ -26,13 +27,16 @@ var (
 // const LOG_FILE = "servercore-log.txt"
 var Logfile *os.File
 
-func InitLog(filename string) {
+func InitLog(filename string, logdir string) {
 
 	logger := logrus.New()
 	logger.Formatter = &logrus.JSONFormatter{}
 	logger.SetOutput(os.Stdout)
 
-	Logfile, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+	os.MkdirAll(logdir, 0700)
+	path := filepath.Join(logdir, filename)
+
+	Logfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
 	if err != nil {
 		logger.Fatal(err)
 	}
