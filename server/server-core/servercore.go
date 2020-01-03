@@ -141,7 +141,7 @@ func routerTableAdd(mgrId int, mgrIndex int) {
 func routerTableSearchForMgrIndex(mgrId int) int {
 	for _, element := range routerTable {
 		if element.mgrId == mgrId {
-			utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d\n", element.mgrIndex)
+			utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d", element.mgrIndex)
 			return element.mgrIndex
 		}
 	}
@@ -172,7 +172,7 @@ func getPayloadMgrId(request string) int {
  */
 func maketransportRegisterHandler(transportRegChannel chan int) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
-		utils.Info.Printf("transportRegisterServer():url=%s\n", req.URL.Path)
+		utils.Info.Printf("transportRegisterServer():url=%s", req.URL.Path)
 		mgrIndex := -1
 		if req.URL.Path != "/transport/reg" {
 			http.Error(w, "404 url path not found.", 404)
@@ -188,7 +188,7 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 			if err != nil {
 				panic(err)
 			}
-			utils.Info.Printf("transportRegisterServer():POST request=%s\n", payload.Protocol)
+			utils.Info.Printf("transportRegisterServer():POST request=%s", payload.Protocol)
 			for key, value := range supportedProtocols {
 				if payload.Protocol == value {
 					mgrIndex = key
@@ -201,7 +201,7 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 				w.Header().Set("Content-Type", "application/json")
 				response := "{ \"Portnum\" : " + strconv.Itoa(transportDataPortNum+mgrIndex) + " , \"Urlpath\" : \"/transport/data/" + strconv.Itoa(mgrIndex) + "\"" + " , \"Mgrid\" : " + strconv.Itoa(mgrId) + " }"
 
-				utils.Info.Printf("transportRegisterServer():POST response=%s\n", response)
+				utils.Info.Printf("transportRegisterServer():POST response=%s", response)
 				w.Write([]byte(response)) // correct JSON?
 				routerTableAdd(mgrId, mgrIndex)
 			} else {
@@ -212,7 +212,7 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 }
 
 func initTransportRegisterServer(transportRegChannel chan int) {
-	utils.Info.Printf("initTransportRegisterServer():localhost:8081/transport/reg\n")
+	utils.Info.Printf("initTransportRegisterServer():localhost:8081/transport/reg")
 	transportRegisterHandler := maketransportRegisterHandler(transportRegChannel)
 	muxServer[0].HandleFunc("/transport/reg", transportRegisterHandler)
 	utils.Error.Fatal(http.ListenAndServe("localhost:8081", muxServer[0]))
@@ -228,7 +228,7 @@ func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
 func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan string, serviceIndex int) {
 	for {
 		_, response, err := dataConn.ReadMessage()
-		utils.Info.Printf("Server core: Response from service mgr:%s\n", string(response))
+		utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
 		var responseMap = make(map[string]interface{})
 		if err != nil {
 			utils.Error.Println("Service datachannel read error:", err)
@@ -252,7 +252,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel []chan string) (dataConn *websocket.Conn) {
 	var addr = flag.String("addr", "localhost:"+strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/" + strconv.Itoa(serviceIndex)}
-	utils.Info.Printf("Connecting to:%s\n", dataSessionUrl.String())
+	utils.Info.Printf("Connecting to:%s", dataSessionUrl.String())
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin": {"*"}})
 	//    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 	if err != nil {
@@ -266,7 +266,7 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendC
 func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string) {
 	time.Sleep(3 * time.Second)                               //wait for service data server to be initiated (initiate at first app-client request instead...)
 	muxIndex := (len(muxServer)-2)/2 + 1 + (serviceIndex + 1) //could be more intuitive...
-	utils.Info.Printf("initServiceClientSession: muxIndex=%d\n", muxIndex)
+	utils.Info.Printf("initServiceClientSession: muxIndex=%d", muxIndex)
 	dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel)
 	for {
 		select {
@@ -278,7 +278,7 @@ func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, 
 
 func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
-		utils.Info.Printf("serviceRegisterServer():url=%s\n", req.URL.Path)
+		utils.Info.Printf("serviceRegisterServer():url=%s", req.URL.Path)
 		if req.URL.Path != "/service/reg" {
 			http.Error(w, "404 url path not found.", 404)
 		} else if req.Method != "POST" {
@@ -293,7 +293,7 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 			if err != nil {
 				panic(err)
 			}
-			utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s\n", *serviceIndex, payload.Rootnode)
+			utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s", *serviceIndex, payload.Rootnode)
 			if *serviceIndex < 2 { // communicate: port no + root node to server hub, port no + url path to transport mgr, and start a client session
 				serviceRegChannel <- strconv.Itoa(serviceDataPortNum + *serviceIndex)
 				serviceRegChannel <- payload.Rootnode
@@ -312,7 +312,7 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 }
 
 func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) {
-	utils.Info.Printf("initServiceRegisterServer():localhost:8082/service/reg\n")
+	utils.Info.Printf("initServiceRegisterServer():localhost:8082/service/reg")
 	serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex, backendChannel)
 	muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
 	utils.Error.Fatal(http.ListenAndServe("localhost:8082", muxServer[1]))
@@ -372,7 +372,7 @@ func makeTransportDataHandler(transportDataChannel chan string, backendChannel c
 *  All transport data servers implement a WS server which communicates with a transport protocol manager.
 **/
 func initTransportDataServer(mgrIndex int, muxServer *http.ServeMux, transportDataChannel []chan string, backendChannel []chan string) {
-	utils.Info.Printf("initTransportDataServer():mgrIndex=%d\n", mgrIndex)
+	utils.Info.Printf("initTransportDataServer():mgrIndex=%d", mgrIndex)
 	transportDataHandler := makeTransportDataHandler(transportDataChannel[mgrIndex], backendChannel[mgrIndex])
 	muxServer.HandleFunc("/transport/data/"+strconv.Itoa(mgrIndex), transportDataHandler)
 	utils.Error.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(transportDataPortNum+mgrIndex), muxServer))
@@ -385,7 +385,7 @@ func initTransportDataServers(transportDataChannel []chan string, backendChannel
 }
 
 func updateServiceRouting(portNo string, rootNode string) {
-	utils.Info.Printf("updateServiceRouting(): portnum=%s, rootNode=%s\n", portNo, rootNode)
+	utils.Info.Printf("updateServiceRouting(): portnum=%s, rootNode=%s", portNo, rootNode)
 }
 
 func initVssFile() bool {
@@ -403,7 +403,7 @@ func initVssFile() bool {
 }
 
 func searchTree(path string, searchData *searchData_t) int {
-	utils.Info.Printf("getMatches(): path=%s\n", path)
+	utils.Info.Printf("getMatches(): path=%s", path)
 	if len(path) > 0 {
 		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
 		cpath := C.CString(path)
@@ -638,7 +638,7 @@ func processOneFilter(filter string, filterList *[]filterDef_t) string {
 		}
 		filterDef.value = filter[valueStart+2:]
 		*filterList = append(*filterList, filterDef)
-		utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s\n", filterDef.name, filterDef.operator, filterDef.value)
+		utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s", filterDef.name, filterDef.operator, filterDef.value)
 		return ""
 	}
 	return filter
@@ -655,7 +655,7 @@ func processFilters(path string, filterList *[]filterDef_t) string {
 		return path
 	}
 	numOfFilters := strings.Count(query, "AND") + 1 // 0=>1, 1=> 2, 2=>3, 3=>4
-	utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)
+	utils.Info.Printf("processFilters():#filter=%d", numOfFilters)
 	var processedQuery string = ""
 	filterStart := 0
 	for i := 0; i < numOfFilters; i++ {
@@ -674,7 +674,7 @@ func processFilters(path string, filterList *[]filterDef_t) string {
 	if len(processedQuery) > 0 {
 		processedQuery = "?" + processedQuery
 	}
-	utils.Info.Printf("processFilters():processed path=%s\n", path[0:queryDelim]+processedQuery)
+	utils.Info.Printf("processFilters():processed path=%s", path[0:queryDelim]+processedQuery)
 	return path[0:queryDelim] + processedQuery
 }
 
@@ -738,26 +738,26 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 }
 
 func updateTransportRoutingTable(mgrId int, portNum int) {
-	utils.Info.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d\n", mgrId, portNum)
+	utils.Info.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d", mgrId, portNum)
 }
 
 func main() {
 	utils.InitLog("servercore-log.txt", "./logs")
 
 	if !initVssFile() {
-		utils.Error.Fatal(" Trete file not found")
+		utils.Error.Fatal(" Tree file not found")
 		return
 	}
 
 	initTransportDataServers(transportDataChan, backendChan)
-	utils.Info.Printf("main():initTransportDataServers() executed...\n")
+	utils.Info.Printf("main():initTransportDataServers() executed...")
 	transportRegChan := make(chan int, 2*2)
 	go initTransportRegisterServer(transportRegChan)
-	utils.Info.Printf("main():initTransportRegisterServer() executed...\n")
+	utils.Info.Printf("main():initTransportRegisterServer() executed...")
 	serviceRegChan := make(chan string, 2)
 	serviceIndex := 0 // index assigned to registered services
 	go initServiceRegisterServer(serviceRegChan, &serviceIndex, backendChan)
-	utils.Info.Printf("main():starting loop for channel receptions...\n")
+	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
 		select {
 		case portNum := <-transportRegChan: // save port no + transport mgr Id in routing table
