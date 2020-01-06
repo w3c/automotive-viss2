@@ -16,7 +16,7 @@ const theSecretKey = "averysecretkeyvalue"
 
 func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
-		utils.Info.Printf("agtServer:url=%s\n", req.URL.Path)
+		utils.Info.Printf("agtServer:url=%s", req.URL.Path)
 		if req.URL.Path != "/agtserver" {
 			http.Error(w, "404 url path not found.", 404)
 		} else if req.Method != "POST" {
@@ -31,7 +31,8 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 				response := <- serverChannel
 				utils.Info.Printf("agtServer:POST response=%s", response)
 
-				w.Header().Set("Content-Type", "application/json")
+	                        w.Header().Set("Access-Control-Allow-Origin", "*")
+//				w.Header().Set("Content-Type", "application/json")
 				w.Write([]byte(response))
                         }
 		}
@@ -66,26 +67,32 @@ func generateAgt(input string) string {
 	}
         jwtHeader := `{"alg":"HS256","typ":"JWT","iss":"oem.com/gen2/backend","sigurl":"oem.com/gen2/backend/pub","iat":1577847600,"exp":1593561599,"jti":"4667e93f-40f9-5f39-893e-cc0da890db3f"}`
         jwtPayload := `{"uid":"` + payload.UserId + `","aud":"` + payload.Vin + `"}`
-        encodedJwtHeader := base64.URLEncoding.EncodeToString([]byte(jwtHeader))
-        encodedJwtPayload := base64.URLEncoding.EncodeToString([]byte(jwtPayload))
+	utils.Info.Printf("generateAgt:jwtHeader=%s", jwtHeader)
+	utils.Info.Printf("generateAgt:jwtPayload=%s", jwtPayload)
+        encodedJwtHeader := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
+        encodedJwtPayload := base64.RawURLEncoding.EncodeToString([]byte(jwtPayload))
+	utils.Info.Printf("generateAgt:encodedJwtHeader=%s", encodedJwtHeader)
         jwtSignature := generateHmac(encodedJwtHeader + "." + encodedJwtPayload, theSecretKey)
-        encodedJwtSignature := base64.URLEncoding.EncodeToString([]byte(jwtSignature))
+        encodedJwtSignature := base64.RawURLEncoding.EncodeToString([]byte(jwtSignature))
         return encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature
 }
 
 func main() {
 
+//	utils.InitLog("agtserver-log.txt", "./logs")
+	utils.InitLog("agtserver-log.txt")
 	serverChan := make(chan string)
         muxServer := http.NewServeMux()
 
-        initAgtServer(serverChan, muxServer)
+        go initAgtServer(serverChan, muxServer)
 
 	for {
 		select {
 		case request := <-serverChan:
+	utils.Info.Printf("main loop:request received")
 			response:= generateAgt(request)
 			utils.Info.Printf("agtServer response=%s", response)
-                        serverChan <- response
+                        serverChan <- `{"token":"` + response + `"}`
 		}
 	}
 }

@@ -40,3 +40,11 @@ Service discovery request:
 HTTP GET 
 URL: Vehicle/Cabin/Door/Row1/Right?$specEQ0
 
+
+AGTserver:
+localhost
+agtserver
+{"userid":"Ulf","vin":"xyz123"}
+
+{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ"}
+
