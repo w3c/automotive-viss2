@@ -30,10 +30,13 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 				serverChannel <- string(bodyBytes)
 				response := <- serverChannel
 				utils.Info.Printf("agtServer:POST response=%s", response)
-
-	                        w.Header().Set("Access-Control-Allow-Origin", "*")
-//				w.Header().Set("Content-Type", "application/json")
-				w.Write([]byte(response))
+                                if (len(response) == 0) {
+                                    http.Error(w, "400 bad input.", 400)
+                                } else {
+	                            w.Header().Set("Access-Control-Allow-Origin", "*")
+//				    w.Header().Set("Content-Type", "application/json")
+				    w.Write([]byte(response))
+                                }
                         }
 		}
 	}
