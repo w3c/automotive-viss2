@@ -50,23 +50,23 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 	utils.Error.Fatal(http.ListenAndServe(utils.HostIP+":8600", muxServer))
 }
 
-func generateHmac(input string, key string) string {
+func generateHmac(input string, key string) string {  //not a correct JWT signature?
     mac := hmac.New(sha256.New, []byte(key))
     mac.Write([]byte(input))
     return string(mac.Sum(nil))
 }
 
-func verifyTokenSignature(token string) bool {
+func verifyTokenSignature(token string) bool {  // compatible with result from generateHmac()
         delimiter := strings.LastIndex(token, ".")
         message := token[:delimiter]
-utils.Info.Printf("verifyTokenSignature():message=%s", message)
         messageMAC := token[delimiter+1:]
-utils.Info.Printf("verifyTokenSignature():messageMAC=%s", messageMAC)
 	mac := hmac.New(sha256.New, []byte(theSecretKey))
 	mac.Write([]byte(message))
-//	expectedMAC := mac.Sum(nil)
-//	return hmac.Equal([]byte(messageMAC), expectedMAC)  // TODO even if sign-algo is not correct HMAC, it should anyway verify correct
-        return true
+	expectedMAC := mac.Sum(nil)
+        if (strings.Compare(messageMAC, base64.RawURLEncoding.EncodeToString(expectedMAC)) == 0) {
+            return true
+        }
+        return false
 }
 
 func extractFromToken(token string, claim string) string {  // TODO remove white space sensitivity
@@ -111,7 +111,7 @@ func extractFromToken(token string, claim string) string {  // TODO remove white
     return ""
 }
 
-func generateAt(input string) string {
+func generateAt(input string) string { // TODO validate AGT header fields (iat, exp,..), create dynamic AT payload fields (exp, jti)
 	type Payload struct {
 		Scope string
                 Token string
@@ -127,10 +127,9 @@ func generateAt(input string) string {
             return ""
         }
         jwtHeader := `{"alg":"HS256","typ":"JWT"}`
-utils.Info.Printf("generateAt: before extractFromToken()")
         uid := extractFromToken(payload.Token, "uid")
         iss := extractFromToken(payload.Token, "aud")
-utils.Info.Printf("generateAt: uid=%s, iss=%s", uid, iss)
+//utils.Info.Printf("generateAt: uid=%s, iss=%s", uid, iss)
         jwtPayload := `{"exp":1609459199,"aud":"Gen2","scp":"` + payload.Scope + `","jti":"5967e93f-40f9-5f39-893e-cc0da890db2e","uid":"` + uid + `","iss":"` + iss  + `","sigurl":"w3.org/gen2/user/pub/` + uid  + `"}`
 	utils.Info.Printf("generateAt:jwtHeader=%s", jwtHeader)
 	utils.Info.Printf("generateAt:jwtPayload=%s", jwtPayload)
