@@ -1,0 +1,89 @@
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T16:42:34+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T16:42:34+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T16:43:32+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T16:43:32+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T16:43:32+01:00"}
+{"level":"info","msg":"generateAt:invalid signature=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T16:43:32+01:00"}
+{"level":"info","msg":"atServer response=","time":"2020-01-06T16:43:32+01:00"}
+{"level":"info","msg":"atServer:POST response={\"token\":\"\"}","time":"2020-01-06T16:43:32+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:02:53+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:02:53+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"generateAt:invalid signature=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"atServer response=","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"atServer:POST response={\"token\":\"\"}","time":"2020-01-06T17:03:36+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:08:42+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:08:42+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:09:26+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:09:26+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:09:26+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:09:26+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:09:26+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:20:07+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:20:07+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:20:43+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:20:43+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:20:43+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:20:43+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:20:43+01:00"}
+{"level":"info","msg":"generateAt: before extractFromToken()","time":"2020-01-06T17:20:43+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:28:35+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:28:35+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"generateAt: before extractFromToken()","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"generateAt: uid=Ulf, iss=xyz123","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"generateAt:jwtHeader={\"alg\":\"HS256\",\"typ\":\"JWT\"}","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"generateAt:jwtPayload={\"exp\":1609459199,\"aud\":\"Gen2\",\"scp\":\"VehicleReadOnly\",\"jti\":5967e93f-40f9-5f39-893e-cc0da890db2e\"\",\"uid\":\"Ulf\",\"iss\":\"xyz123\",\"sigurl\":w3.org/gen2/user/pub/\"Ulf\"}","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"generateAt:encodedJwtHeader=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"atServer response=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOjU5NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIyZSIiLCJ1aWQiOiJVbGYiLCJpc3MiOiJ4eXoxMjMiLCJzaWd1cmwiOnczLm9yZy9nZW4yL3VzZXIvcHViLyJVbGYifQ.Gv9fG92NaIpsS0zSBZj6itpYHNlFwAANdW3IkaI9gzs","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"atServer:POST response={\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOjU5NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIyZSIiLCJ1aWQiOiJVbGYiLCJpc3MiOiJ4eXoxMjMiLCJzaWd1cmwiOnczLm9yZy9nZW4yL3VzZXIvcHViLyJVbGYifQ.Gv9fG92NaIpsS0zSBZj6itpYHNlFwAANdW3IkaI9gzs\"}","time":"2020-01-06T17:29:12+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:36:43+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:36:43+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"generateAt: before extractFromToken()","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"generateAt: uid=Ulf, iss=xyz123","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"generateAt:jwtHeader={\"alg\":\"HS256\",\"typ\":\"JWT\"}","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"generateAt:jwtPayload={\"exp\":1609459199,\"aud\":\"Gen2\",\"scp\":\"VehicleReadOnly\",\"jti\":5967e93f-40f9-5f39-893e-cc0da890db2e\",\"uid\":\"Ulf\",\"iss\":\"xyz123\",\"sigurl\":w3.org/gen2/user/pub/\"Ulf\"}","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"generateAt:encodedJwtHeader=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"atServer response=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOjU5NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIyZSIsInVpZCI6IlVsZiIsImlzcyI6Inh5ejEyMyIsInNpZ3VybCI6dzMub3JnL2dlbjIvdXNlci9wdWIvIlVsZiJ9.zx_umWHKW0OcLka218zznAk9ZgAZHMxLTh0pIRb5D20","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"atServer:POST response={\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOjU5NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIyZSIsInVpZCI6IlVsZiIsImlzcyI6Inh5ejEyMyIsInNpZ3VybCI6dzMub3JnL2dlbjIvdXNlci9wdWIvIlVsZiJ9.zx_umWHKW0OcLka218zznAk9ZgAZHMxLTh0pIRb5D20\"}","time":"2020-01-06T17:37:16+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:40:17+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:40:17+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"generateAt: before extractFromToken()","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"generateAt: uid=Ulf, iss=xyz123","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"generateAt:jwtHeader={\"alg\":\"HS256\",\"typ\":\"JWT\"}","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"generateAt:jwtPayload={\"exp\":1609459199,\"aud\":\"Gen2\",\"scp\":\"VehicleReadOnly\",\"jti\":\"5967e93f-40f9-5f39-893e-cc0da890db2e\",\"uid\":\"Ulf\",\"iss\":\"xyz123\",\"sigurl\":w3.org/gen2/user/pub/\"Ulf\"}","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"generateAt:encodedJwtHeader=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"atServer response=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOiI1OTY3ZTkzZi00MGY5LTVmMzktODkzZS1jYzBkYTg5MGRiMmUiLCJ1aWQiOiJVbGYiLCJpc3MiOiJ4eXoxMjMiLCJzaWd1cmwiOnczLm9yZy9nZW4yL3VzZXIvcHViLyJVbGYifQ.CHgjVmSNmH27xYxhe0C83UzpeqRnpj1LDxRrKR8Y2Fo","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"atServer:POST response={\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOiI1OTY3ZTkzZi00MGY5LTVmMzktODkzZS1jYzBkYTg5MGRiMmUiLCJ1aWQiOiJVbGYiLCJpc3MiOiJ4eXoxMjMiLCJzaWd1cmwiOnczLm9yZy9nZW4yL3VzZXIvcHViLyJVbGYifQ.CHgjVmSNmH27xYxhe0C83UzpeqRnpj1LDxRrKR8Y2Fo\"}","time":"2020-01-06T17:40:59+01:00"}
+{"level":"info","msg":"Host IP: 192.168.8.108","time":"2020-01-06T17:44:26+01:00"}
+{"level":"info","msg":"initAtServer():192.168.8.108:8600/atserver","time":"2020-01-06T17:44:26+01:00"}
+{"level":"info","msg":"atServer:url=/atserver","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"atServer:received POST request={\"scope\":\"VehicleReadOnly\",\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ\"}\n","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"main loop:request received","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"verifyTokenSignature():message=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"verifyTokenSignature():messageMAC=44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"generateAt: before extractFromToken()","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"generateAt: uid=Ulf, iss=xyz123","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"generateAt:jwtHeader={\"alg\":\"HS256\",\"typ\":\"JWT\"}","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"generateAt:jwtPayload={\"exp\":1609459199,\"aud\":\"Gen2\",\"scp\":\"VehicleReadOnly\",\"jti\":\"5967e93f-40f9-5f39-893e-cc0da890db2e\",\"uid\":\"Ulf\",\"iss\":\"xyz123\",\"sigurl\":\"w3.org/gen2/user/pub/Ulf\"}","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"generateAt:encodedJwtHeader=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"atServer response=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOiI1OTY3ZTkzZi00MGY5LTVmMzktODkzZS1jYzBkYTg5MGRiMmUiLCJ1aWQiOiJVbGYiLCJpc3MiOiJ4eXoxMjMiLCJzaWd1cmwiOiJ3My5vcmcvZ2VuMi91c2VyL3B1Yi9VbGYifQ.Z711pgZiwTJKyleZS_v0G2V4Miq2Qq24eGH6Igr9UQA","time":"2020-01-06T17:44:49+01:00"}
+{"level":"info","msg":"atServer:POST response={\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MDk0NTkxOTksImF1ZCI6IkdlbjIiLCJzY3AiOiJWZWhpY2xlUmVhZE9ubHkiLCJqdGkiOiI1OTY3ZTkzZi00MGY5LTVmMzktODkzZS1jYzBkYTg5MGRiMmUiLCJ1aWQiOiJVbGYiLCJpc3MiOiJ4eXoxMjMiLCJzaWd1cmwiOiJ3My5vcmcvZ2VuMi91c2VyL3B1Yi9VbGYifQ.Z711pgZiwTJKyleZS_v0G2V4Miq2Qq24eGH6Igr9UQA\"}","time":"2020-01-06T17:44:49+01:00"}

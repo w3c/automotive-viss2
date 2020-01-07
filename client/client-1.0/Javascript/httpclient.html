@@ -48,7 +48,11 @@
           }
           var xhttp = new XMLHttpRequest();
           xhttp.onreadystatechange = function() {
-              postOutput.innerHTML += "Server: " + this.responseText + "\n";
+              if (this.readyState == 4 && this.status == 200) {
+                  postOutput.innerHTML += "Server: " + this.responseText + "\n";
+              } else {
+                  postOutput.innerHTML += "Server: readyState=" + this.readyState + ", status=" + this.status + "\n";
+              }
           };
           var params = postValue.value;
           xhttp.open("POST", "http://" + hostIP + ":8888/" + postPath.value, true);
