@@ -1,6 +1,6 @@
 ARG GO_VERSION=1.13
 ARG DEFAULT_APP_NAME="servercore"
-ARG DEFAULT_VSSTREE_NAME="vss_rel_1.0.cnative"
+ARG DEFAULT_VSSTREE_NAME="vss_rel_2.0.0-alpha+006"
 ARG DEFAULT_APP_PATH="/app"
 ARG DEFAULT_SRCDIR="server/server-core/"
 

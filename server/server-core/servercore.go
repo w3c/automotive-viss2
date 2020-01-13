@@ -14,7 +14,8 @@ import (
 	"flag"
 
 	"github.com/gorilla/websocket"
-	//    "log"
+	"io/ioutil"
+        "bytes"
 	"encoding/json"
 	"math/rand"
 	"net/http"
@@ -115,7 +116,7 @@ var errorResponseMap = map[string]interface{}{
 	"ClientId":  0,
 	"action":    "unknown",
 	"requestId": "XXX",
-	"error":     "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}",
+	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
 	"timestamp": 1234,
 }
 
@@ -389,7 +390,7 @@ func updateServiceRouting(portNo string, rootNode string) {
 }
 
 func initVssFile() bool {
-	filePath := "vss_rel_1.0.cnative"
+	filePath := "vss_rel_2.0.0-alpha+006.cnative"
 	cfilePath := C.CString(filePath)
 	rootHandle = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
@@ -402,12 +403,12 @@ func initVssFile() bool {
 	return true
 }
 
-func searchTree(path string, searchData *searchData_t) int {
+func searchTree(path string, searchData *searchData_t, validation *C.int) int {
 	utils.Info.Printf("getMatches(): path=%s", path)
 	if len(path) > 0 {
-		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths);
+		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths, int* validation);
 		cpath := C.CString(path)
-		var matches C.int = C.VSSSearchNodes(cpath, rootHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false)
+		var matches C.int = C.VSSSearchNodes(cpath, rootHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false, (*C.int)(unsafe.Pointer(validation)))
 		C.free(unsafe.Pointer(cpath))
 		return int(matches)
 	} else {
@@ -442,20 +443,121 @@ func aggregateResponse(iterator int, response string, aggregatedResponseMap *map
 	}
 }
 
+func setErrorResponse(reqMap map[string]interface{}, number string, reason string, message string) {
+	errorResponseMap["MgrId"] = reqMap["MgrId"]
+	errorResponseMap["ClientId"] = reqMap["ClientId"]
+	errorResponseMap["action"] = reqMap["action"]
+	errorResponseMap["requestId"] = reqMap["requestId"]
+        errStr := errorResponseMap["error"].(string)
+        replaceIndex := strings.Index(errStr, "AAA")
+        errStr = errStr[:replaceIndex] + number + errStr[replaceIndex+3:]
+        replaceIndex = strings.Index(errStr, "BBB")
+        errStr = errStr[:replaceIndex] + reason + errStr[replaceIndex+3:]
+        replaceIndex = strings.Index(errStr, "CCC")
+        errorResponseMap["error"] = errStr[:replaceIndex] + message + errStr[replaceIndex+3:]
+}
+
+func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
+    switch (errorCode) {
+        case 1:
+            setErrorResponse(reqMap, "400", "Token missing.", "")
+        case 2:
+            setErrorResponse(reqMap, "400", "Invalid token signature.", "")
+        case 3:
+            setErrorResponse(reqMap, "400", "Insufficient token permission.", "")
+        case 4:
+            setErrorResponse(reqMap, "400", "Token expired.", "")
+    }
+}
+
+func verifyTokenSignature(token string) bool {
+	url := "http://" + utils.HostIP + ":8600/atserver"
+
+	data := []byte(`{"token": "` + token + `"}`)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	if err != nil {
+		utils.Error.Fatal("verifyTokenSignature: Error reading request. ", err)
+	}
+
+	// Set headers
+        req.Header.Set("Access-Control-Allow-Origin", "*")
+	req.Header.Set("Content-Type", "application/json")
+//	req.Header.Set("Host", utils.HostIP + ":8600")
+
+	// Set client timeout
+	client := &http.Client{Timeout: time.Second * 10}
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		utils.Error.Fatal("verifyTokenSignature: Error reading response. ", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		utils.Error.Fatal("Error reading response. ", err)
+	}
+
+        if (strings.Contains(string(body), "true")) {
+            return true
+        }
+        return false
+}
+
+func verifyToken(token string, validation int) int {  // TODO verify expiry and other time stamps
+        if (verifyTokenSignature(token) == false) {
+            utils.Warning.Printf("verifyToken:invalid signature=%s", token)
+            return 2
+        }
+        scope := utils.ExtractFromToken(token, "scp")
+        if (validation == 1) {
+            if (strings.Contains(scope, "Read") == false && strings.Contains(scope, "Control") == false) {
+                utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
+                return 3
+            }
+        } else {
+            if (strings.Contains(scope, "Control") == false) {
+                utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
+                return 3
+            }
+        }
+        return 0
+}
+
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
-	matches := searchTree(removeQuery(requestMap["path"].(string)), &searchData[0])
+        var validation C.int = -1
+	matches := searchTree(removeQuery(requestMap["path"].(string)), &searchData[0], &validation)
+        utils.Info.Printf("Max validation from search=%d", int(validation))
 	if matches == 0 {
-		errorResponseMap["MgrId"] = requestMap["MgrId"]
-		errorResponseMap["ClientId"] = requestMap["ClientId"]
-		errorResponseMap["action"] = requestMap["action"]
-		errorResponseMap["requestId"] = requestMap["requestId"]
+                setErrorResponse(requestMap, "400", "No signals matching path.", "")
 		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
 	} else {
+                switch (int(validation)) {
+                  case 0: // validation not required
+                  case 1: 
+                      fallthrough
+                  case 2:
+                      errorCode := 0
+                      if (requestMap["token"] == nil) {
+                          errorCode = 1
+                      } else {
+                          errorCode = verifyToken(requestMap["token"].(string), int(validation))
+                      }
+                      if (errorCode > 0) {
+                          setTokenErrorResponse(requestMap, errorCode)
+		          transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+                      }
+                  default:  // should not be possible...
+                      setErrorResponse(requestMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+		      transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+                }
 		if matches == 1 {
 			pathLen := getPathLen(string(searchData[0].responsePath[:]))
 			requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-			//                        if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
+			// if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 			serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 			response := <-serviceDataChan[sDChanIndex]
 			transportDataChan[tDChanIndex] <- response
@@ -464,7 +566,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			for i := 0; i < matches; i++ {
 				pathLen := getPathLen(string(searchData[i].responsePath[:]))
 				requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-				//                                if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
+				//  if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 				serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 				response := <-serviceDataChan[sDChanIndex]
 				aggregateResponse(i, response, &aggregatedResponseMap)
@@ -581,7 +683,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string) string {
 func synthesizeJsonTree(path string) string {
 	var jsonBuffer string
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
-	matches := searchTree(path, &searchData[0])
+	matches := searchTree(path, &searchData[0], nil)
 	if matches == 0 {
 		return ""
 	}
@@ -731,8 +833,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		transportDataChan[tDChanIndex] <- response
 	default:
 		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
-		errorResponseMap["MgrId"] = 0    //??
-		errorResponseMap["ClientId"] = 0 //??
+                setErrorResponse(requestMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
 		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
 	}
 }
@@ -743,6 +844,8 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 
 func main() {
 	utils.InitLog("servercore-log.txt", "./logs")
+//	utils.InitLog("servercore-log.txt")
+	utils.HostIP = utils.GetOutboundIP()
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Tree file not found")

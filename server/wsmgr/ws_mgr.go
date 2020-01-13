@@ -66,6 +66,7 @@ func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn 
 func main() {
 	utils.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("ws-mgr-log.txt", "./logs")
+//	utils.InitLog("ws-mgr-log.txt")
 
 	regData := utils.RegData{}
 

@@ -344,6 +344,7 @@ func getIndexForInterval(filterList []filterDef_t) int {
 
 func main() {
 	utils.InitLog("service-mgr-log.txt", "./logs")
+//	utils.InitLog("service-mgr-log.txt")
 
 	var regResponse RegResponse
 	dataChan := make(chan string)

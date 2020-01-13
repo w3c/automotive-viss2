@@ -21,6 +21,8 @@ FILE* treeFp;
 int currentDepth;
 int maxTreeDepth;
 
+int validTag;  // access restriction tagging of signals. Possible values [0,1,2] <=> [none, write-only, read-write]. Initiated to -1 before each new search.
+
 int stepsInPath;
 int stepOffset;
 
@@ -43,25 +45,34 @@ void printTreeDepth() {
     printf("Max depth of VSS tree = %d\n", maxTreeDepth);
 }
 
-void readCommonPart(common_node_data_t* commonData, char** name, char** descr) {
+void readCommonPart(common_node_data_t* commonData, char** name, char**uuid, char** descr) {
     fread(commonData, sizeof(common_node_data_t), 1, treeFp);
     *name = (char*) malloc(sizeof(char)*(commonData->nameLen+1));
+    *uuid = (char*) malloc(sizeof(char)*(commonData->uuidLen+1));
     *descr = (char*) malloc(sizeof(char)*(commonData->descrLen+1));
     fread(*name, sizeof(char)*commonData->nameLen, 1, treeFp);
     (*name)[commonData->nameLen] = '\0';
 printf("Name = %s\n", *name);
+    fread(*uuid, sizeof(char)*commonData->uuidLen, 1, treeFp);
+    (*name)[commonData->uuidLen] = '\0';
+printf("UUID = %s\n", *uuid);
     fread(*descr, sizeof(char)*commonData->descrLen, 1, treeFp);
     *((*descr)+commonData->descrLen) = '\0';
 printf("Description = %s\n", *descr);
 printf("Children = %d\n", commonData->children);
 }
 
-void copyData(node_t* node, common_node_data_t* commonData, char* name, char* descr) {
+void copyData(node_t* node, common_node_data_t* commonData, char* name, char* uuid, char* descr) {
     node->nameLen = commonData->nameLen;
     node->name = (char*) malloc(sizeof(char)*(node->nameLen+1));
     strncpy(node->name, name, commonData->nameLen);
     node->name[commonData->nameLen] = '\0';
     node->type = commonData->type;
+    node->uuidLen = commonData->uuidLen;
+    node->uuid = (char*) malloc(sizeof(char)*(node->uuidLen+1));
+    strncpy(node->uuid, uuid, commonData->uuidLen);
+    node->uuid[commonData->uuidLen] = '\0';
+    node->validate = commonData->validate;
     node->descrLen = commonData->descrLen;
     node->description = (char*) malloc(sizeof(char)*(node->descrLen+1));
     strncpy(node->description, descr, commonData->descrLen);
@@ -125,8 +136,9 @@ if (parentPtr != NULL)
     }
     updateTreeDepth(1);
     char* name;
+    char* uuid;
     char* descr;
-    readCommonPart(common_data, &name, &descr);
+    readCommonPart(common_data, &name, &uuid, &descr);
     node_t* node = NULL;
 printf("Type=%d\n",common_data->type);
     switch (common_data->type) {
@@ -134,7 +146,7 @@ printf("Type=%d\n",common_data->type);
         {
             rbranch_node_t* node2 = (rbranch_node_t*) malloc(sizeof(rbranch_node_t));
             node2->parent = parentPtr;
-            copyData((node_t*)node2, common_data, name, descr);
+            copyData((node_t*)node2, common_data, name, uuid, descr);
             if (common_data->children > 0)
                 node2->child = (element_node_t**) malloc(sizeof(element_node_t**)*common_data->children);
             fread(&(node2->childTypeLen), sizeof(int), 1, treeFp);
@@ -150,7 +162,7 @@ printf("Type=%d\n",common_data->type);
         {
             element_node_t* node2 = (element_node_t*) malloc(sizeof(element_node_t));
             node2->parent = parentPtr;
-            copyData((node_t*)node2, common_data, name, descr);
+            copyData((node_t*)node2, common_data, name, uuid, descr);
             objectTypes_t objectType;
             fread(&objectType, sizeof(int), 1, treeFp);
             int objectSize = getObjectSize(objectType);
@@ -167,7 +179,7 @@ printf("Type=%d\n",common_data->type);
         {
             node_t* node2 = (node_t*) malloc(sizeof(node_t));
             node2->parent = parentPtr;
-            copyData((node_t*)node2, common_data, name, descr);
+            copyData((node_t*)node2, common_data, name, uuid, descr);
             if (node2->children > 0)
                 node2->child = (node_t**) malloc(sizeof(node_t**)*node2->children);
             fread(&(node2->datatype), sizeof(int), 1, treeFp);
@@ -187,8 +199,8 @@ if (node2->unitLen > 0)
                 node2->enumeration = (enum_t*) malloc(sizeof(enum_t)*node2->numOfEnumElements);
                 fread(node2->enumeration, sizeof(enum_t)*node2->numOfEnumElements, 1, treeFp);
             }
-for (int i = 0 ; i < node2->numOfEnumElements ; i++)
-  printf("Enum[%d]=%s\n", i, (char*)node2->enumeration[i]);
+//for (int i = 0 ; i < node2->numOfEnumElements ; i++)
+//  printf("Enum[%d]=%s\n", i, (char*)node2->enumeration[i]);
             fread(&(node2->functionLen), sizeof(int), 1, treeFp);
             node2->function = NULL;
             if (node2->functionLen > 0) {
@@ -204,6 +216,7 @@ if (node2->functionLen > 0)
     } //switch
     free(common_data);
     free(name);
+    free(uuid);
     free(descr);
 printf("node->children = %d\n", node->children);
     int childNo = 0;
@@ -287,6 +300,12 @@ void copySteps(char* newPath, char* oldPath, int stepNo) {
     }
 }
 
+void validTagUpdate(struct node_t* ptr) {
+    if (ptr->validate > validTag) {
+        validTag = ptr->validate;
+    }
+}
+
 /**
 * !!! First call to stepToNextNode() must be preceeeded by a call to initStepToNextNode() !!!
 **/
@@ -295,6 +314,7 @@ printf("ptr->name=%s, stepNo=%d, responsePaths[%d]=%s\n",ptr->name, stepNo, *fou
     if (*foundResponses >= maxFound-1)
         return NULL; // response buffers are full
     char pathNodeName[MAXNAMELEN];
+    validTagUpdate(ptr);
     strncpy(pathNodeName, getNodeName(stepNo, searchPath), MAXNAMELEN);
     if (stepNo == stepsInPath) {
         if (strcmp(pathNodeName, ptr->name) == 0 || strcmp(pathNodeName, "*") == 0) {
@@ -444,9 +464,10 @@ printf("Leaf node=%s, matchingPaths[%d]=%s, *foundResponses=%d\n", getName((&(ma
     }
 }
 
-int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths) {
+int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths, int* validation) {
     intptr_t ptr = (intptr_t)rootNode;
     int foundResponses = 0;
+    validTag = -1;  // initiate with invalid value
 
     if ((searchPath[strlen(searchPath)-1] == '*') && (wildcardAllDepths)) {
         trailingWildCardSearch((struct node_t*)ptr, searchPath, maxFound, &foundResponses, searchData);
@@ -454,27 +475,25 @@ int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* 
         initStepToNextNode((struct node_t*)ptr,(struct node_t*)ptr, searchPath, searchData, maxFound);
         stepToNextNode((struct node_t*)ptr, 0, searchPath, maxFound, &foundResponses, searchData);
     }
+    if (validation != NULL) {
+        *validation = validTag;
+    }
 
     return foundResponses;
 }
 
-// added for Go testing
-int VSSSimpleSearch(char* searchPath, long rootNode, bool wildcardAllDepths) {
-    searchData_t searchData[150];
-//    path_t responsePaths[150];
-//    long foundNodes[150];
-    return VSSSearchNodes(searchPath, rootNode, 150, searchData, wildcardAllDepths);
-//    return VSSSearchNodes(searchPath, rootNode, 150, responsePaths, foundNodes, wildcardAllDepths);
-}
 void writeCommonPart(struct node_t* node) {
     common_node_data_t* commonData = (common_node_data_t*)malloc(sizeof(common_node_data_t));
     commonData->nameLen = node->nameLen;
     commonData->type = node->type;
+    commonData->uuidLen = node->uuidLen;
+    commonData->validate = node->validate;
     commonData->descrLen = node->descrLen;
     commonData->children = node->children;
     fwrite(commonData, sizeof(common_node_data_t), 1, treeFp);
     free(commonData);
     fwrite(node->name, sizeof(char)*node->nameLen, 1, treeFp);
+    fwrite(node->uuid, sizeof(char)*node->uuidLen, 1, treeFp);
     fwrite(node->description, sizeof(char)*node->descrLen, 1, treeFp);
 }
 
@@ -540,9 +559,9 @@ void traverseAndWriteNode(struct node_t* node) {
             fwrite(&(node->functionLen), sizeof(int), 1, treeFp);
             if (node->functionLen > 0)
                 fwrite(node->function, sizeof(char)*node->functionLen, 1, treeFp);
-//printf("numOfEnumElements=%d, unitlen=%d, functionLen=%d\n", node->numOfEnumElements, node->unitLen, node->functionLen);
-for (int i = 0 ; i < node->numOfEnumElements ; i++)
-  printf("Enum[%d]=%s\n", i, (char*)node->enumeration[i]);
+printf("numOfEnumElements=%d, unitlen=%d, functionLen=%d\n", node->numOfEnumElements, node->unitLen, node->functionLen);
+//for (int i = 0 ; i < node->numOfEnumElements ; i++)
+//  printf("Enum[%d]=%s\n", i, (char*)node->enumeration[i]);
         }
         break;
     } //switch
@@ -593,6 +612,14 @@ nodeTypes_t getDatatype(long nodeHandle) {
 
 char* getName(long nodeHandle) {
     return ((node_t*)((intptr_t)nodeHandle))->name;
+}
+
+char* getUUID(long nodeHandle) {
+    return ((node_t*)((intptr_t)nodeHandle))->uuid;
+}
+
+int getValidation(long nodeHandle) {
+    return (int)((intptr_t)((node_t*)((intptr_t)nodeHandle))->validate);
 }
 
 char* getDescr(long nodeHandle) {

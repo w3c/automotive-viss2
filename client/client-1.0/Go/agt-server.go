@@ -1,8 +1,14 @@
+/**
+* (C) 2020 Geotab Inc
+*
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* are licensed under the provisions of the license provided by the LICENSE file in this repository.
+*
+**/
+
 package main
 
 import (
-    "crypto/hmac"
-    "crypto/sha256"
     "net/http"
     "encoding/json"
     "encoding/base64"
@@ -11,7 +17,7 @@ import (
     "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
-const theSecretKey = "averysecretkeyvalue"
+const theAgtSecret = "averysecretkeyvalue1"  // shared with at-server
 
 
 func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
@@ -49,21 +55,13 @@ func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
 	utils.Error.Fatal(http.ListenAndServe("localhost:8500", muxServer))
 }
 
-func generateHmac(input string, key string) string {
-    mac := hmac.New(sha256.New, []byte(key))
-    mac.Write([]byte(input))
-    return string(mac.Sum(nil))
-}
-
 func generateAgt(input string) string {
 	type Payload struct {
 		UserId string
 		Vin string
 	}
-//	decoder := json.NewDecoder(input)
 	var payload Payload
 	err := json.Unmarshal([]byte(input), &payload)
-//	err := decoder.Decode(&payload)
 	if err != nil {
             utils.Error.Printf("generateAgt:error input=%s", input)
             return ""
@@ -75,15 +73,15 @@ func generateAgt(input string) string {
         encodedJwtHeader := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
         encodedJwtPayload := base64.RawURLEncoding.EncodeToString([]byte(jwtPayload))
 	utils.Info.Printf("generateAgt:encodedJwtHeader=%s", encodedJwtHeader)
-        jwtSignature := generateHmac(encodedJwtHeader + "." + encodedJwtPayload, theSecretKey)
+        jwtSignature := utils.GenerateHmac(encodedJwtHeader + "." + encodedJwtPayload, theAgtSecret)
         encodedJwtSignature := base64.RawURLEncoding.EncodeToString([]byte(jwtSignature))
         return encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature
 }
 
 func main() {
 
-//	utils.InitLog("agtserver-log.txt", "./logs")
-	utils.InitLog("agtserver-log.txt")
+	utils.InitLog("agtserver-log.txt", "./logs")
+//	utils.InitLog("agtserver-log.txt")
 	serverChan := make(chan string)
         muxServer := http.NewServeMux()
 
