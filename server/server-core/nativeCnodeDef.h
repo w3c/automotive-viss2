@@ -20,13 +20,9 @@
 * There are three different node structures defined below: 
  * node_t, rbranch_node_t, element_node_t
  * They have a common part, and a unique part.
- * The common part consists of:
- *   int nameLen;
+ * The common part is defined by common_node_data_t, plus the pointers below.
  *   char* name;
- *   nodeTypes_t type;
- *   int descrLen;
  *   char* description;
- *   int children;
  *   struct node_t* parent;
  *   struct node_t** child;
  * This common part must be identical in all three structures, and be positioned before any unique parts.
@@ -41,6 +37,9 @@ typedef struct node_t {
     int nameLen;
     char* name;
     nodeTypes_t type;
+    int uuidLen;
+    char* uuid;
+    int validate;
     int descrLen;
     char* description;
     int children;
@@ -70,6 +69,9 @@ typedef struct element_node_t { // only fixed part defined here
     int nameLen;
     char* name;
     nodeTypes_t type;   // must be element
+    int uuidLen;
+    char* uuid;
+    int validate;
     int descrLen;
     char* description;
     int children;      // must be zero
@@ -82,6 +84,9 @@ typedef struct rbranch_node_t {
     int nameLen;
     char* name;
     nodeTypes_t type;   // must be rbranch
+    int uuidLen;
+    char* uuid;
+    int validate;
     int descrLen;
     char* description;
     int children;
@@ -96,6 +101,8 @@ typedef struct rbranch_node_t {
 typedef struct {
     int nameLen;
     nodeTypes_t type;
+    int uuidLen;
+    int validate;
     int descrLen;
     int children;
 } common_node_data_t;
