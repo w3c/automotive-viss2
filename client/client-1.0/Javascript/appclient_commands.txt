@@ -6,6 +6,9 @@ Get request:
 Get request with search:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}
 
+Get request with AT token (XXX must be replaced with actual token):
+{"action":"get", "path":"Vehicle/ADAS/CruiseControl/Error", "token":"XXX", "requestId":"241"}
+
 Service discovery request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right?$specEQ0", "requestId":"236"}
 
@@ -42,17 +45,15 @@ URL: Vehicle/Cabin/Door/Row1/Right?$specEQ0
 
 
 //  AGTserver POST input:
-localhost
+<Gen2 server IP address>
 agtserver
-{"userid":"Ulf","vin":"xyz123"}
-
-{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ"}
+{"userid":"XXX","vin":"YYY"}
 
 
 //  ATserver POST input:
-192.168.8.108
+<Gen2 server IP address>
 atserver
-{"scope":"VehicleReadOnly","token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImlzcyI6Im9lbS5jb20vZ2VuMi9iYWNrZW5kIiwic2lndXJsIjoib2VtLmNvbS9nZW4yL2JhY2tlbmQvcHViIiwiaWF0IjoxNTc3ODQ3NjAwLCJleHAiOjE1OTM1NjE1OTksImp0aSI6IjQ2NjdlOTNmLTQwZjktNWYzOS04OTNlLWNjMGRhODkwZGIzZiJ9.eyJ1aWQiOiJVbGYiLCJhdWQiOiJ4eXoxMjMifQ.44olHPzlwabtcSEdu7yxBghHEpqYyBQfKRuGlF1_ZlQ"}
+{"scope":"AAA","token":"BBB"}
 
 
 

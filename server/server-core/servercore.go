@@ -544,7 +544,9 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
                       if (requestMap["token"] == nil) {
                           errorCode = 1
                       } else {
-                          errorCode = verifyToken(requestMap["token"].(string), int(validation))
+                          if (requestMap["action"] != "get" || int(validation) != 1) { // no validation for read requests when validation is 1 (write-only)
+                              errorCode = verifyToken(requestMap["token"].(string), int(validation))
+                          }
                       }
                       if (errorCode > 0) {
                           setTokenErrorResponse(requestMap, errorCode)
