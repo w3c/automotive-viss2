@@ -448,13 +448,7 @@ func setErrorResponse(reqMap map[string]interface{}, number string, reason strin
 	errorResponseMap["ClientId"] = reqMap["ClientId"]
 	errorResponseMap["action"] = reqMap["action"]
 	errorResponseMap["requestId"] = reqMap["requestId"]
-        errStr := errorResponseMap["error"].(string)
-        replaceIndex := strings.Index(errStr, "AAA")
-        errStr = errStr[:replaceIndex] + number + errStr[replaceIndex+3:]
-        replaceIndex = strings.Index(errStr, "BBB")
-        errStr = errStr[:replaceIndex] + reason + errStr[replaceIndex+3:]
-        replaceIndex = strings.Index(errStr, "CCC")
-        errorResponseMap["error"] = errStr[:replaceIndex] + message + errStr[replaceIndex+3:]
+        errorResponseMap["error"] = `"error":{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
 }
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
@@ -534,6 +528,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 	if matches == 0 {
                 setErrorResponse(requestMap, "400", "No signals matching path.", "")
 		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+                return
 	} else {
                 switch (int(validation)) {
                   case 0: // validation not required
@@ -551,10 +546,12 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
                       if (errorCode > 0) {
                           setTokenErrorResponse(requestMap, errorCode)
 		          transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+                          return
                       }
                   default:  // should not be possible...
                       setErrorResponse(requestMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
 		      transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+                      return
                 }
 		if matches == 1 {
 			pathLen := getPathLen(string(searchData[0].responsePath[:]))

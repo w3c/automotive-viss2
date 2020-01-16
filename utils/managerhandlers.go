@@ -27,15 +27,14 @@ import (
 )
 
 func backendHttpAppSession(message string, w *http.ResponseWriter) {
-	Info.Printf("backendHttpAppSession(): Message received=%s\n", message)
+	Info.Printf("backendHttpAppSession(): Message received=%s", message)
 
 	var responseMap = make(map[string]interface{})
 	ExtractPayload(message, &responseMap)
 	var response string
 	if responseMap["error"] != nil {
-		http.Error(*w, "400 Error", http.StatusBadRequest) // TODO select error code from responseMap-error:number
-		return
-	}
+		response = responseMap["error"].(string)
+	} else {
 	switch responseMap["action"] {
 	case "get":
 		if _, ok := responseMap["value"]; ok {
@@ -46,10 +45,11 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	case "set":
 		response = "200 OK" //??
 	default:
-		http.Error(*w, "500 Internal error", http.StatusInternalServerError) // TODO select error code from responseMap-error:number
+		http.Error(*w, "500 Internal error", http.StatusInternalServerError)
 		return
 
 	}
+        }
 	resp := []byte(response)
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
@@ -101,11 +101,19 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	case "GET":
 		requestMap["action"] = "get"
 		requestMap["path"] = path
+                token := req.Header.Get("Authorization")
+                if (len(token) > 0) {
+                    requestMap["token"] = token
+                }
 		requestMap["requestId"] = strconv.Itoa(requestTag)
 		requestTag++
 	case "POST": // set
 		requestMap["action"] = "set"
 		requestMap["path"] = path
+                token := req.Header.Get("Authorization")
+                if (len(token) > 0) {
+                    requestMap["token"] = token
+                }
 		body, _ := ioutil.ReadAll(req.Body)
 		requestMap["value"] = string(body)
 		requestMap["requestId"] = strconv.Itoa(requestTag)
