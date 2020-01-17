@@ -127,7 +127,7 @@ func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendCh
 	serviceDataHandler := makeServiceDataHandler(dataChannel, backendChannel)
 	muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
 	utils.Info.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
-	utils.Error.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
+	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
 var subscriptionTicker [100]*time.Ticker

@@ -213,10 +213,10 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 }
 
 func initTransportRegisterServer(transportRegChannel chan int) {
-	utils.Info.Printf("initTransportRegisterServer():localhost:8081/transport/reg")
+	utils.Info.Printf("initTransportRegisterServer(): :8081/transport/reg")
 	transportRegisterHandler := maketransportRegisterHandler(transportRegChannel)
 	muxServer[0].HandleFunc("/transport/reg", transportRegisterHandler)
-	utils.Error.Fatal(http.ListenAndServe("localhost:8081", muxServer[0]))
+	utils.Error.Fatal(http.ListenAndServe(":8081", muxServer[0]))
 }
 
 func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
@@ -313,10 +313,10 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 }
 
 func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) {
-	utils.Info.Printf("initServiceRegisterServer():localhost:8082/service/reg")
+	utils.Info.Printf("initServiceRegisterServer(): :8082/service/reg")
 	serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex, backendChannel)
 	muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
-	utils.Error.Fatal(http.ListenAndServe("localhost:8082", muxServer[1]))
+	utils.Error.Fatal(http.ListenAndServe(":8082", muxServer[1]))
 }
 
 func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string) {
@@ -376,7 +376,7 @@ func initTransportDataServer(mgrIndex int, muxServer *http.ServeMux, transportDa
 	utils.Info.Printf("initTransportDataServer():mgrIndex=%d", mgrIndex)
 	transportDataHandler := makeTransportDataHandler(transportDataChannel[mgrIndex], backendChannel[mgrIndex])
 	muxServer.HandleFunc("/transport/data/"+strconv.Itoa(mgrIndex), transportDataHandler)
-	utils.Error.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(transportDataPortNum+mgrIndex), muxServer))
+	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(transportDataPortNum+mgrIndex), muxServer))
 }
 
 func initTransportDataServers(transportDataChannel []chan string, backendChannel []chan string) {

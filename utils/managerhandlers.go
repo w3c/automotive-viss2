@@ -260,14 +260,14 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 
 	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	Info.Println(http.ListenAndServe(HostIP+":8888", muxServer))
+	Info.Println(http.ListenAndServe(":8888", muxServer))
 }
 
 func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *int) {
 	*serverIndex = 0
 	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	Error.Fatal(http.ListenAndServe(HostIP+":8080", muxServer))
+	Error.Fatal(http.ListenAndServe(":8080", muxServer))
 }
 
 func finalizeResponse(responseMap map[string]interface{}) string {
