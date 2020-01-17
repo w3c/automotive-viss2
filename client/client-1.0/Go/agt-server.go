@@ -49,10 +49,10 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 }
 
 func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer():"+utils.HostIP+":8500/agtserver")
+	utils.Info.Printf("initAtServer(): :8500/agtserver")
 	agtServerHandler := makeAgtServerHandler(serverChannel)
 	muxServer.HandleFunc("/agtserver", agtServerHandler)
-	utils.Error.Fatal(http.ListenAndServe(utils.HostIP+":8500", muxServer))
+	utils.Error.Fatal(http.ListenAndServe(":8500", muxServer))
 }
 
 func generateAgt(input string) string {
@@ -81,10 +81,8 @@ func generateAgt(input string) string {
 func main() {
 
 	utils.InitLog("agtserver-log.txt", "./logs")
-//	utils.InitLog("agtserver-log.txt")
 	serverChan := make(chan string)
         muxServer := http.NewServeMux()
-	utils.HostIP = utils.GetOutboundIP()
 
         go initAgtServer(serverChan, muxServer)
 

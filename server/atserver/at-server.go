@@ -51,10 +51,10 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 }
 
 func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer():"+utils.HostIP+":8600/atserver")
+	utils.Info.Printf("initAtServer(): :8600/atserver")
 	atServerHandler := makeAtServerHandler(serverChannel)
 	muxServer.HandleFunc("/atserver", atServerHandler)
-	utils.Error.Fatal(http.ListenAndServe(utils.HostIP+":8600", muxServer))
+	utils.Error.Fatal(http.ListenAndServe(":8600", muxServer))
 }
 
 func generateAt(input string) string { // TODO validate AGT header fields (iat, exp,..), create dynamic AT payload fields (exp, jti)
@@ -93,8 +93,6 @@ func main() {
         muxServer := http.NewServeMux()
 
 	utils.InitLog("atserver-log.txt", "./logs")
-//	utils.InitLog("atserver-log.txt")
-	utils.HostIP = utils.GetOutboundIP()
 
         go initAtServer(serverChan, muxServer)
 

@@ -14,7 +14,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -49,16 +48,10 @@ type SubscriptionState struct {
 	timestamp      time.Time
 }
 
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
-}
+var hostIp string
 
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
-	host := getEnv("SERVERCORE_HOST", "localhost")
-	url := "http://" + host + ":8082/service/reg"
+	url := "http://" + hostIp + ":8082/service/reg"
 	utils.Info.Printf("ServerCore URL %s", url)
 
 	data := []byte(`{"Rootnode": "` + regRequest.Rootnode + `"}`)
@@ -70,7 +63,7 @@ func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", host+":8082")
+	req.Header.Set("Host", hostIp+":8082")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}
@@ -127,7 +120,7 @@ func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendCh
 	serviceDataHandler := makeServiceDataHandler(dataChannel, backendChannel)
 	muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
 	utils.Info.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
-	utils.Error.Fatal(http.ListenAndServe("localhost:"+strconv.Itoa(regResponse.Portnum), muxServer))
+	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
 var subscriptionTicker [100]*time.Ticker
@@ -344,7 +337,7 @@ func getIndexForInterval(filterList []filterDef_t) int {
 
 func main() {
 	utils.InitLog("service-mgr-log.txt", "./logs")
-//	utils.InitLog("service-mgr-log.txt")
+        hostIp = utils.GetModelIP(utils.IpModel)
 
 	var regResponse RegResponse
 	dataChan := make(chan string)
