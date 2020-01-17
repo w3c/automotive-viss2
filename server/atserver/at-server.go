@@ -93,8 +93,6 @@ func main() {
         muxServer := http.NewServeMux()
 
 	utils.InitLog("atserver-log.txt", "./logs")
-//	utils.InitLog("atserver-log.txt")
-//	utils.HostIP = utils.GetOutboundIP()
 
         go initAtServer(serverChan, muxServer)
 

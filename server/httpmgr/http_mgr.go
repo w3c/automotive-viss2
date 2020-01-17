@@ -29,8 +29,6 @@ import (
 func main() {
 	utils.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("http-mgr-log.txt", "./logs")
-//	utils.InitLog("http-mgr-log.txt")
-//	utils.HostIP = utils.GetOutboundIP()
 
 	regData := utils.RegData{}
 	utils.RegisterAsTransportMgr(&regData, "HTTP")

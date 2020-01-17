@@ -66,11 +66,9 @@ func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn 
 func main() {
 	utils.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("ws-mgr-log.txt", "./logs")
-//	utils.InitLog("ws-mgr-log.txt")
 
 	regData := utils.RegData{}
 
-	utils.HostIP = utils.GetOutboundIP()
 	utils.RegisterAsTransportMgr(&regData, "WebSocket")
 
 	go utils.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(utils.MuxServer[0], &serverIndex) // go routine needed due to listenAndServe call...

@@ -120,6 +120,8 @@ var errorResponseMap = map[string]interface{}{
 	"timestamp": 1234,
 }
 
+var hostIp string
+
 /*
 * Core-server main tasks:
     - server for transportmgr registrations
@@ -251,7 +253,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 * sets up the WS based communication (as client) with a service manager
 **/
 func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel []chan string) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", "localhost:"+strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
+	var addr = flag.String("addr", hostIp+":"+strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/" + strconv.Itoa(serviceIndex)}
 	utils.Info.Printf("Connecting to:%s", dataSessionUrl.String())
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin": {"*"}})
@@ -465,7 +467,7 @@ func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 }
 
 func verifyTokenSignature(token string) bool {
-	url := "http://" + utils.HostIP + ":8600/atserver"
+	url := "http://" + hostIp + ":8600/atserver"
 
 	data := []byte(`{"token": "` + token + `"}`)
 
@@ -477,7 +479,7 @@ func verifyTokenSignature(token string) bool {
 	// Set headers
         req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
-//	req.Header.Set("Host", utils.HostIP + ":8600")
+//	req.Header.Set("Host", hostIp + ":8600")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}
@@ -564,7 +566,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			var aggregatedResponseMap map[string]interface{}
 			for i := 0; i < matches; i++ {
 				pathLen := getPathLen(string(searchData[i].responsePath[:]))
-				requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
+				requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
 				//  if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
 				serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
 				response := <-serviceDataChan[sDChanIndex]
@@ -579,7 +581,7 @@ func finalizeMessage(responseMap map[string]interface{}) string {
 	response, err := json.Marshal(responseMap)
 	if err != nil {
 		utils.Error.Printf("Server core-finalizeMessage: JSON encode failed. ", err)
-		return "{\"error\":\"JSON marshal error\"}" // what to do here?
+		return  `{"error":{"number":400,"reason":"JSON marshal error","message":""}}`  //???
 	}
 	return string(response)
 }
@@ -690,24 +692,6 @@ func synthesizeJsonTree(path string) string {
 	jsonBuffer = jsonifyTreeNode(rootNode, jsonBuffer)
 	return "{" + jsonBuffer + "}"
 }
-
-/*
-func spaceRemoved(value string) string {
-    var valueStart, valueStop int
-    for index := 0 ; index < len(value) ; index++ {
-        if (value[index] != ' ') {
-            valueStart = index
-            break
-        }
-    }
-    for index := len(value)-1 ; index >= 0 ; index-- {
-        if (value[index] != ' ') {
-            valueStop = index
-            break
-        }
-    }
-    return value[valueStart:valueStop]
-}*/
 
 func processOneFilter(filter string, filterList *[]filterDef_t) string {
 	filterDef := filterDef_t{}
@@ -843,8 +827,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 
 func main() {
 	utils.InitLog("servercore-log.txt", "./logs")
-//	utils.InitLog("servercore-log.txt")
-	utils.HostIP = utils.GetOutboundIP()
+        hostIp = utils.GetModelIP(utils.IpModel)
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Tree file not found")

@@ -3,19 +3,27 @@ package utils
 import (
 	"encoding/json"
 	"net"
+        "os"
 	"strings"
         "crypto/hmac"
         "crypto/sha256"
         "encoding/base64"
 )
 
-/* set to true if localhost to be returned */
-const isClientLocal = false
+const IpModel = 0  // IpModel = [0,1,2] = [localhost,extIP,envVarIP]
+const IpEnvVarName = "GEN2MODULEIP"
 
-// Get preferred outbound ip of this machine, or sets it to localhost
-func GetOutboundIP() string {
-	if isClientLocal == true {
+func GetModelIP(ipModel int) string {
+	if ipModel == 0 {
 		return "localhost"
+	}
+	if ipModel == 2 {
+	    if value, ok := os.LookupEnv(IpEnvVarName); ok {
+	            Info.Println("Host IP:", value)
+		    return value
+	    }
+            Error.Printf("Environment variable %s error.", IpEnvVarName)
+ 	    return "localhost"  //fallback
 	}
 	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {

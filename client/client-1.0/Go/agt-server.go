@@ -81,10 +81,8 @@ func generateAgt(input string) string {
 func main() {
 
 	utils.InitLog("agtserver-log.txt", "./logs")
-//	utils.InitLog("agtserver-log.txt")
 	serverChan := make(chan string)
         muxServer := http.NewServeMux()
-//	utils.HostIP = utils.GetOutboundIP()
 
         go initAgtServer(serverChan, muxServer)
 
