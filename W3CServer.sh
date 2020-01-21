@@ -1,6 +1,9 @@
 #!/bin/bash
 
-
+usage() {
+#    echo "usage: $0 startme|stopme|configureme" >&2
+    echo "usage: $0 startme|stopme" >&2
+}
 
 startme() {
     echo "starting ..."
@@ -27,17 +30,17 @@ stopme() {
     #ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
 #}
 
-if [ "$1" = "startme" ]
+if [ $# -ne 1 ]
 then
-startme
+usage $0
+exit 1
 fi
 
-if [ "$1" = "stopme" ]
-then
-stopme
-fi
-
-#if [ "$1" = "configureme" ]
-#then
-#configureme
-#fi
+case "$1" in 
+    startme)   startme ;;
+    stopme)    stopme ;;
+    #configureme)   configureme ;; 
+    *) usage
+       exit 1
+       ;;
+esac
