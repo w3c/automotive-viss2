@@ -473,13 +473,14 @@ func verifyTokenSignature(token string) bool {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		utils.Error.Fatal("verifyTokenSignature: Error reading request. ", err)
+		utils.Error.Printf("verifyTokenSignature: Error reading request. ", err)
+                return false
 	}
 
 	// Set headers
         req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
-//	req.Header.Set("Host", hostIp + ":8600")
+	req.Header.Set("Host", hostIp + ":8600")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}
@@ -487,13 +488,15 @@ func verifyTokenSignature(token string) bool {
 	// Send request
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.Error.Fatal("verifyTokenSignature: Error reading response. ", err)
+		utils.Error.Printf("verifyTokenSignature: Error reading response. ", err)
+                return false
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		utils.Error.Fatal("Error reading response. ", err)
+		utils.Error.Printf("Error reading response. ", err)
+                return false
 	}
 
         if (strings.Contains(string(body), "true")) {
