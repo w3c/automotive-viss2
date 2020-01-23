@@ -8,6 +8,8 @@ github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200114161412-d
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200114161412-d298b79f23bb/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200116153428-8c6565ea832c h1:nUWyn1xiuSbd70iLN/nzZWboY6JIaQH6zk+FtIcAEEc=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200116153428-8c6565ea832c/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200117192633-499ac47508f8 h1:yocUXYHOanks7s0VXDtpBxOZnh1wAZjC0QAJQcnn96U=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200117192633-499ac47508f8/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d h1:vVPi2F8sWn3kPjW/3CD4Am9pjnk9WP9Xb/utudau7wg=
 github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -68,6 +70,10 @@ golang.org/x/sys v0.0.0-20200113162924-86b910548bc1 h1:gZpLHxUX5BdYLA08Lj4YCJNN/
 golang.org/x/sys v0.0.0-20200113162924-86b910548bc1/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200116001909-b77594299b42 h1:vEOn+mP2zCOVzKckCZy6YsCtDblrpj/w7B9nxGNELpg=
 golang.org/x/sys v0.0.0-20200116001909-b77594299b42/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200117145432-59e60aa80a0c h1:gUYreENmqtjZb2brVfUas1sC6UivSY8XwKwPo8tloLs=
+golang.org/x/sys v0.0.0-20200117145432-59e60aa80a0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+golang.org/x/sys v0.0.0-20200122134326-e047566fdf82 h1:ywK/j/KkyTHcdyYSZNXGjMwgmDSfjglYZ3vStQ/gSCU=
+golang.org/x/sys v0.0.0-20200122134326-e047566fdf82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2 h1:tW2bmiBqwgJj/UpqtC8EpXEZVYOwU0yG4iWbprSVAcs=
@@ -88,6 +94,10 @@ google.golang.org/genproto v0.0.0-20200113173426-e1de0a7b01eb h1:EsMpWw4S8DM2QYm
 google.golang.org/genproto v0.0.0-20200113173426-e1de0a7b01eb/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=
 google.golang.org/genproto v0.0.0-20200115191322-ca5a22157cba h1:pRj9OXZbwNtbtZtOB4dLwfK4u+EVRMvP+e9zKkg2grM=
 google.golang.org/genproto v0.0.0-20200115191322-ca5a22157cba/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=
+google.golang.org/genproto v0.0.0-20200117163144-32f20d992d24 h1:wDju+RU97qa0FZT0QnZDg9Uc2dH0Ql513kFvHocz+WM=
+google.golang.org/genproto v0.0.0-20200117163144-32f20d992d24/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=
+google.golang.org/genproto v0.0.0-20200122232147-0452cf42e150 h1:VPpdpQkGvFicX9yo4G5oxZPi9ALBnEOZblPSa/Wa2m4=
+google.golang.org/genproto v0.0.0-20200122232147-0452cf42e150/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=
 google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
 google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
 google.golang.org/grpc v1.25.1 h1:wdKvqQk7IttEw92GoRyKG2IDrUIpgpj6H6m81yfeMW0=
