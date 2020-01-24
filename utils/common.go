@@ -63,6 +63,9 @@ func GenerateHmac(input string, key string) string {  //not a correct JWT signat
 
 func VerifyTokenSignature(token string, key string) bool {  // compatible with result from generateHmac()
         delimiter := strings.LastIndex(token, ".")
+        if (delimiter == -1) {
+            return false
+        }
         message := token[:delimiter]
         messageMAC := token[delimiter+1:]
 	mac := hmac.New(sha256.New, []byte(key))
