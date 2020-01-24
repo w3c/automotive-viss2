@@ -10,6 +10,8 @@ github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200116153428-8
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200116153428-8c6565ea832c/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200117192633-499ac47508f8 h1:yocUXYHOanks7s0VXDtpBxOZnh1wAZjC0QAJQcnn96U=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200117192633-499ac47508f8/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200123132240-f97c6ae68670 h1:fTeHANIv6x6x55LXIT5Nd95hWwx5K6X1n/iRxIvnKig=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200123132240-f97c6ae68670/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d h1:vVPi2F8sWn3kPjW/3CD4Am9pjnk9WP9Xb/utudau7wg=
 github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191212140751-4c85174b003d/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

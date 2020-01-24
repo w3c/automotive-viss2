@@ -154,6 +154,7 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	}
 
 	// Set headers
+        req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Host", GetModelIP(IpModel)+":8081")
 
