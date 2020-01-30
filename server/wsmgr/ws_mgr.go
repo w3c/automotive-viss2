@@ -47,7 +47,7 @@ const isClientLocal = false
 
 // add mgrId + clientId to message, forward to server core
 func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn *websocket.Conn, clientId int) {
-	utils.Info.Printf("Transport server hub: Request from client %d:%s\n", clientId, reqMessage)
+	utils.Info.Printf("Transport server hub: Request from client %d:%s", clientId, reqMessage)
 	newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : " + strconv.Itoa(clientId) + " , "
 	request := strings.Replace(reqMessage, "{", newPrefix, 1)
 	//  utils.Info.Println("WS mgr message to core server:" + request)
@@ -64,7 +64,7 @@ func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn 
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
-	utils.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed.\n"
+	utils.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed."
 	utils.InitLog("ws-mgr-log.txt", "./logs")
 
 	regData := utils.RegData{}
@@ -73,10 +73,10 @@ func main() {
 
 	go utils.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(utils.MuxServer[0], &serverIndex) // go routine needed due to listenAndServe call...
 
-	utils.Info.Printf("initClientServer() done\n")
+	utils.Info.Printf("initClientServer() done")
 	dataConn := utils.InitDataSession(utils.MuxServer[1], regData)
 	go utils.WsWSsession{clientBackendChan}.TransportHubFrontendWSsession(dataConn, utils.AppClientChan) // receives messages from server core
-	utils.Info.Printf("initDataSession() done\n")
+	utils.Info.Printf("initDataSession() done")
 
 	for {
 		select {

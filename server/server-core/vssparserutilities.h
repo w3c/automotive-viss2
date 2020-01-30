@@ -42,5 +42,5 @@ char* getEnumElement(long nodeHandle, int index);
 char* getUnit(long nodeHandle);
 char* getFunction(long nodeHandle);
 
-int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths, int* validation);
+int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
 

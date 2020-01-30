@@ -35,7 +35,7 @@ import (
 // #include "vssparserutilities.h"
 import "C"
 
-var rootHandle C.long
+var VSSTreeRoot C.long
 
 type searchData_t struct { // searchData_t defined in vssparserutilities.h
 	responsePath    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
@@ -394,10 +394,10 @@ func updateServiceRouting(portNo string, rootNode string) {
 func initVssFile() bool {
 	filePath := "vss_rel_2.0.0-alpha+006.cnative"
 	cfilePath := C.CString(filePath)
-	rootHandle = C.VSSReadTree(cfilePath)
+	VSSTreeRoot = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
 
-	if rootHandle == 0 {
+	if VSSTreeRoot == 0 {
 		//		utils.Error.Println("Tree file not found")
 		return false
 	}
@@ -405,12 +405,12 @@ func initVssFile() bool {
 	return true
 }
 
-func searchTree(path string, searchData *searchData_t, validation *C.int) int {
-	utils.Info.Printf("getMatches(): path=%s", path)
+func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, validation *C.int) int {
+	utils.Info.Printf("searchTree(): path=%s, anyDepth=%d, leafNodesOnly=%d", path, anyDepth, leafNodesOnly)
 	if len(path) > 0 {
-		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool wildcardAllDepths, int* validation);
+		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
 		cpath := C.CString(path)
-		var matches C.int = C.VSSSearchNodes(cpath, rootHandle, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), false, (*C.int)(unsafe.Pointer(validation)))
+		var matches C.int = C.VSSSearchNodes(cpath, rootNode, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly, (*C.int)(unsafe.Pointer(validation)))
 		C.free(unsafe.Pointer(cpath))
 		return int(matches)
 	} else {
@@ -446,11 +446,19 @@ func aggregateResponse(iterator int, response string, aggregatedResponseMap *map
 }
 
 func setErrorResponse(reqMap map[string]interface{}, number string, reason string, message string) {
-	errorResponseMap["MgrId"] = reqMap["MgrId"]
-	errorResponseMap["ClientId"] = reqMap["ClientId"]
-	errorResponseMap["action"] = reqMap["action"]
-	errorResponseMap["requestId"] = reqMap["requestId"]
-        errorResponseMap["error"] = `"error":{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
+        if (reqMap["MgrId"] != nil) {
+	    errorResponseMap["MgrId"] = reqMap["MgrId"]
+        }
+        if (reqMap["ClientId"] != nil) {
+	    errorResponseMap["ClientId"] = reqMap["ClientId"]
+        }
+        if (reqMap["action"] != nil) {
+	    errorResponseMap["action"] = reqMap["action"]
+        }
+        if (reqMap["requestId"] != nil) {
+	    errorResponseMap["requestId"] = reqMap["requestId"]
+        }
+        errorResponseMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
 }
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
@@ -527,8 +535,13 @@ func verifyToken(token string, validation int) int {  // TODO verify expiry and 
 
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
+        var anyDepth C.bool = false
+        path := removeQuery(requestMap["path"].(string))
+        if (path[len(path)-1] == '*') {
+            anyDepth = true
+        }
         var validation C.int = -1
-	matches := searchTree(removeQuery(requestMap["path"].(string)), &searchData[0], &validation)
+	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, &validation)
         utils.Info.Printf("Max validation from search=%d", int(validation))
 	if matches == 0 {
                 setErrorResponse(requestMap, "400", "No signals matching path.", "")
@@ -638,16 +651,16 @@ func nodeTypesToString(nodeType int) string {
 		return "attribute"
 	case 14:
 		return "branch"
-	case 15:
-		return "rbranch"
-	case 16:
-		return "element"
 	default:
 		return ""
 	}
 }
 
-func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string) string {
+func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth int) string {
+        if (depth >= maxDepth) {
+            return jsonBuffer
+        }
+        depth++
 	var newJsonBuffer string
 	nodeName := C.GoString(C.getName(nodeHandle))
 	newJsonBuffer += `"` + nodeName + `":{`
@@ -658,41 +671,61 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string) string {
 	nodeNumofChildren := int(C.getNumOfChildren(nodeHandle))
 	switch nodeType {
 	case 14: // branch
-	case 15: // rbranch
-	case 16: // element
+	case 12: // stream
 	case 10: // sensor
 		fallthrough
 	case 11: // actuator
 		fallthrough
 	case 13: // attribute
+        // TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := int(C.getDatatype(nodeHandle))
 		newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
-	case 12: // stream
-	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...
+	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
+                return ""
 	}
-	if nodeNumofChildren > 0 {
-		newJsonBuffer += `"children":` + "{"
-	}
-	for i := 0; i < nodeNumofChildren; i++ {
-		childNode := C.long(C.getChild(nodeHandle, C.int(i)))
-		newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer)
-	}
-	if nodeNumofChildren > 0 {
-		newJsonBuffer += "}"
-	}
-	newJsonBuffer += "}"
+        if (depth < maxDepth) {
+	    if nodeNumofChildren > 0 {
+		    newJsonBuffer += `"children":` + "{"
+	    }
+	    for i := 0; i < nodeNumofChildren; i++ {
+		    childNode := C.long(C.getChild(nodeHandle, C.int(i)))
+		    newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer, depth, maxDepth)
+	    }
+	    if nodeNumofChildren > 0 {
+                    if (newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}') {
+                        newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
+                    }
+		    newJsonBuffer += "},"
+	    }
+        }
+        if (newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}') {
+            newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
+        }
+	newJsonBuffer += "},"
+        depth--
 	return jsonBuffer + newJsonBuffer
 }
 
-func synthesizeJsonTree(path string) string {
+func countPathSegments(path string) int {
+    return strings.Count(path, ".") + 1
+}
+
+func synthesizeJsonTree(path string, depth string) string {
 	var jsonBuffer string
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
-	matches := searchTree(path, &searchData[0], nil)
-	if matches == 0 {
+	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, nil)
+	if (matches < countPathSegments(path)) {
 		return ""
 	}
-	rootNode := C.long(searchData[0].foundNodeHandle)
-	jsonBuffer = jsonifyTreeNode(rootNode, jsonBuffer)
+        subTreeRoot := C.long(searchData[matches-1].foundNodeHandle)
+        utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.getName(subTreeRoot)))
+        var maxDepth int
+        if (depth == "0") {
+            maxDepth = 100
+        } else {
+            maxDepth, _ = strconv.Atoi(depth)
+        }
+	jsonBuffer = jsonifyTreeNode(subTreeRoot, jsonBuffer, 0, maxDepth)
 	return "{" + jsonBuffer + "}"
 }
 
@@ -794,7 +827,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	switch requestMap["action"] {
 	case "get":
 		if listContainsName(filterList, "$spec") == true {
-			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string))) //TODO restrict tree to depth (handle error case)
+			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec")) //TODO restrict tree to depth (handle error case)
 			delete(requestMap, "path")
 			requestMap["timestamp"] = 1234
 			transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
