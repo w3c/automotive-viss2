@@ -32,9 +32,12 @@ server-core
 service_mgr
 ws_mgr
 http_mgr
+at-server
+agt-server
 
 # Folders
 !server/servicemgr/
 !server/server-core/
 !server/wsmgr/
 vendor/
+logs/

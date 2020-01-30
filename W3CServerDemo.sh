@@ -1,5 +1,9 @@
 #!/bin/bash  
 
+usage() {
+    echo "usage: $0 start|stop|restart" >&2
+}
+
 startme() {
     screen -d -m -S serverCore bash -c 'cd server-core  && go build && ./server-core'
     screen -d -m -S serviceMgr bash -c 'go run service_mgr.go'
@@ -25,11 +29,17 @@ update() {
    perl -pi -e 's/'$reg'/'$ips'/g' w3cDemo/js/rest-w3c.js
 }
 
+if [ $# -ne 1 ]
+then
+usage $0
+exit 1
+fi
+
 case "$1" in 
     start)   update; startme ;;
     stop)    stopme ;;
     restart) stopme; update; startme ;;
-    *) echo "usage: $0 start|stop|restart" >&2
+    *) usage
        exit 1
        ;;
 esac
