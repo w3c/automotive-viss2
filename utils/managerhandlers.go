@@ -35,21 +35,21 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	if responseMap["error"] != nil {
 		response = responseMap["error"].(string)
 	} else {
-	switch responseMap["action"] {
-	case "get":
-		if _, ok := responseMap["value"]; ok {
-			response = responseMap["value"].(string)
-		} else {
-			response = responseMap["metadata"].(string)
-		}
-	case "set":
-		response = "200 OK" //??
-	default:
-		http.Error(*w, "500 Internal error", http.StatusInternalServerError)
-		return
+		switch responseMap["action"] {
+		case "get":
+			if _, ok := responseMap["value"]; ok {
+				response = responseMap["value"].(string)
+			} else {
+				response = responseMap["metadata"].(string)
+			}
+		case "set":
+			response = "200 OK" //??
+		default:
+			http.Error(*w, "500 Internal error", http.StatusInternalServerError)
+			return
 
+		}
 	}
-        }
 	resp := []byte(response)
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
 	(*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
@@ -101,19 +101,19 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	case "GET":
 		requestMap["action"] = "get"
 		requestMap["path"] = path
-                token := req.Header.Get("Authorization")
-                if (len(token) > 0) {
-                    requestMap["token"] = token
-                }
+		token := req.Header.Get("Authorization")
+		if len(token) > 0 {
+			requestMap["token"] = token
+		}
 		requestMap["requestId"] = strconv.Itoa(requestTag)
 		requestTag++
 	case "POST": // set
 		requestMap["action"] = "set"
 		requestMap["path"] = path
-                token := req.Header.Get("Authorization")
-                if (len(token) > 0) {
-                    requestMap["token"] = token
-                }
+		token := req.Header.Get("Authorization")
+		if len(token) > 0 {
+			requestMap["token"] = token
+		}
 		body, _ := ioutil.ReadAll(req.Body)
 		requestMap["value"] = string(body)
 		requestMap["requestId"] = strconv.Itoa(requestTag)
@@ -130,7 +130,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 }
 
 func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", GetModelIP(IpModel)+":"+strconv.Itoa(regData.Portnum), "http service address")
+	var addr = flag.String("addr", GetServerIP()+":"+strconv.Itoa(regData.Portnum), "http service address")
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: regData.Urlpath}
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 	if err != nil {
@@ -144,7 +144,7 @@ func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
 * Registers with servercore as WebSocket protocol manager, and stores response in regData
 **/
 func RegisterAsTransportMgr(regData *RegData, protocol string) {
-	url := "http://"+GetModelIP(IpModel)+":8081/transport/reg"
+	url := "http://" + GetServerIP() + ":8081/transport/reg"
 
 	data := []byte(`{"protocol": "` + protocol + `"}`)
 
@@ -154,9 +154,9 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	}
 
 	// Set headers
-        req.Header.Set("Access-Control-Allow-Origin", "*")
+	req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", GetModelIP(IpModel)+":8081")
+	req.Header.Set("Host", GetServerIP()+":8081")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}

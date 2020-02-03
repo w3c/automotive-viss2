@@ -34,10 +34,27 @@ services:
     network_mode: host
     volumes:
       - logdata:/app/logs
-#    environment:
-#      - SERVERCORE_HOST=srvcore
+    environment:
+      - SERVERCORE_HOST=192.168.2.1
 #    networks:
 #     - internal
+
+  atserver:
+    build:
+      context: .  # context set to repo root
+      dockerfile: server/atserver/Dockerfile
+    depends_on:
+      - "servercore"
+# using host mode since all servers are tied to localhost, should be changed to
+# docker dns or env variable in the future
+    network_mode: host
+    volumes:
+      - logdata:/app/logs
+    environment:
+      - SERVERCORE_HOST=192.168.2.1
+#    networks:
+#     - internal
+
   httpmgr:
     build:
       context: .  # context set to repo root
