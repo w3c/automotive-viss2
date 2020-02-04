@@ -322,7 +322,7 @@ func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int,
 }
 
 func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string) {
-	defer conn.Close() // ???
+	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
@@ -427,21 +427,36 @@ func getPathLen(path string) int {
 	return len(path)
 }
 
-func aggregateValue(oldValue string, newValue string) string {
-	return oldValue + ", " + newValue // Needs improvement
+func synthesizeValueObject(path string, value string) string {
+	return `{"path":"` + path + `", "value":"` + value + `"}`
 }
 
-func aggregateResponse(iterator int, response string, aggregatedResponseMap *map[string]interface{}) {
-	if iterator == 0 {
-		utils.ExtractPayload(response, aggregatedResponseMap)
-	} else {
-		var multipleResponseMap map[string]interface{}
-		utils.ExtractPayload(response, &multipleResponseMap)
-		switch multipleResponseMap["action"] {
-		case "get":
-			(*aggregatedResponseMap)["value"] = aggregateValue((*aggregatedResponseMap)["value"].(string), multipleResponseMap["value"].(string))
-		default: // TODO check if error
-		}
+/**
+* aggregateResponse synthezises the response when multiple matches may occur. The non-search response pattern for the value, "value": "123",
+* is not sufficient as the response does not contain the corresponding path. So the following pattern is then used:
+* For single match search result:
+* "value": {"path": "path-to-match", "value": "123"}
+* For multiple match search result:
+* "value": [{"path": "path-to-match1", "value": "123"}, {"path": "path-to-match2", "value": "456"}, ..]
+**/
+func aggregateResponse(iterator int, path string, response string, aggregatedResponseMap *map[string]interface{}) {
+        var multipleResponseMap map[string]interface{}
+        utils.ExtractPayload(response, &multipleResponseMap)
+        value := multipleResponseMap["value"].(string)
+
+	switch multipleResponseMap["action"] {
+	case "get":
+	        switch iterator {
+                    case 0:
+		        utils.ExtractPayload(response, aggregatedResponseMap)
+                        (*aggregatedResponseMap)["value"] = synthesizeValueObject(path, value)
+	            case 1:
+			(*aggregatedResponseMap)["value"] = "[" + (*aggregatedResponseMap)["value"].(string) + ", " + synthesizeValueObject(path, value) + "]"
+	            default:
+                        aggregatedResponse := (*aggregatedResponseMap)["value"].(string)
+                        (*aggregatedResponseMap)["value"] = aggregatedResponse[:len(aggregatedResponse)-1] + ", " + synthesizeValueObject(path, value) + "]"
+	        }
+	default: // set, subscribe: shall multiple matches be allowed??
 	}
 }
 
@@ -533,6 +548,16 @@ func verifyToken(token string, validation int) int {  // TODO verify expiry and 
         return 0
 }
 
+func isDataMatch(queryData string, response string) bool {
+	var responsetMap = make(map[string]interface{})
+	utils.ExtractPayload(response, &responsetMap)
+        utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
+        if (responsetMap["value"].(string) == queryData) {
+            return true
+        }
+        return false
+}
+
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
         var anyDepth C.bool = false
@@ -571,25 +596,37 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 		      transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
                       return
                 }
-		if matches == 1 {
-			pathLen := getPathLen(string(searchData[0].responsePath[:]))
-			requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-			// if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
+                var response string
+		var aggregatedResponseMap map[string]interface{}
+                var foundMatch int = 0
+                var dataQuery bool = false
+                var queryData string
+		if (listContainsName(filterList, "$data") == true) {
+                    dataQuery = true
+                    queryData = getListValue(filterList, "$data")
+                }
+		for i := 0; i < matches; i++ {
+			pathLen := getPathLen(string(searchData[i].responsePath[:]))
+			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
 			serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
-			response := <-serviceDataChan[sDChanIndex]
-			transportDataChan[tDChanIndex] <- response
-		} else {
-			var aggregatedResponseMap map[string]interface{}
-			for i := 0; i < matches; i++ {
-				pathLen := getPathLen(string(searchData[i].responsePath[:]))
-				requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-				//  if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
-				serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
-				response := <-serviceDataChan[sDChanIndex]
-				aggregateResponse(i, response, &aggregatedResponseMap)
-			}
-			transportDataChan[tDChanIndex] <- finalizeMessage(aggregatedResponseMap)
+			response = <-serviceDataChan[sDChanIndex]
+                        if (dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true)) {
+                            if (matches > 1) {
+			        aggregateResponse(foundMatch, requestMap["path"].(string), response, &aggregatedResponseMap)
+                            }
+                            foundMatch++
+                        }
 		}
+                if (foundMatch == 0) {
+                        setErrorResponse(requestMap, "400", "Data not matching query.", "")
+		        transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+                } else {
+                        if (matches == 1) {
+	 	 	        transportDataChan[tDChanIndex] <- response
+                        } else {
+ 			        transportDataChan[tDChanIndex] <- finalizeMessage(aggregatedResponseMap)
+                        }
+                }
 	}
 }
 
