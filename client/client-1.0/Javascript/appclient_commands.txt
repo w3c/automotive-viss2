@@ -6,6 +6,9 @@ Get request:
 Get request with search:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}
 
+Get request with search and $data query:
+{"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpenAND$dataEQ1", "requestId":"242"}
+
 Get request with AT token (XXX must be replaced with actual token):
 {"action":"get", "path":"Vehicle/ADAS/CruiseControl/Error", "token":"XXX", "requestId":"241"}
 
