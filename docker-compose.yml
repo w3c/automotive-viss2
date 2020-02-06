@@ -1,89 +1,75 @@
 version: '3.7'
 services:
-  servercore:
-    build:
-      context: .  # context set to repo root
-      dockerfile: server/server-core/Dockerfile
-    volumes:
-      - logdata:/app/logs
+    servercore:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/server-core/Dockerfile
+        volumes:
+            - logdata:/app/logs
+        networks:
+            internal:
+                aliases:
+                    - srvcore
+    servicemgr:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/servicemgr/Dockerfile
+        depends_on:
+            - "servercore"
+        volumes:
+            - logdata:/app/logs
+        environment:
+            - GEN2MODULEIP=srvcore
+        networks:
+            - internal
+    atserver:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/atserver/Dockerfile
+        depends_on:
+            - "servercore"
+        volumes:
+            - logdata:/app/logs
+        environment:
+            - GEN2MODULEIP=srvcore
+        ports:
+            - "8600:8600"
+        networks:
+            - internal
+            - external
+    httpmgr:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/httpmgr/Dockerfile
+        depends_on:
+            - "servercore"
+        volumes:
+            - logdata:/app/logs
+        ports:
+            - "8888:8888"
+        environment:
+            - GEN2MODULEIP=srvcore
+        networks:
+            - internal
+            - external
+    wsmgr:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/wsmgr/Dockerfile
+        depends_on:
+            - "servercore"
+        volumes:
+            - logdata:/app/logs
+        environment:
+            - GEN2MODULEIP=srvcore
+        ports:
+            - "8080:8080"
+        networks:
+            - internal
+            - external
 
-# using host mode since all servers are tied to localhost, should be changed to
-# docker dns or env variable in the future
-    network_mode: host
-
-#    environment:
-#      - DEBUG=1
-#    ports:
-#      - "8081:8081"
-#      - "8082:8082"
-#      - "8100:8100"
-#      - "8200:8200"
-
-#    networks:
-#      internal:
-#        aliases:
-#          - srvcore
-  servicemgr:
-    build:
-      context: .  # context set to repo root
-      dockerfile: server/servicemgr/Dockerfile
-    depends_on:
-      - "servercore"
-# using host mode since all servers are tied to localhost, should be changed to
-# docker dns or env variable in the future
-    network_mode: host
-    volumes:
-      - logdata:/app/logs
-    environment:
-      - SERVERCORE_HOST=192.168.2.1
-#    networks:
-#     - internal
-
-  atserver:
-    build:
-      context: .  # context set to repo root
-      dockerfile: server/atserver/Dockerfile
-    depends_on:
-      - "servercore"
-# using host mode since all servers are tied to localhost, should be changed to
-# docker dns or env variable in the future
-    network_mode: host
-    volumes:
-      - logdata:/app/logs
-    environment:
-      - SERVERCORE_HOST=192.168.2.1
-#    networks:
-#     - internal
-
-  httpmgr:
-    build:
-      context: .  # context set to repo root
-      dockerfile: server/httpmgr/Dockerfile
-    depends_on:
-      - "servercore"
-# using host mode since all servers are tied to localhost, should be changed to
-# docker dns or env variable in the future
-    network_mode: host
-    volumes:
-      - logdata:/app/logs
-    ports:
-      - "8888:8888"
-#    networks:
-#     - internal
-  wsmgr:
-    build:
-      context: .  # context set to repo root
-      dockerfile: server/wsmgr/Dockerfile
-    depends_on:
-      - "servercore"
-# using host mode since all servers are tied to localhost, should be changed to
-# docker dns or env variable in the future
-    network_mode: host
-    volumes:
-      - logdata:/app/logs
-#    networks:
-#     - internal
-#networks:
-#  internal:
+networks:
+    internal:
+    external:
 volumes:
-  logdata:
+    logdata:

@@ -12,17 +12,19 @@ package main
 import (
 	//    "fmt"
 	"flag"
+	"regexp"
 
-	"github.com/gorilla/websocket"
-	"io/ioutil"
-        "bytes"
+	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"unsafe"
 
@@ -252,8 +254,8 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 * initServiceDataSession:
 * sets up the WS based communication (as client) with a service manager
 **/
-func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel []chan string) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", hostIp+":"+strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
+func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel []chan string, remoteIp string) (dataConn *websocket.Conn) {
+	var addr = flag.String("addr", remoteIp+":"+strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/" + strconv.Itoa(serviceIndex)}
 	utils.Info.Printf("Connecting to:%s", dataSessionUrl.String())
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin": {"*"}})
@@ -266,11 +268,11 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendC
 	return dataConn
 }
 
-func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string) {
+func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string, remoteIp string) {
 	time.Sleep(3 * time.Second)                               //wait for service data server to be initiated (initiate at first app-client request instead...)
 	muxIndex := (len(muxServer)-2)/2 + 1 + (serviceIndex + 1) //could be more intuitive...
 	utils.Info.Printf("initServiceClientSession: muxIndex=%d", muxIndex)
-	dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel)
+	dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel, remoteIp)
 	for {
 		select {
 		case request := <-serviceDataChannel:
@@ -281,7 +283,9 @@ func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, 
 
 func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
-		utils.Info.Printf("serviceRegisterServer():url=%s", req.URL.Path)
+		var re = regexp.MustCompile(`^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`)
+		remoteIp := re.FindString(req.RemoteAddr)
+		utils.Info.Printf("serviceRegisterServer():remoteIp=%s, path=%s", remoteIp, req.URL.Path)
 		if req.URL.Path != "/service/reg" {
 			http.Error(w, "404 url path not found.", 404)
 		} else if req.Method != "POST" {
@@ -306,7 +310,7 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 
 				utils.Info.Printf("serviceRegisterServer():POST response=%s", response)
 				w.Write([]byte(response))
-				go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1, backendChannel)
+				go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1, backendChannel, remoteIp)
 			} else {
 				utils.Info.Printf("serviceRegisterServer():Max number of services already registered.")
 			}
@@ -446,32 +450,32 @@ func aggregateResponse(iterator int, response string, aggregatedResponseMap *map
 }
 
 func setErrorResponse(reqMap map[string]interface{}, number string, reason string, message string) {
-        if (reqMap["MgrId"] != nil) {
-	    errorResponseMap["MgrId"] = reqMap["MgrId"]
-        }
-        if (reqMap["ClientId"] != nil) {
-	    errorResponseMap["ClientId"] = reqMap["ClientId"]
-        }
-        if (reqMap["action"] != nil) {
-	    errorResponseMap["action"] = reqMap["action"]
-        }
-        if (reqMap["requestId"] != nil) {
-	    errorResponseMap["requestId"] = reqMap["requestId"]
-        }
-        errorResponseMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
+	if reqMap["MgrId"] != nil {
+		errorResponseMap["MgrId"] = reqMap["MgrId"]
+	}
+	if reqMap["ClientId"] != nil {
+		errorResponseMap["ClientId"] = reqMap["ClientId"]
+	}
+	if reqMap["action"] != nil {
+		errorResponseMap["action"] = reqMap["action"]
+	}
+	if reqMap["requestId"] != nil {
+		errorResponseMap["requestId"] = reqMap["requestId"]
+	}
+	errorResponseMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
 }
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
-    switch (errorCode) {
-        case 1:
-            setErrorResponse(reqMap, "400", "Token missing.", "")
-        case 2:
-            setErrorResponse(reqMap, "400", "Invalid token signature.", "")
-        case 3:
-            setErrorResponse(reqMap, "400", "Insufficient token permission.", "")
-        case 4:
-            setErrorResponse(reqMap, "400", "Token expired.", "")
-    }
+	switch errorCode {
+	case 1:
+		setErrorResponse(reqMap, "400", "Token missing.", "")
+	case 2:
+		setErrorResponse(reqMap, "400", "Invalid token signature.", "")
+	case 3:
+		setErrorResponse(reqMap, "400", "Insufficient token permission.", "")
+	case 4:
+		setErrorResponse(reqMap, "400", "Token expired.", "")
+	}
 }
 
 func verifyTokenSignature(token string) bool {
@@ -482,13 +486,13 @@ func verifyTokenSignature(token string) bool {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		utils.Error.Printf("verifyTokenSignature: Error reading request. ", err)
-                return false
+		return false
 	}
 
 	// Set headers
-        req.Header.Set("Access-Control-Allow-Origin", "*")
+	req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", hostIp + ":8600")
+	req.Header.Set("Host", hostIp+":8600")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}
@@ -497,80 +501,80 @@ func verifyTokenSignature(token string) bool {
 	resp, err := client.Do(req)
 	if err != nil {
 		utils.Error.Printf("verifyTokenSignature: Error reading response. ", err)
-                return false
+		return false
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Printf("Error reading response. ", err)
-                return false
+		return false
 	}
 
-        if (strings.Contains(string(body), "true")) {
-            return true
-        }
-        return false
+	if strings.Contains(string(body), "true") {
+		return true
+	}
+	return false
 }
 
-func verifyToken(token string, validation int) int {  // TODO verify expiry and other time stamps
-        if (verifyTokenSignature(token) == false) {
-            utils.Warning.Printf("verifyToken:invalid signature=%s", token)
-            return 2
-        }
-        scope := utils.ExtractFromToken(token, "scp")
-        if (validation == 1) {
-            if (strings.Contains(scope, "Read") == false && strings.Contains(scope, "Control") == false) {
-                utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
-                return 3
-            }
-        } else {
-            if (strings.Contains(scope, "Control") == false) {
-                utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
-                return 3
-            }
-        }
-        return 0
+func verifyToken(token string, validation int) int { // TODO verify expiry and other time stamps
+	if verifyTokenSignature(token) == false {
+		utils.Warning.Printf("verifyToken:invalid signature=%s", token)
+		return 2
+	}
+	scope := utils.ExtractFromToken(token, "scp")
+	if validation == 1 {
+		if strings.Contains(scope, "Read") == false && strings.Contains(scope, "Control") == false {
+			utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
+			return 3
+		}
+	} else {
+		if strings.Contains(scope, "Control") == false {
+			utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
+			return 3
+		}
+	}
+	return 0
 }
 
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
-        var anyDepth C.bool = false
-        path := removeQuery(requestMap["path"].(string))
-        if (path[len(path)-1] == '*') {
-            anyDepth = true
-        }
-        var validation C.int = -1
+	var anyDepth C.bool = false
+	path := removeQuery(requestMap["path"].(string))
+	if path[len(path)-1] == '*' {
+		anyDepth = true
+	}
+	var validation C.int = -1
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, &validation)
-        utils.Info.Printf("Max validation from search=%d", int(validation))
+	utils.Info.Printf("Max validation from search=%d", int(validation))
 	if matches == 0 {
-                setErrorResponse(requestMap, "400", "No signals matching path.", "")
+		setErrorResponse(requestMap, "400", "No signals matching path.", "")
 		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
-                return
+		return
 	} else {
-                switch (int(validation)) {
-                  case 0: // validation not required
-                  case 1: 
-                      fallthrough
-                  case 2:
-                      errorCode := 0
-                      if (requestMap["token"] == nil) {
-                          errorCode = 1
-                      } else {
-                          if (requestMap["action"] != "get" || int(validation) != 1) { // no validation for read requests when validation is 1 (write-only)
-                              errorCode = verifyToken(requestMap["token"].(string), int(validation))
-                          }
-                      }
-                      if (errorCode > 0) {
-                          setTokenErrorResponse(requestMap, errorCode)
-		          transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
-                          return
-                      }
-                  default:  // should not be possible...
-                      setErrorResponse(requestMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
-		      transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
-                      return
-                }
+		switch int(validation) {
+		case 0: // validation not required
+		case 1:
+			fallthrough
+		case 2:
+			errorCode := 0
+			if requestMap["token"] == nil {
+				errorCode = 1
+			} else {
+				if requestMap["action"] != "get" || int(validation) != 1 { // no validation for read requests when validation is 1 (write-only)
+					errorCode = verifyToken(requestMap["token"].(string), int(validation))
+				}
+			}
+			if errorCode > 0 {
+				setTokenErrorResponse(requestMap, errorCode)
+				transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+				return
+			}
+		default: // should not be possible...
+			setErrorResponse(requestMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+			transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+			return
+		}
 		if matches == 1 {
 			pathLen := getPathLen(string(searchData[0].responsePath[:]))
 			requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
@@ -597,7 +601,7 @@ func finalizeMessage(responseMap map[string]interface{}) string {
 	response, err := json.Marshal(responseMap)
 	if err != nil {
 		utils.Error.Printf("Server core-finalizeMessage: JSON encode failed. ", err)
-		return  `{"error":{"number":400,"reason":"JSON marshal error","message":""}}`  //???
+		return `{"error":{"number":400,"reason":"JSON marshal error","message":""}}` //???
 	}
 	return string(response)
 }
@@ -657,10 +661,10 @@ func nodeTypesToString(nodeType int) string {
 }
 
 func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth int) string {
-        if (depth >= maxDepth) {
-            return jsonBuffer
-        }
-        depth++
+	if depth >= maxDepth {
+		return jsonBuffer
+	}
+	depth++
 	var newJsonBuffer string
 	nodeName := C.GoString(C.getName(nodeHandle))
 	newJsonBuffer += `"` + nodeName + `":{`
@@ -677,54 +681,54 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 	case 11: // actuator
 		fallthrough
 	case 13: // attribute
-        // TODO Look for other metadata, unit, enum, ...
+		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := int(C.getDatatype(nodeHandle))
 		newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
 	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
-                return ""
+		return ""
 	}
-        if (depth < maxDepth) {
-	    if nodeNumofChildren > 0 {
-		    newJsonBuffer += `"children":` + "{"
-	    }
-	    for i := 0; i < nodeNumofChildren; i++ {
-		    childNode := C.long(C.getChild(nodeHandle, C.int(i)))
-		    newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer, depth, maxDepth)
-	    }
-	    if nodeNumofChildren > 0 {
-                    if (newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}') {
-                        newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
-                    }
-		    newJsonBuffer += "},"
-	    }
-        }
-        if (newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}') {
-            newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
-        }
+	if depth < maxDepth {
+		if nodeNumofChildren > 0 {
+			newJsonBuffer += `"children":` + "{"
+		}
+		for i := 0; i < nodeNumofChildren; i++ {
+			childNode := C.long(C.getChild(nodeHandle, C.int(i)))
+			newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer, depth, maxDepth)
+		}
+		if nodeNumofChildren > 0 {
+			if newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}' {
+				newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
+			}
+			newJsonBuffer += "},"
+		}
+	}
+	if newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}' {
+		newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
+	}
 	newJsonBuffer += "},"
-        depth--
+	depth--
 	return jsonBuffer + newJsonBuffer
 }
 
 func countPathSegments(path string) int {
-    return strings.Count(path, ".") + 1
+	return strings.Count(path, ".") + 1
 }
 
 func synthesizeJsonTree(path string, depth string) string {
 	var jsonBuffer string
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, nil)
-	if (matches < countPathSegments(path)) {
+	if matches < countPathSegments(path) {
 		return ""
 	}
-        subTreeRoot := C.long(searchData[matches-1].foundNodeHandle)
-        utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.getName(subTreeRoot)))
-        var maxDepth int
-        if (depth == "0") {
-            maxDepth = 100
-        } else {
-            maxDepth, _ = strconv.Atoi(depth)
-        }
+	subTreeRoot := C.long(searchData[matches-1].foundNodeHandle)
+	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.getName(subTreeRoot)))
+	var maxDepth int
+	if depth == "0" {
+		maxDepth = 100
+	} else {
+		maxDepth, _ = strconv.Atoi(depth)
+	}
 	jsonBuffer = jsonifyTreeNode(subTreeRoot, jsonBuffer, 0, maxDepth)
 	return "{" + jsonBuffer + "}"
 }
@@ -852,7 +856,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		transportDataChan[tDChanIndex] <- response
 	default:
 		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
-                setErrorResponse(requestMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
+		setErrorResponse(requestMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
 		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
 	}
 }
@@ -863,7 +867,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 
 func main() {
 	utils.InitLog("servercore-log.txt", "./logs")
-        hostIp = utils.GetModelIP(utils.IpModel)
+	hostIp = utils.GetModelIP(utils.IpModel)
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Tree file not found")
