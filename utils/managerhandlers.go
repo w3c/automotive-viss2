@@ -31,27 +31,17 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 
 	var responseMap = make(map[string]interface{})
 	ExtractPayload(message, &responseMap)
-	var response string
-	if responseMap["error"] != nil {
-		response = responseMap["error"].(string)
-	} else {
-	switch responseMap["action"] {
-	case "get":
-		if _, ok := responseMap["value"]; ok {
-			response = responseMap["value"].(string)
-		} else {
-			response = responseMap["metadata"].(string)
-		}
-	case "set":
-		response = "200 OK" //??
-	default:
-		http.Error(*w, "500 Internal error", http.StatusInternalServerError)
-		return
-
-	}
+	if responseMap["action"] != nil {
+            delete(responseMap, "action")
         }
+	if responseMap["requestId"] != nil {
+            delete(responseMap, "requestId")
+        }
+        response := finalizeResponse(responseMap)
+
 	resp := []byte(response)
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Headers", "*")
 	(*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
 	written, err := (*w).Write(resp)
 	if err != nil {
@@ -95,32 +85,29 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
 	path := UrlToPath(req.RequestURI)
-	Info.Printf("HTTP method:%s, path: %s\n", req.Method, path)
+	Info.Printf("HTTP method:%s, path: %s", req.Method, path)
 	var requestMap = make(map[string]interface{})
+	requestMap["path"] = path
+        token := req.Header.Get("Authorization")
+	Info.Printf("HTTP token:%s", token)
+        if (len(token) > 0) {
+            requestMap["token"] = token
+        }
+	requestMap["requestId"] = strconv.Itoa(requestTag)
+	requestTag++
 	switch req.Method {
+	case "OPTIONS":
+                fallthrough  // should work for POST also...
 	case "GET":
 		requestMap["action"] = "get"
-		requestMap["path"] = path
-                token := req.Header.Get("Authorization")
-                if (len(token) > 0) {
-                    requestMap["token"] = token
-                }
-		requestMap["requestId"] = strconv.Itoa(requestTag)
-		requestTag++
 	case "POST": // set
 		requestMap["action"] = "set"
-		requestMap["path"] = path
-                token := req.Header.Get("Authorization")
-                if (len(token) > 0) {
-                    requestMap["token"] = token
-                }
 		body, _ := ioutil.ReadAll(req.Body)
 		requestMap["value"] = string(body)
-		requestMap["requestId"] = strconv.Itoa(requestTag)
-		requestTag++
 	default:
-		http.Error(w, "400 Unsupported method", http.StatusBadRequest)
+//		http.Error(w, "400 Unsupported method", http.StatusBadRequest)
 		Warning.Printf("Only GET and POST methods are supported.")
+ 	        backendHttpAppSession(`{"error": "Unrecognized HTTP method."}`, &w) // ???
 		return
 	}
 	clientChannel <- finalizeResponse(requestMap) // forward to mgr hub,
