@@ -20,6 +20,10 @@
 <button onclick="setHostIP()">Server IP</button>
 </div>
 <div>
+<input id="token" type="text" placeholder="access token" />
+<input type="checkbox" id="insertToken">
+</div>
+<div>
 <input id="post-path" type="text" placeholder="url path"/>
 <input id="post-value" type="text" placeholder="input value" />
 <button onclick="sendPost()">POST</button>
@@ -39,6 +43,8 @@
     var getPath = document.getElementById("get-path");
     var postOutput = document.getElementById("post-output");
     var getOutput = document.getElementById("get-output");
+    var accessToken = document.getElementById("token");
+    var isToken = document.getElementById("insertToken");
 
     try {
         function sendPost() {
@@ -56,6 +62,9 @@
           };
           var params = postValue.value;
           xhttp.open("POST", "http://" + hostIP + ":8888/" + postPath.value, true);
+          if (isToken.checked == true) {
+              xhttp2.setRequestHeader("Authorization", accessToken.value);
+          }
           xhttp.send(params);
           postPath.value = "";
           postValue.value = "";
@@ -79,6 +88,9 @@
               }
           };
           xhttp2.open("GET", "http://" + hostIP + ":8888/" + getPath.value, true);
+          if (isToken.checked == true) {
+              xhttp2.setRequestHeader("Authorization", accessToken.value);
+          }
           xhttp2.send(null);
           getPath.value = "";
         }

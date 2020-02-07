@@ -254,6 +254,9 @@ int saveMatchingNode(long thisNode, SearchContext_t* context, bool* done) {
     if (strcmp(getPathSegment(0, context), "*") == 0) {
         context->speculationIndex++;
     }
+    if (getValidation(thisNode) > context->maxValidation) {
+        context->maxValidation = getValidation(thisNode);  // TODO handle speculative setting
+    }
     if (getType(thisNode) != BRANCH || context->leafNodesOnly == false) {
         strcpy(context->searchData[context->numOfMatches].responsePaths, context->matchPath);
         context->searchData[context->numOfMatches].foundNodeHandles = thisNode;
