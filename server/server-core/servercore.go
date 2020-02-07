@@ -1,4 +1,5 @@
 /**
+* (C) 2020 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
@@ -14,6 +15,8 @@ import (
 	"flag"
 	"regexp"
 
+	"github.com/gorilla/websocket"
+
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -23,8 +26,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gorilla/websocket"
 
 	"unsafe"
 
@@ -121,8 +122,6 @@ var errorResponseMap = map[string]interface{}{
 	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
 	"timestamp": 1234,
 }
-
-var hostIp string
 
 /*
 * Core-server main tasks:
@@ -226,7 +225,7 @@ func initTransportRegisterServer(transportRegChannel chan int) {
 func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
 	err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 	if err != nil {
-		utils.Error.Printf("Service datachannel write error:", err)
+		utils.Error.Print("Service datachannel write error:", err)
 	}
 }
 
@@ -326,11 +325,11 @@ func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int,
 }
 
 func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string) {
-	defer conn.Close() // ???
+	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			utils.Error.Printf("read error data WS protocol.", err)
+			utils.Error.Print("read error data WS protocol.", err)
 			break
 		}
 
@@ -350,7 +349,7 @@ func backendWSDataSession(conn *websocket.Conn, backendChannel chan string) {
 		utils.Info.Printf("%s Transport mgr server: message= %s", conn.RemoteAddr(), message)
 		err := conn.WriteMessage(websocket.TextMessage, []byte(message))
 		if err != nil {
-			utils.Error.Printf("write error data WS protocol.", err)
+			utils.Error.Print("write error data WS protocol.", err)
 			break
 		}
 	}
@@ -363,7 +362,7 @@ func makeTransportDataHandler(transportDataChannel chan string, backendChannel c
 			upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 			conn, err := upgrader.Upgrade(w, req, nil)
 			if err != nil {
-				utils.Error.Printf("upgrade:", err)
+				utils.Error.Print("upgrade:", err)
 				return
 			}
 			utils.Info.Printf("WS data session initiated.")
@@ -410,7 +409,7 @@ func initVssFile() bool {
 }
 
 func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, validation *C.int) int {
-	utils.Info.Printf("searchTree(): path=%s, anyDepth=%d, leafNodesOnly=%d", path, anyDepth, leafNodesOnly)
+	utils.Info.Printf("searchTree(): path=%s, anyDepth=%t, leafNodesOnly=%t", path, anyDepth, leafNodesOnly)
 	if len(path) > 0 {
 		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
 		cpath := C.CString(path)
@@ -431,21 +430,38 @@ func getPathLen(path string) int {
 	return len(path)
 }
 
-func aggregateValue(oldValue string, newValue string) string {
-	return oldValue + ", " + newValue // Needs improvement
+func synthesizeValueObject(path string, value string) string {
+	return `{"path":"` + path + `", "value":"` + value + `"}`
 }
 
-func aggregateResponse(iterator int, response string, aggregatedResponseMap *map[string]interface{}) {
-	if iterator == 0 {
-		utils.ExtractPayload(response, aggregatedResponseMap)
-	} else {
-		var multipleResponseMap map[string]interface{}
-		utils.ExtractPayload(response, &multipleResponseMap)
-		switch multipleResponseMap["action"] {
-		case "get":
-			(*aggregatedResponseMap)["value"] = aggregateValue((*aggregatedResponseMap)["value"].(string), multipleResponseMap["value"].(string))
-		default: // TODO check if error
+/**
+* aggregateResponse synthezises the response when multiple matches may occur. The non-search response pattern for the value, "value": "123",
+* is not sufficient as the response does not contain the corresponding path. So the following pattern is then used:
+* For single match search result:
+* "value": {"path": "path-to-match", "value": "123"}
+* For multiple match search result:
+* "value": [{"path": "path-to-match1", "value": "123"}, {"path": "path-to-match2", "value": "456"}, ..]
+**/
+func aggregateResponse(iterator int, path string, response string, aggregatedResponseMap *map[string]interface{}) {
+
+	var multipleResponseMap map[string]interface{}
+	utils.ExtractPayload(response, &multipleResponseMap)
+	value := multipleResponseMap["value"].(string)
+
+	switch multipleResponseMap["action"] {
+	case "get":
+		switch iterator {
+		case 0:
+			utils.ExtractPayload(response, aggregatedResponseMap)
+			(*aggregatedResponseMap)["value"] = synthesizeValueObject(path, value)
+		case 1:
+			(*aggregatedResponseMap)["value"] = "[" + (*aggregatedResponseMap)["value"].(string) + ", " + synthesizeValueObject(path, value) + "]"
+		default:
+			aggregatedResponse := (*aggregatedResponseMap)["value"].(string)
+			(*aggregatedResponseMap)["value"] = aggregatedResponse[:len(aggregatedResponse)-1] + ", " + synthesizeValueObject(path, value) + "]"
 		}
+	default: // set, subscribe: shall multiple matches be allowed??
+
 	}
 }
 
@@ -479,13 +495,15 @@ func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 }
 
 func verifyTokenSignature(token string) bool {
+	hostIp := utils.GetServerIP()
 	url := "http://" + hostIp + ":8600/atserver"
+	utils.Info.Printf("verifyTokenSignature::url = %s", url)
 
 	data := []byte(`{"token": "` + token + `"}`)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		utils.Error.Printf("verifyTokenSignature: Error reading request. ", err)
+		utils.Error.Print("verifyTokenSignature: Error reading request. ", err)
 		return false
 	}
 
@@ -500,14 +518,14 @@ func verifyTokenSignature(token string) bool {
 	// Send request
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.Error.Printf("verifyTokenSignature: Error reading response. ", err)
+		utils.Error.Print("verifyTokenSignature: Error reading response. ", err)
 		return false
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		utils.Error.Printf("Error reading response. ", err)
+		utils.Error.Print("Error reading response. ", err)
 		return false
 	}
 
@@ -535,6 +553,16 @@ func verifyToken(token string, validation int) int { // TODO verify expiry and o
 		}
 	}
 	return 0
+}
+
+func isDataMatch(queryData string, response string) bool {
+	var responsetMap = make(map[string]interface{})
+	utils.ExtractPayload(response, &responsetMap)
+	utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
+	if responsetMap["value"].(string) == queryData {
+		return true
+	}
+	return false
 }
 
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
@@ -575,24 +603,39 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
 			return
 		}
-		if matches == 1 {
-			pathLen := getPathLen(string(searchData[0].responsePath[:]))
-			requestMap["path"] = string(searchData[0].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-			// if (filterList != nil && listContainsName(filterList, "$data") == true) {  }   ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
+		var response string
+		var aggregatedResponseMap map[string]interface{}
+		var foundMatch int = 0
+		var dataQuery bool = false
+		var queryData string
+		if listContainsName(filterList, "$data") == true {
+			dataQuery = true
+			queryData = getListValue(filterList, "$data")
+		}
+		for i := 0; i < matches; i++ {
+			pathLen := getPathLen(string(searchData[i].responsePath[:]))
+			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
+
 			serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
-			response := <-serviceDataChan[sDChanIndex]
-			transportDataChan[tDChanIndex] <- response
-		} else {
-			var aggregatedResponseMap map[string]interface{}
-			for i := 0; i < matches; i++ {
-				pathLen := getPathLen(string(searchData[i].responsePath[:]))
-				requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-				//  if (listContainsName(filterList, "$data") == true) {   }  ??pass this to response receiver, together with messageId (add to dedicated list of structs?)
-				serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
-				response := <-serviceDataChan[sDChanIndex]
-				aggregateResponse(i, response, &aggregatedResponseMap)
+			response = <-serviceDataChan[sDChanIndex]
+			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
+				if matches > 1 {
+
+					aggregateResponse(foundMatch, requestMap["path"].(string), response, &aggregatedResponseMap)
+				}
+				foundMatch++
 			}
-			transportDataChan[tDChanIndex] <- finalizeMessage(aggregatedResponseMap)
+
+		}
+		if foundMatch == 0 {
+			setErrorResponse(requestMap, "400", "Data not matching query.", "")
+			transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+		} else {
+			if matches == 1 {
+				transportDataChan[tDChanIndex] <- response
+			} else {
+				transportDataChan[tDChanIndex] <- finalizeMessage(aggregatedResponseMap)
+			}
 		}
 	}
 }
@@ -600,7 +643,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 func finalizeMessage(responseMap map[string]interface{}) string {
 	response, err := json.Marshal(responseMap)
 	if err != nil {
-		utils.Error.Printf("Server core-finalizeMessage: JSON encode failed. ", err)
+		utils.Error.Print("Server core-finalizeMessage: JSON encode failed. ", err)
 		return `{"error":{"number":400,"reason":"JSON marshal error","message":""}}` //???
 	}
 	return string(response)
@@ -686,6 +729,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 		newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
 	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
 		return ""
+
 	}
 	if depth < maxDepth {
 		if nodeNumofChildren > 0 {
@@ -867,7 +911,6 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 
 func main() {
 	utils.InitLog("servercore-log.txt", "./logs")
-	hostIp = utils.GetModelIP(utils.IpModel)
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Tree file not found")
