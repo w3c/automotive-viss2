@@ -170,52 +170,52 @@ func getSubcriptionStateIndex(subscriptionId int, subscriptionList []Subscriptio
 }
 
 func checkRangeChangeFilter(filterList []filterDef_t, latestValue int, currentValue int) bool {
-    for i := range filterList {
-        result := evaluateFilter(filterList[i], latestValue, currentValue)
-        if (result == false) {
-                return false
-        }
-    }
-    return true
+	for i := range filterList {
+		result := evaluateFilter(filterList[i], latestValue, currentValue)
+		if result == false {
+			return false
+		}
+	}
+	return true
 }
 
 func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool {
-    if (filter.name == "$range") {
-        if (filter.operator == "gt") {
-            filterValue, _ := strconv.Atoi(filter.value)
-            if (currentValue > filterValue) {
-                return true
-            }
-            return false
-        } else { // "lt"
-            filterValue, _ := strconv.Atoi(filter.value)
-            if (currentValue < filterValue) {
-                return true
-            }
-            return false
-        }
-    }
-    if (filter.name == "$change") {
-        if (filter.operator == "gt") {
-            filterValue, _ := strconv.Atoi(filter.value)
-            if (currentValue > latestValue + filterValue) {
-                return true
-            }
-            return false
-        } else if (filter.operator == "lt") {
-            filterValue, _ := strconv.Atoi(filter.value)
-            if (currentValue < latestValue + filterValue) {
-                return true
-            }
-            return false
-        } else { // "neq"
-            if (currentValue != latestValue) {
-                return true
-            }
-            return false
-        }
-    }
-    return false
+	if filter.name == "$range" {
+		if filter.operator == "gt" {
+			filterValue, _ := strconv.Atoi(filter.value)
+			if currentValue > filterValue {
+				return true
+			}
+			return false
+		} else { // "lt"
+			filterValue, _ := strconv.Atoi(filter.value)
+			if currentValue < filterValue {
+				return true
+			}
+			return false
+		}
+	}
+	if filter.name == "$change" {
+		if filter.operator == "gt" {
+			filterValue, _ := strconv.Atoi(filter.value)
+			if currentValue > latestValue+filterValue {
+				return true
+			}
+			return false
+		} else if filter.operator == "lt" {
+			filterValue, _ := strconv.Atoi(filter.value)
+			if currentValue < latestValue+filterValue {
+				return true
+			}
+			return false
+		} else { // "neq"
+			if currentValue != latestValue {
+				return true
+			}
+			return false
+		}
+	}
+	return false
 }
 
 func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState, currentValue int) {
@@ -232,19 +232,19 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 		backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
 	default:
 		// check $range, $change trigger points
-                for i := range subscriptionList {
-                    doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestValue, currentValue)
-                    if (doTrigger == true) {
- 		        subscriptionState := subscriptionList[i]
-		        subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-		        subscriptionMap["MgrId"] = subscriptionState.mgrId
-		        subscriptionMap["ClientId"] = subscriptionState.clientId
-		        subscriptionMap["requestId"] = subscriptionState.requestId
-		        subscriptionMap["value"] = currentValue
-		        backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
-                    }
-                    subscriptionList[i].latestValue = currentValue
-                }
+		for i := range subscriptionList {
+			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestValue, currentValue)
+			if doTrigger == true {
+				subscriptionState := subscriptionList[i]
+				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
+				subscriptionMap["MgrId"] = subscriptionState.mgrId
+				subscriptionMap["ClientId"] = subscriptionState.clientId
+				subscriptionMap["requestId"] = subscriptionState.requestId
+				subscriptionMap["value"] = currentValue
+				backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
+			}
+			subscriptionList[i].latestValue = currentValue
+		}
 	}
 }
 
@@ -337,7 +337,7 @@ func getIndexForInterval(filterList []filterDef_t) int {
 
 func main() {
 	utils.InitLog("service-mgr-log.txt", "./logs")
-        hostIp = utils.GetModelIP(utils.IpModel)
+	hostIp = utils.GetModelIP(2)
 
 	var regResponse RegResponse
 	dataChan := make(chan string)
