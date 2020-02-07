@@ -117,7 +117,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 }
 
 func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", GetModelIP(IpModel)+":"+strconv.Itoa(regData.Portnum), "http service address")
+	var addr = flag.String("addr", GetServerIP()+":"+strconv.Itoa(regData.Portnum), "http service address")
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: regData.Urlpath}
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 	if err != nil {
@@ -131,7 +131,7 @@ func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *webso
 * Registers with servercore as WebSocket protocol manager, and stores response in regData
 **/
 func RegisterAsTransportMgr(regData *RegData, protocol string) {
-	url := "http://"+GetModelIP(IpModel)+":8081/transport/reg"
+	url := "http://" + GetServerIP() + ":8081/transport/reg"
 
 	data := []byte(`{"protocol": "` + protocol + `"}`)
 
@@ -141,9 +141,9 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	}
 
 	// Set headers
-        req.Header.Set("Access-Control-Allow-Origin", "*")
+	req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", GetModelIP(IpModel)+":8081")
+	req.Header.Set("Host", GetServerIP()+":8081")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}
