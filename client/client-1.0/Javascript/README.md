@@ -19,8 +19,8 @@ Current limitations: <br>
 - The server returns on get requests (on all valid paths) an incremented integer dummy value.<br>
 - The server does not for set requests update with the provided value.<br>
 - The server returns subscription notifications containing an integer dummy value from a counter [0-999] that is incrementedevery 50 msec.<br>
-- Access control is applied for write requests to all leaf nodes on the branch "Vehicle.ADAS".
-- Access control is applied for read and write requests to all leaf nodes on the branch "Vehicle.Body".
+- Access control is applied for write requests to all leaf nodes on the branch "Vehicle.Body".
+- Access control is applied for read and write requests to all leaf nodes on the branch "Vehicle.ADAS".
 
 Implementation language: JS. <br>
 
