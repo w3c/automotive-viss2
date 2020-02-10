@@ -4,6 +4,8 @@ github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200203145109-d
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200203145109-d20d30fe5f2b/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200204141502-b59cf392e9a0 h1:NJJ7ogbykpDdHSCTUGdStVvdORDq2Lj/IoKu3WCU0/o=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200204141502-b59cf392e9a0/go.mod h1:TulX8NWz5RKBo4BVb4FmRq0vcJ+VZ/PfCqT0QNKzVRI=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200207114048-2d352af8fe56 h1:BL+0ynI/Pqw2/TL7hR8/5Fq6JiZHPSzc5jWWq5u/q0M=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200207114048-2d352af8fe56/go.mod h1:wuxI6n2M6LDldW50c3ZXRoRFfv3eZrlJFyudiFgEr/E=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -65,9 +67,13 @@ google.golang.org/genproto v0.0.0-20200128133413-58ce757ed39b h1:c8OBoXP3kTbDWWB
 google.golang.org/genproto v0.0.0-20200128133413-58ce757ed39b/go.mod h1:n3cpQtvxv34hfy77yVDNjmbRyujviMdxYliBSkLhpCc=
 google.golang.org/genproto v0.0.0-20200204135345-fa8e72b47b90 h1:7THRSvPuzF1bql5kyFzX0JM0vpGhwuhskgJrJsbZ80Y=
 google.golang.org/genproto v0.0.0-20200204135345-fa8e72b47b90/go.mod h1:GmwEX6Z4W5gMy59cAlVYjN9JhxgbQH6Gn+gFDQe2lzA=
+google.golang.org/genproto v0.0.0-20200205142000-a86caf926a67 h1:MBO9fkVSrTpJ8vgHLPi5gb+ZWXEy7/auJN8yqyu9EiE=
+google.golang.org/genproto v0.0.0-20200205142000-a86caf926a67/go.mod h1:GmwEX6Z4W5gMy59cAlVYjN9JhxgbQH6Gn+gFDQe2lzA=
 google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
 google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
 google.golang.org/grpc v1.27.0 h1:rRYRFMVgRv6E0D70Skyfsr28tDXIuuPZyWGMPdMcnXg=
 google.golang.org/grpc v1.27.0/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
+google.golang.org/grpc v1.27.1 h1:zvIju4sqAGvwKspUQOhwnpcqSbzi7/H6QomNNjTL4sk=
+google.golang.org/grpc v1.27.1/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
