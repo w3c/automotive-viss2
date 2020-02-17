@@ -353,6 +353,7 @@ func main() {
 		return
 	}
 	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
+        dummyTicker := time.NewTicker(50 * time.Millisecond)
 	utils.Info.Printf("initDataServer() done\n")
 	for {
 		select {
@@ -405,13 +406,14 @@ func main() {
 			} // switch
 			dataChan <- finalizeResponse_smgr(responseMap, responseStatus)
 			utils.Info.Println("Service mgr channel message to core server frontend:" + finalizeResponse_smgr(responseMap, responseStatus))
-		default:
-			checkSubscription(subscriptionChan, backendChan, subscriptionList, subscriptionValue)
+                case  <-dummyTicker.C:
 			subscriptionValue++
 			if subscriptionValue > 999 {
 				subscriptionValue = 0
 			}
-			time.Sleep(50 * time.Millisecond)
+		default:
+			checkSubscription(subscriptionChan, backendChan, subscriptionList, subscriptionValue)
+			time.Sleep(10 * time.Millisecond)
 		} // select
 	} // for
 }
