@@ -941,7 +941,7 @@ func main() {
 			updateServiceRouting(portNo, rootNode)
 			//        case xxx := <- serviceDataChan[0]:    // for asynchronous routing, instead of the synchronous above. ToDo?
 		default:
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
