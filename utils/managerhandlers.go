@@ -85,6 +85,9 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
 	path := UrlToPath(req.RequestURI)
+        if (len(path) ==  0) {
+            path = "empty-path"   // will generate error as not found in VSS tree
+        }
 	Info.Printf("HTTP method:%s, path: %s", req.Method, path)
 	var requestMap = make(map[string]interface{})
 	requestMap["path"] = path
