@@ -4,7 +4,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -30,7 +33,19 @@ var Logfile *os.File
 func InitLog(filename string, logdir string) {
 
 	logger := logrus.New()
-	logger.Formatter = &logrus.JSONFormatter{}
+	logger.SetReportCaller(true)
+	logger.Formatter = &logrus.JSONFormatter{
+		//DisableTimestamp: true,
+		//TimestampFormat: "2006-01-02 15:04:05",
+		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+			s := strings.Split(f.Function, ".")
+			funcName := s[len(s)-1]
+			_, fileName := path.Split(f.File)
+			return funcName, fileName
+		},
+		//PrettyPrint: true,
+	}
+
 	logger.SetOutput(os.Stdout)
 
 	os.MkdirAll(logdir, 0700)
