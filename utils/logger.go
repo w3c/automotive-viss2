@@ -1,13 +1,13 @@
 package utils
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -38,10 +38,11 @@ func InitLog(filename string, logdir string) {
 		//DisableTimestamp: true,
 		//TimestampFormat: "2006-01-02 15:04:05",
 		CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-			s := strings.Split(f.Function, ".")
-			funcName := s[len(s)-1]
+			//s := strings.Split(f.Function, ".")
+			//funcName := s[len(s)-1]
 			_, fileName := path.Split(f.File)
-			return funcName, fileName
+			//return funcName, fmt.Sprintf("%s:%d", fileName, f.Line)
+			return "", fmt.Sprintf("%s:%d", fileName, f.Line)
 		},
 		//PrettyPrint: true,
 	}
