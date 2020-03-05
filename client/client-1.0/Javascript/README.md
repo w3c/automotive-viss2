@@ -31,9 +31,8 @@ The HTML clients found here can be opened in any browser. <br>
 
 ## Usage instructions:
 Before issuing any requests to the server, the server IP address (or domain name) must be set. <br>
-Even if the server runs on the same machine the machine outbound IP must be set, followed by a click on the Server IP button. <br>
-If the server to be used is the one deployed by the project for public access, then the URL is:<br>
-!!!Deployment details not yet resolved. Will be shown here when available!!! <br>
+Even if the server runs on the same machine the machine outbound IP must be set, followed by a click on the Server IP button. <br><br>
+If the server to be used is the one deployed by the project for public access, then the URL is: puppis.w3.org<br><br>
 After the server URL is set, then requests can be issued to the server. <br>
 For request examples, see the file appclient_commands.txt that contains request examples for both Websockets and HTTP transport protocols.  <br>
 The VSS paths shown in the examples can be replaced by any path that the VSS tree at the VSS Github project supports (https://github.com/GENIVI/vehicle_signal_specification). <br>
