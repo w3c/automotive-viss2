@@ -10,10 +10,10 @@ startme() {
     screen -dmS servercore ./servercore
     sleep 5s
     screen -dmS servicemgr ./servicemgr
-    screen -dmS wsmgr bash /wsmgr
-    screen -dmS httpmgr ./http_mgr
-    screen -dmS agtserver ./agt-server
-    screen -dmS atserver ./at-server
+    screen -dmS wsmgr ./wsmgr
+    screen -dmS httpmgr ./httpmgr
+    screen -dmS agtserver ./agtserver
+    screen -dmS atserver ./atserver
 }
 
 stopme() {
