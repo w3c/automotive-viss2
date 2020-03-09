@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta http-equiv="Content-Language" content="en">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>W3C VSS Dashboard</title>
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, shrink-to-fit=no" />
+    <link href="./assets/css/main1.css" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/themes/default/style.min.css" />
+    <link href="./assets/css/Notifier.min.css" rel="stylesheet">
+    <!-- <style>
+      html,* { font-family: 'Nunito'; }
+      body { background: #fafafa; }
+      a { text-decoration: none; }
+      .btn { border: 0; background: #ED5565; border-bottom: 3px solid #DA4453; padding: 10px 20px; margin: 10px; color: #fff; cursor:  pointer; }
+      .container { margin: 150px auto; max-width: 960px; }
+    </style> -->
+
+</head>
+
+<body>
+    <div class="app-container app-theme-white body-tabs-shadow">
+        <div class="ui-theme-settings">
+            <button type="button" id="TooltipDemo" class="btn-open-options btn btn-warning">
+                <i class="fa fa-cog fa-w-16 fa-spin fa-2x"></i>
+            </button>
+        </div>
+        <div id="noti" style="display: none;">
+            <h2 id="title"></h2>
+            <h2 id="message"></h2>
+        </div>
+        <div class="app-main">
+            <div class="app-main__outer">
+                <div class="app-main__inner">
+                    <div class="app-page-title">
+                        <div class="page-title-wrapper">
+                            <div class="page-title-heading">
+                                <div class="page-title-icon">
+                                    <i class="pe-7s-car icon-gradient bg-mean-fruit">
+                                    </i>
+                                </div>
+                                <div>W3C VSS Dashboard
+                                    <div class="page-title-subheading">
+                                        <label for="exampleEmail" class="">Server Address</label>
+                                        <input name="serveraddress" id="serveraddress" value="ws://172.30.1.38:8080"
+                                            type="text" />
+                                        <button onclick="setup()" class="mt-1 btn btn-primary">Connect</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 card">
+                        <div class="card-body">
+                            <div class="container">
+                                <h5 class="card-title">Signals</h5>
+                                <div id="jstree2"></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="./assets/js/main.js"></script>
+    <script type="text/javascript" src="./assets/js/w3cws.js"></script>
+    <script type="text/javascript" src="./assets/js/jquery.min.js"></script>
+    <script type="text/javascript" src="./assets/js/jstree.min.js"></script>
+    <script type="text/javascript" src="./assets/js/Notifier.min.js"></script>
+
+    <script type="text/javascript">
+        var client;
+        function setup() {
+            var serveraddr = document.getElementById("serveraddress").value;
+            client = new W3CWebSocket();
+            client.setup(serveraddr);
+        }
+
+        var notifier = new Notifier();
+        function w3cnotify(value, message) {
+            var type = "success";
+            if (value % 4 == 1) type = "info";
+            if (value % 4 == 2) type = "warning";
+            if (value % 4 == 3) type = "error";
+            console.log(message);
+            notifier.notify(type, message).push();
+        }
+
+
+        $(function () {
+            $('#jstree2').jstree({
+                'plugins': ["wholerow", "checkbox"], 'core': {
+                    'data': [
+                        {
+                            "text": "/Vehicle/Acceleration/",
+                            "children": [
+                                { "text": "Lateral" },
+                                { "text": "Longitudinal" },
+                                { "text": "Vertical" }
+                            ]
+                        },
+                        {
+                            "text": "/Vehicle/AngularVelocity/",
+                            "children": [
+                                { "text": "Yaw" },
+                                { "text": "Roll" },
+                                { "text": "Pitch" }
+                            ]
+                        },
+                        {
+                            "text": "/Vehicle/OBD/",
+                            "children": [
+                                { "text": "DistanceSinceDTCClear" },
+                                { "text": "PidsB" },
+                                { "text": "EVAPVaporPressureAbsolute" },
+                                { "text": "MAF" },
+                                { "text": "ShortTermO2Trim2" },
+                                { "text": "FuelLevel" },
+                                { "text": "FuelRailPressureAbsolute" },
+                                { "text": "IntakeTemp" },
+                                { "text": "ShortTermO2Trim2" },
+                                { "text": "MAP" }
+                            ]
+                        },
+                        {
+                            "text": "/Vehicle/ADAS/ObstacleDetection/DistanceToObject/",
+                            "children": [
+                                { "text": "FrontLeft" },
+                                { "text": "FrontRight" },
+                                { "text": "RearLeft" },
+                                { "text": "RearRight" }
+                            ]
+                        },
+                        {
+                            "text": "/Vehicle/Body/Lights/",
+                            "children": [
+                                { "text": "IsBackupOn" },
+                                { "text": "IsBrakeOn" },
+                                { "text": "IsFrontFogOn" },
+                                { "text": "IsHazardOn" },
+                                { "text": "IsHighBeamOn" },
+                                { "text": "IsLeftIndicatorOn" },
+                                { "text": "IsLowBeamOn" },
+                                { "text": "IsParkingOn" },
+                                { "text": "IsRearFogOn" },
+                                { "text": "IsRightIndicatorOn" },
+                                { "text": "IsRunningOn" }
+                            ]
+                        },
+                        {
+                            "text": "/Vehicle/Cabin/Door/Row1/",
+                            "children": [
+                                { "text": "Left/IsChildLockActive" },
+                                { "text": "Left/IsLocked" },
+                                { "text": "Left/IsOpen" },
+                                { "text": "Left/Shade/Position" },
+                                { "text": "Left/Shade/Switch" },
+                                { "text": "Left/Window/ChildLock" },
+                                { "text": "Left/Window/isOpen" },
+                                { "text": "Left/Window/Position" },
+                                { "text": "Left/Window/Switch" },
+                                { "text": "Right/IsChildLockActive" },
+                                { "text": "Right/IsLocked" },
+                                { "text": "Right/IsOpen" },
+                                { "text": "Right/Shade/Position" },
+                                { "text": "Right/Shade/Switch" },
+                                { "text": "Right/Window/ChildLock" },
+                                { "text": "Right/Window/isOpen" },
+                                { "text": "Right/Window/Position" },
+                                { "text": "Right/Window/Switch" },
+                            ]
+                        },
+                        {
+                            "text": "/Vehicle/Cabin/Infotainment/",
+                            "children": [
+                                { "text": "HMI/CurrentLanguage" },
+                                { "text": "HMI/DateFormat" },
+                                { "text": "HMI/DayNightMode" },
+                                { "text": "HMI/DistanceUnit" },
+                                { "text": "HMI/EVEconomyUnits" },
+                                { "text": "HMI/FuelEconomyUnits" },
+                                { "text": "HMI/TemperatureUnit" },
+                                { "text": "HMI/TimeFormat" },
+                                { "text": "HMI/CurrentLanguage" },
+                                { "text": "HMI/CurrentLanguage" },
+                                { "text": "HMI/CurrentLanguage" },
+                                { "text": "CurrentLocation/Accuracy" },
+                                { "text": "CurrentLocation/Altitude" },
+                                { "text": "CurrentLocation/Heading" },
+                                { "text": "CurrentLocation/Latitude" },
+                                { "text": "CurrentLocation/Longitude" },
+                                { "text": "CurrentLocation/Speed" },
+                                { "text": "DestinationSet/Latitude" },
+                                { "text": "DestinationSet/Longitude" }
+                            ]
+                        }
+                    ]
+                }
+            });
+        });
+
+        function getKeyByValue(object, value) {
+            return Object.keys(object).find(key => object[key].path === value);
+        }
+
+        let reqMap = new Map()
+        var selectedlist = [];
+        var reqId = 0;
+
+        $('#jstree2').on("changed.jstree", function (e, data) {
+            var i, j, r = [];
+            roottext = "";
+            console.log("Start " + selectedlist);
+            for (i = 0, j = data.selected.length; i < j; i++) {
+                node = data.instance.get_node(data.selected[i]);
+                parent = data.instance.get_parent(data.selected[i]);
+                if (undefined != data.instance.get_node(parent).text) {
+                    console.log("Parent " + data.instance.get_node(parent).text);
+                    r.push(data.instance.get_node(parent).text + node.text);
+                }
+            }
+            console.log(r);
+
+            for (x in r) {
+                if (selectedlist.includes(r[x])) {
+                    console.log("Already Subscribed to " + r[x])
+                } else {
+                    reqId++;
+                    client.subscribe(reqId.toString(), r[x]);
+                    var obj = { "path": r[x], "subId": "" };
+                    reqMap.set(reqId.toString(), obj);
+                }
+            }
+
+            for (x in selectedlist) {
+                if (!r.includes(selectedlist[x])) {
+                    console.log("Unsubscribe " + selectedlist[x]);
+                    reqId++;
+                    client.requestGet(reqId.toString(), selectedlist[x]);
+                    reqMap.forEach(function (value, key, map) {
+                        if (value["path"] == selectedlist[x]) {
+                            client.unsubscribe(key, value["subId"]);
+                            console.log("Unsubscribe " + value["path"]);
+                        }
+                    })
+                }
+            }
+            selectedlist = r;
+        });
+
+    </script>
+
+
+</body>
+
+</html>
+<!--
+./Vehicle/Acceleration/Lateral
+./Vehicle/Acceleration/Longitudinal
+./Vehicle/accelerationTime
+./Vehicle/Acceleration/Vertical
+./Vehicle/ADAS/ABS/Error
+./Vehicle/ADAS/ABS/IsActive
+./Vehicle/ADAS/ABS/IsEngaged
+./Vehicle/ADAS/CruiseControl/Error
+./Vehicle/ADAS/CruiseControl/IsActive
+./Vehicle/ADAS/CruiseControl/SpeedSet
+./Vehicle/ADAS/ESC/Error
+./Vehicle/ADAS/ESC/IsActive
+./Vehicle/ADAS/ESC/IsEngaged
+./Vehicle/ADAS/LaneDepartureDetection/Error
+./Vehicle/ADAS/LaneDepartureDetection/IsActive
+./Vehicle/ADAS/LaneDepartureDetection/Warning
+./Vehicle/ADAS/ObstacleDetection/DistanceToObject/FrontLeft
+./Vehicle/ADAS/ObstacleDetection/DistanceToObject/FrontRight
+./Vehicle/ADAS/ObstacleDetection/DistanceToObject/RearLeft
+./Vehicle/ADAS/ObstacleDetection/DistanceToObject/RearRight
+./Vehicle/ADAS/ObstacleDetection/Error
+./Vehicle/ADAS/ObstacleDetection/IsActive
+./Vehicle/ADAS/TCS/Error
+./Vehicle/ADAS/TCS/IsActive
+./Vehicle/ADAS/TCS/IsEngaged
+./Vehicle/AmbientAirTemperature
+./Vehicle/AngularVelocity/Pitch
+./Vehicle/AngularVelocity/Roll
+./Vehicle/AngularVelocity/Yaw
+./Vehicle/AverageSpeed
+./Vehicle/Body/BodyType
+./Vehicle/Body/Hood/IsOpen
+./Vehicle/Body/Horn/IsActive
+./Vehicle/Body/Mirrors/Left/Heating/Status
+./Vehicle/Body/Mirrors/Left/Pan
+./Vehicle/Body/Mirrors/Left/Tilt
+./Vehicle/Body/Mirrors/Right/Heating/Status
+./Vehicle/Body/Mirrors/Right/Pan
+./Vehicle/Body/Mirrors/Right/Tilt
+./Vehicle/Body/Raindetection/intensity
+./Vehicle/Body/RefuelPosition
+./Vehicle/Body/Trunk/IsLocked
+./Vehicle/Body/Trunk/IsOpen
+./Vehicle/Body/Windshield/Front/Heating/Status
+./Vehicle/Body/Windshield/Front/WasherFluid/Level
+./Vehicle/Body/Windshield/Front/WasherFluid/LevelLow
+./Vehicle/Body/Windshield/Front/Wiping/Status
+./Vehicle/Body/Windshield/Rear/Heating/Status
+./Vehicle/Body/Windshield/Rear/WasherFluid/Level
+./Vehicle/Body/Windshield/Rear/WasherFluid/LevelLow
+./Vehicle/Body/Windshield/Rear/Wiping/Status
+./Vehicle/Cabin/Convertible/Status
+./Vehicle/Cabin/Door/Count
+./Vehicle/Cabin/HVAC/AmbientAirTemperature
+./Vehicle/Cabin/HVAC/IsAirConditioningActive
+./Vehicle/Cabin/HVAC/IsFrontDefrosterActive
+./Vehicle/Cabin/HVAC/IsRearDefrosterActive
+./Vehicle/Cabin/HVAC/IsRecirculationActive
+./Vehicle/Cabin/HVAC/Row1/Left/AirDistribution
+./Vehicle/Cabin/HVAC/Row1/Left/FanSpeed
+./Vehicle/Cabin/HVAC/Row1/Left/Temperature
+./Vehicle/Cabin/HVAC/Row1/Right/AirDistribution
+./Vehicle/Cabin/HVAC/Row1/Right/FanSpeed
+./Vehicle/Cabin/HVAC/Row1/Right/Temperature
+./Vehicle/Cabin/HVAC/Row2/Left/AirDistribution
+./Vehicle/Cabin/HVAC/Row2/Left/FanSpeed
+./Vehicle/Cabin/HVAC/Row2/Left/Temperature
+./Vehicle/Cabin/HVAC/Row2/Right/AirDistribution
+./Vehicle/Cabin/HVAC/Row2/Right/FanSpeed
+./Vehicle/Cabin/HVAC/Row2/Right/Temperature
+./Vehicle/Cabin/HVAC/Row3/Left/AirDistribution
+./Vehicle/Cabin/HVAC/Row3/Left/FanSpeed
+./Vehicle/Cabin/HVAC/Row3/Left/Temperature
+./Vehicle/Cabin/HVAC/Row3/Right/AirDistribution
+./Vehicle/Cabin/HVAC/Row3/Right/FanSpeed
+./Vehicle/Cabin/HVAC/Row3/Right/Temperature
+./Vehicle/Cabin/HVAC/Row4/Left/AirDistribution
+./Vehicle/Cabin/HVAC/Row4/Left/FanSpeed
+./Vehicle/Cabin/HVAC/Row4/Left/Temperature
+./Vehicle/Cabin/HVAC/Row4/Right/AirDistribution
+./Vehicle/Cabin/HVAC/Row4/Right/FanSpeed
+./Vehicle/Cabin/HVAC/Row4/Right/Temperature
+./Vehicle/Cabin/Infotainment/HMI/CurrentLanguage
+./Vehicle/Cabin/Infotainment/HMI/DateFormat
+./Vehicle/Cabin/Infotainment/HMI/DayNightMode
+./Vehicle/Cabin/Infotainment/HMI/DistanceUnit
+./Vehicle/Cabin/Infotainment/HMI/EVEconomyUnits
+./Vehicle/Cabin/Infotainment/HMI/FuelEconomyUnits
+./Vehicle/Cabin/Infotainment/HMI/TemperatureUnit
+./Vehicle/Cabin/Infotainment/HMI/TimeFormat
+
+./Vehicle/Cabin/Lights/AmbientLight
+./Vehicle/Cabin/Lights/IsDomeOn
+./Vehicle/Cabin/Lights/IsGloveBoxOn
+./Vehicle/Cabin/Lights/IsTrunkOn
+./Vehicle/Cabin/Lights/LightIntensity
+./Vehicle/Cabin/Lights/Row1/IsSharedOn
+./Vehicle/Cabin/Lights/Row1/Left/IsPassengerOn
+./Vehicle/Cabin/Lights/Row1/Right/IsPassengerOn
+./Vehicle/Cabin/Lights/Row2/IsSharedOn
+./Vehicle/Cabin/Lights/Row2/Left/IsPassengerOn
+./Vehicle/Cabin/Lights/Row2/Right/IsPassengerOn
+./Vehicle/Cabin/Lights/Row3/IsSharedOn
+./Vehicle/Cabin/Lights/Row3/Left/IsPassengerOn
+./Vehicle/Cabin/Lights/Row3/Right/IsPassengerOn
+./Vehicle/Cabin/Lights/Row4/IsSharedOn
+./Vehicle/Cabin/Lights/Row4/Left/IsPassengerOn
+./Vehicle/Cabin/Lights/Row4/Right/IsPassengerOn
+./Vehicle/Cabin/RearShade/Position
+./Vehicle/Cabin/RearShade/Switch
+./Vehicle/Cabin/RearviewMirror/DimmingLevel
+./Vehicle/Cabin/Seat/DriverPosition
+./Vehicle/Cabin/Seat/Row1/Pos1/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row1/Pos1/Cushion/Height
+./Vehicle/Cabin/Seat/Row1/Pos1/Cushion/Length
+./Vehicle/Cabin/Seat/Row1/Pos1/HasPassenger
+./Vehicle/Cabin/Seat/Row1/Pos1/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row1/Pos1/Heating
+./Vehicle/Cabin/Seat/Row1/Pos1/IsBelted
+./Vehicle/Cabin/Seat/Row1/Pos1/Lumbar/Height
+./Vehicle/Cabin/Seat/Row1/Pos1/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos1/Massage
+./Vehicle/Cabin/Seat/Row1/Pos1/Position
+./Vehicle/Cabin/Seat/Row1/Pos1/Recline
+./Vehicle/Cabin/Seat/Row1/Pos1/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Backward
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Cooler
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Down
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Forward
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Up
+./Vehicle/Cabin/Seat/Row1/Pos1/Switch/Warmer
+./Vehicle/Cabin/Seat/Row1/Pos2/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row1/Pos2/Cushion/Height
+./Vehicle/Cabin/Seat/Row1/Pos2/Cushion/Length
+./Vehicle/Cabin/Seat/Row1/Pos2/HasPassenger
+./Vehicle/Cabin/Seat/Row1/Pos2/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row1/Pos2/Heating
+./Vehicle/Cabin/Seat/Row1/Pos2/IsBelted
+./Vehicle/Cabin/Seat/Row1/Pos2/Lumbar/Height
+./Vehicle/Cabin/Seat/Row1/Pos2/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos2/Massage
+./Vehicle/Cabin/Seat/Row1/Pos2/Position
+./Vehicle/Cabin/Seat/Row1/Pos2/Recline
+./Vehicle/Cabin/Seat/Row1/Pos2/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Backward
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Cooler
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Down
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Forward
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Up
+./Vehicle/Cabin/Seat/Row1/Pos2/Switch/Warmer
+./Vehicle/Cabin/Seat/Row1/Pos3/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row1/Pos3/Cushion/Height
+./Vehicle/Cabin/Seat/Row1/Pos3/Cushion/Length
+./Vehicle/Cabin/Seat/Row1/Pos3/HasPassenger
+./Vehicle/Cabin/Seat/Row1/Pos3/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row1/Pos3/Heating
+./Vehicle/Cabin/Seat/Row1/Pos3/IsBelted
+./Vehicle/Cabin/Seat/Row1/Pos3/Lumbar/Height
+./Vehicle/Cabin/Seat/Row1/Pos3/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos3/Massage
+./Vehicle/Cabin/Seat/Row1/Pos3/Position
+./Vehicle/Cabin/Seat/Row1/Pos3/Recline
+./Vehicle/Cabin/Seat/Row1/Pos3/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Backward
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Cooler
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Down
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Forward
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Up
+./Vehicle/Cabin/Seat/Row1/Pos3/Switch/Warmer
+./Vehicle/Cabin/Seat/Row1/Pos4/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row1/Pos4/Cushion/Height
+./Vehicle/Cabin/Seat/Row1/Pos4/Cushion/Length
+./Vehicle/Cabin/Seat/Row1/Pos4/HasPassenger
+./Vehicle/Cabin/Seat/Row1/Pos4/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row1/Pos4/Heating
+./Vehicle/Cabin/Seat/Row1/Pos4/IsBelted
+./Vehicle/Cabin/Seat/Row1/Pos4/Lumbar/Height
+./Vehicle/Cabin/Seat/Row1/Pos4/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos4/Massage
+./Vehicle/Cabin/Seat/Row1/Pos4/Position
+./Vehicle/Cabin/Seat/Row1/Pos4/Recline
+./Vehicle/Cabin/Seat/Row1/Pos4/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Backward
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Cooler
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Down
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Forward
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Up
+./Vehicle/Cabin/Seat/Row1/Pos4/Switch/Warmer
+./Vehicle/Cabin/Seat/Row1/Pos5/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row1/Pos5/Cushion/Height
+./Vehicle/Cabin/Seat/Row1/Pos5/Cushion/Length
+./Vehicle/Cabin/Seat/Row1/Pos5/HasPassenger
+./Vehicle/Cabin/Seat/Row1/Pos5/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row1/Pos5/Heating
+./Vehicle/Cabin/Seat/Row1/Pos5/IsBelted
+./Vehicle/Cabin/Seat/Row1/Pos5/Lumbar/Height
+./Vehicle/Cabin/Seat/Row1/Pos5/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos5/Massage
+./Vehicle/Cabin/Seat/Row1/Pos5/Position
+./Vehicle/Cabin/Seat/Row1/Pos5/Recline
+./Vehicle/Cabin/Seat/Row1/Pos5/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Backward
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Cooler
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Down
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Forward
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Up
+./Vehicle/Cabin/Seat/Row1/Pos5/Switch/Warmer
+./Vehicle/Cabin/Seat/Row1PosCount
+./Vehicle/Cabin/Seat/Row2/Pos1/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row2/Pos1/Cushion/Height
+./Vehicle/Cabin/Seat/Row2/Pos1/Cushion/Length
+./Vehicle/Cabin/Seat/Row2/Pos1/HasPassenger
+./Vehicle/Cabin/Seat/Row2/Pos1/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row2/Pos1/Heating
+./Vehicle/Cabin/Seat/Row2/Pos1/IsBelted
+./Vehicle/Cabin/Seat/Row2/Pos1/Lumbar/Height
+./Vehicle/Cabin/Seat/Row2/Pos1/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos1/Massage
+./Vehicle/Cabin/Seat/Row2/Pos1/Position
+./Vehicle/Cabin/Seat/Row2/Pos1/Recline
+./Vehicle/Cabin/Seat/Row2/Pos1/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Backward
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Cooler
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Down
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Forward
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Up
+./Vehicle/Cabin/Seat/Row2/Pos1/Switch/Warmer
+./Vehicle/Cabin/Seat/Row2/Pos2/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row2/Pos2/Cushion/Height
+./Vehicle/Cabin/Seat/Row2/Pos2/Cushion/Length
+./Vehicle/Cabin/Seat/Row2/Pos2/HasPassenger
+./Vehicle/Cabin/Seat/Row2/Pos2/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row2/Pos2/Heating
+./Vehicle/Cabin/Seat/Row2/Pos2/IsBelted
+./Vehicle/Cabin/Seat/Row2/Pos2/Lumbar/Height
+./Vehicle/Cabin/Seat/Row2/Pos2/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos2/Massage
+./Vehicle/Cabin/Seat/Row2/Pos2/Position
+./Vehicle/Cabin/Seat/Row2/Pos2/Recline
+./Vehicle/Cabin/Seat/Row2/Pos2/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Backward
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Cooler
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Down
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Forward
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Up
+./Vehicle/Cabin/Seat/Row2/Pos2/Switch/Warmer
+./Vehicle/Cabin/Seat/Row2/Pos3/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row2/Pos3/Cushion/Height
+./Vehicle/Cabin/Seat/Row2/Pos3/Cushion/Length
+./Vehicle/Cabin/Seat/Row2/Pos3/HasPassenger
+./Vehicle/Cabin/Seat/Row2/Pos3/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row2/Pos3/Heating
+./Vehicle/Cabin/Seat/Row2/Pos3/IsBelted
+./Vehicle/Cabin/Seat/Row2/Pos3/Lumbar/Height
+./Vehicle/Cabin/Seat/Row2/Pos3/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos3/Massage
+./Vehicle/Cabin/Seat/Row2/Pos3/Position
+./Vehicle/Cabin/Seat/Row2/Pos3/Recline
+./Vehicle/Cabin/Seat/Row2/Pos3/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Backward
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Cooler
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Down
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Forward
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Up
+./Vehicle/Cabin/Seat/Row2/Pos3/Switch/Warmer
+./Vehicle/Cabin/Seat/Row2/Pos4/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row2/Pos4/Cushion/Height
+./Vehicle/Cabin/Seat/Row2/Pos4/Cushion/Length
+./Vehicle/Cabin/Seat/Row2/Pos4/HasPassenger
+./Vehicle/Cabin/Seat/Row2/Pos4/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row2/Pos4/Heating
+./Vehicle/Cabin/Seat/Row2/Pos4/IsBelted
+./Vehicle/Cabin/Seat/Row2/Pos4/Lumbar/Height
+./Vehicle/Cabin/Seat/Row2/Pos4/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos4/Massage
+./Vehicle/Cabin/Seat/Row2/Pos4/Position
+./Vehicle/Cabin/Seat/Row2/Pos4/Recline
+./Vehicle/Cabin/Seat/Row2/Pos4/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Backward
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Cooler
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Down
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Forward
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Up
+./Vehicle/Cabin/Seat/Row2/Pos4/Switch/Warmer
+./Vehicle/Cabin/Seat/Row2/Pos5/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row2/Pos5/Cushion/Height
+./Vehicle/Cabin/Seat/Row2/Pos5/Cushion/Length
+./Vehicle/Cabin/Seat/Row2/Pos5/HasPassenger
+./Vehicle/Cabin/Seat/Row2/Pos5/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row2/Pos5/Heating
+./Vehicle/Cabin/Seat/Row2/Pos5/IsBelted
+./Vehicle/Cabin/Seat/Row2/Pos5/Lumbar/Height
+./Vehicle/Cabin/Seat/Row2/Pos5/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos5/Massage
+./Vehicle/Cabin/Seat/Row2/Pos5/Position
+./Vehicle/Cabin/Seat/Row2/Pos5/Recline
+./Vehicle/Cabin/Seat/Row2/Pos5/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Backward
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Cooler
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Down
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Forward
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Up
+./Vehicle/Cabin/Seat/Row2/Pos5/Switch/Warmer
+./Vehicle/Cabin/Seat/Row2PosCount
+./Vehicle/Cabin/Seat/Row3/Pos1/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row3/Pos1/Cushion/Height
+./Vehicle/Cabin/Seat/Row3/Pos1/Cushion/Length
+./Vehicle/Cabin/Seat/Row3/Pos1/HasPassenger
+./Vehicle/Cabin/Seat/Row3/Pos1/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row3/Pos1/Heating
+./Vehicle/Cabin/Seat/Row3/Pos1/IsBelted
+./Vehicle/Cabin/Seat/Row3/Pos1/Lumbar/Height
+./Vehicle/Cabin/Seat/Row3/Pos1/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos1/Massage
+./Vehicle/Cabin/Seat/Row3/Pos1/Position
+./Vehicle/Cabin/Seat/Row3/Pos1/Recline
+./Vehicle/Cabin/Seat/Row3/Pos1/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Backward
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Cooler
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Down
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Forward
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Up
+./Vehicle/Cabin/Seat/Row3/Pos1/Switch/Warmer
+./Vehicle/Cabin/Seat/Row3/Pos2/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row3/Pos2/Cushion/Height
+./Vehicle/Cabin/Seat/Row3/Pos2/Cushion/Length
+./Vehicle/Cabin/Seat/Row3/Pos2/HasPassenger
+./Vehicle/Cabin/Seat/Row3/Pos2/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row3/Pos2/Heating
+./Vehicle/Cabin/Seat/Row3/Pos2/IsBelted
+./Vehicle/Cabin/Seat/Row3/Pos2/Lumbar/Height
+./Vehicle/Cabin/Seat/Row3/Pos2/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos2/Massage
+./Vehicle/Cabin/Seat/Row3/Pos2/Position
+./Vehicle/Cabin/Seat/Row3/Pos2/Recline
+./Vehicle/Cabin/Seat/Row3/Pos2/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Backward
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Cooler
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Down
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Forward
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Up
+./Vehicle/Cabin/Seat/Row3/Pos2/Switch/Warmer
+./Vehicle/Cabin/Seat/Row3/Pos3/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row3/Pos3/Cushion/Height
+./Vehicle/Cabin/Seat/Row3/Pos3/Cushion/Length
+./Vehicle/Cabin/Seat/Row3/Pos3/HasPassenger
+./Vehicle/Cabin/Seat/Row3/Pos3/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row3/Pos3/Heating
+./Vehicle/Cabin/Seat/Row3/Pos3/IsBelted
+./Vehicle/Cabin/Seat/Row3/Pos3/Lumbar/Height
+./Vehicle/Cabin/Seat/Row3/Pos3/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos3/Massage
+./Vehicle/Cabin/Seat/Row3/Pos3/Position
+./Vehicle/Cabin/Seat/Row3/Pos3/Recline
+./Vehicle/Cabin/Seat/Row3/Pos3/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Backward
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Cooler
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Down
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Forward
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Up
+./Vehicle/Cabin/Seat/Row3/Pos3/Switch/Warmer
+./Vehicle/Cabin/Seat/Row3/Pos4/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row3/Pos4/Cushion/Height
+./Vehicle/Cabin/Seat/Row3/Pos4/Cushion/Length
+./Vehicle/Cabin/Seat/Row3/Pos4/HasPassenger
+./Vehicle/Cabin/Seat/Row3/Pos4/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row3/Pos4/Heating
+./Vehicle/Cabin/Seat/Row3/Pos4/IsBelted
+./Vehicle/Cabin/Seat/Row3/Pos4/Lumbar/Height
+./Vehicle/Cabin/Seat/Row3/Pos4/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos4/Massage
+./Vehicle/Cabin/Seat/Row3/Pos4/Position
+./Vehicle/Cabin/Seat/Row3/Pos4/Recline
+./Vehicle/Cabin/Seat/Row3/Pos4/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Backward
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Cooler
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Down
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Forward
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Up
+./Vehicle/Cabin/Seat/Row3/Pos4/Switch/Warmer
+./Vehicle/Cabin/Seat/Row3/Pos5/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row3/Pos5/Cushion/Height
+./Vehicle/Cabin/Seat/Row3/Pos5/Cushion/Length
+./Vehicle/Cabin/Seat/Row3/Pos5/HasPassenger
+./Vehicle/Cabin/Seat/Row3/Pos5/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row3/Pos5/Heating
+./Vehicle/Cabin/Seat/Row3/Pos5/IsBelted
+./Vehicle/Cabin/Seat/Row3/Pos5/Lumbar/Height
+./Vehicle/Cabin/Seat/Row3/Pos5/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos5/Massage
+./Vehicle/Cabin/Seat/Row3/Pos5/Position
+./Vehicle/Cabin/Seat/Row3/Pos5/Recline
+./Vehicle/Cabin/Seat/Row3/Pos5/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Backward
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Cooler
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Down
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Forward
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Up
+./Vehicle/Cabin/Seat/Row3/Pos5/Switch/Warmer
+./Vehicle/Cabin/Seat/Row3PosCount
+./Vehicle/Cabin/Seat/Row4/Pos1/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row4/Pos1/Cushion/Height
+./Vehicle/Cabin/Seat/Row4/Pos1/Cushion/Length
+./Vehicle/Cabin/Seat/Row4/Pos1/HasPassenger
+./Vehicle/Cabin/Seat/Row4/Pos1/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row4/Pos1/Heating
+./Vehicle/Cabin/Seat/Row4/Pos1/IsBelted
+./Vehicle/Cabin/Seat/Row4/Pos1/Lumbar/Height
+./Vehicle/Cabin/Seat/Row4/Pos1/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos1/Massage
+./Vehicle/Cabin/Seat/Row4/Pos1/Position
+./Vehicle/Cabin/Seat/Row4/Pos1/Recline
+./Vehicle/Cabin/Seat/Row4/Pos1/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Backward
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Cooler
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Down
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Forward
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Up
+./Vehicle/Cabin/Seat/Row4/Pos1/Switch/Warmer
+./Vehicle/Cabin/Seat/Row4/Pos2/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row4/Pos2/Cushion/Height
+./Vehicle/Cabin/Seat/Row4/Pos2/Cushion/Length
+./Vehicle/Cabin/Seat/Row4/Pos2/HasPassenger
+./Vehicle/Cabin/Seat/Row4/Pos2/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row4/Pos2/Heating
+./Vehicle/Cabin/Seat/Row4/Pos2/IsBelted
+./Vehicle/Cabin/Seat/Row4/Pos2/Lumbar/Height
+./Vehicle/Cabin/Seat/Row4/Pos2/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos2/Massage
+./Vehicle/Cabin/Seat/Row4/Pos2/Position
+./Vehicle/Cabin/Seat/Row4/Pos2/Recline
+./Vehicle/Cabin/Seat/Row4/Pos2/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Backward
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Cooler
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Down
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Forward
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Up
+./Vehicle/Cabin/Seat/Row4/Pos2/Switch/Warmer
+./Vehicle/Cabin/Seat/Row4/Pos3/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row4/Pos3/Cushion/Height
+./Vehicle/Cabin/Seat/Row4/Pos3/Cushion/Length
+./Vehicle/Cabin/Seat/Row4/Pos3/HasPassenger
+./Vehicle/Cabin/Seat/Row4/Pos3/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row4/Pos3/Heating
+./Vehicle/Cabin/Seat/Row4/Pos3/IsBelted
+./Vehicle/Cabin/Seat/Row4/Pos3/Lumbar/Height
+./Vehicle/Cabin/Seat/Row4/Pos3/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos3/Massage
+./Vehicle/Cabin/Seat/Row4/Pos3/Position
+./Vehicle/Cabin/Seat/Row4/Pos3/Recline
+./Vehicle/Cabin/Seat/Row4/Pos3/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Backward
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Cooler
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Down
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Forward
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Up
+./Vehicle/Cabin/Seat/Row4/Pos3/Switch/Warmer
+./Vehicle/Cabin/Seat/Row4/Pos4/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row4/Pos4/Cushion/Height
+./Vehicle/Cabin/Seat/Row4/Pos4/Cushion/Length
+./Vehicle/Cabin/Seat/Row4/Pos4/HasPassenger
+./Vehicle/Cabin/Seat/Row4/Pos4/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row4/Pos4/Heating
+./Vehicle/Cabin/Seat/Row4/Pos4/IsBelted
+./Vehicle/Cabin/Seat/Row4/Pos4/Lumbar/Height
+./Vehicle/Cabin/Seat/Row4/Pos4/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos4/Massage
+./Vehicle/Cabin/Seat/Row4/Pos4/Position
+./Vehicle/Cabin/Seat/Row4/Pos4/Recline
+./Vehicle/Cabin/Seat/Row4/Pos4/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Backward
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Cooler
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Down
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Forward
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Up
+./Vehicle/Cabin/Seat/Row4/Pos4/Switch/Warmer
+./Vehicle/Cabin/Seat/Row4/Pos5/Airbag/IsDeployed
+./Vehicle/Cabin/Seat/Row4/Pos5/Cushion/Height
+./Vehicle/Cabin/Seat/Row4/Pos5/Cushion/Length
+./Vehicle/Cabin/Seat/Row4/Pos5/HasPassenger
+./Vehicle/Cabin/Seat/Row4/Pos5/HeadRestraint/Height
+./Vehicle/Cabin/Seat/Row4/Pos5/Heating
+./Vehicle/Cabin/Seat/Row4/Pos5/IsBelted
+./Vehicle/Cabin/Seat/Row4/Pos5/Lumbar/Height
+./Vehicle/Cabin/Seat/Row4/Pos5/Lumbar/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos5/Massage
+./Vehicle/Cabin/Seat/Row4/Pos5/Position
+./Vehicle/Cabin/Seat/Row4/Pos5/Recline
+./Vehicle/Cabin/Seat/Row4/Pos5/SideBolster/Inflation
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Backward
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Cooler
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Cushion/Backward
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Cushion/Down
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Cushion/Forward
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Cushion/Up
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Down
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Forward
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/HeadRestraint/Down
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/HeadRestraint/Up
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Lumbar/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Lumbar/Down
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Lumbar/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Lumbar/Up
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Massage/Decrease
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Massage/Increase
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Recline/Backward
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Recline/Forward
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/SideBolster/Deflate
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/SideBolster/Inflate
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Up
+./Vehicle/Cabin/Seat/Row4/Pos5/Switch/Warmer
+./Vehicle/Cabin/Seat/Row4PosCount
+./Vehicle/Cabin/Seat/Row5PosCount
+./Vehicle/Cabin/Seat/RowCount
+./Vehicle/Cabin/SteeringWheel/Position
+./Vehicle/Cabin/Sunroof/Position
+./Vehicle/Cabin/Sunroof/Shade/Position
+./Vehicle/Cabin/Sunroof/Shade/Switch
+./Vehicle/Cabin/Sunroof/Switch
+./Vehicle/cargoVolume
+./Vehicle/Chassis/Accelerator/PedalPosition
+./Vehicle/Chassis/Axle/Count
+./Vehicle/Chassis/Axle/Row1/TireDiameter
+./Vehicle/Chassis/Axle/Row1/TireWidth
+./Vehicle/Chassis/Axle/Row1/WheelCount
+./Vehicle/Chassis/Axle/Row1/WheelDiameter
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Brake/BrakesWorn
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Brake/FluidLevel
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Brake/FluidLevelLow
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Brake/PadWear
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Tire/Pressure
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Tire/PressureLow
+./Vehicle/Chassis/Axle/Row1/Wheel/Left/Tire/Temperature
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Brake/BrakesWorn
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Brake/FluidLevel
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Brake/FluidLevelLow
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Brake/PadWear
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Tire/Pressure
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Tire/PressureLow
+./Vehicle/Chassis/Axle/Row1/Wheel/Right/Tire/Temperature
+./Vehicle/Chassis/Axle/Row1/WheelWidth
+./Vehicle/Chassis/Axle/Row2/TireDiameter
+./Vehicle/Chassis/Axle/Row2/TireWidth
+./Vehicle/Chassis/Axle/Row2/WheelDiameter
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Brake/BrakesWorn
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Brake/FluidLevel
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Brake/FluidLevelLow
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Brake/PadWear
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Tire/Pressure
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Tire/PressureLow
+./Vehicle/Chassis/Axle/Row2/Wheel/Left/Tire/Temperature
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Brake/BrakesWorn
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Brake/FluidLevel
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Brake/FluidLevelLow
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Brake/PadWear
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Tire/Pressure
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Tire/PressureLow
+./Vehicle/Chassis/Axle/Row2/Wheel/Right/Tire/Temperature
+./Vehicle/Chassis/Axle/Row2/WheelWidth
+./Vehicle/Chassis/Brake/PedalPosition
+./Vehicle/Chassis/CurbWeight
+./Vehicle/Chassis/GrossWeight
+./Vehicle/Chassis/Height
+./Vehicle/Chassis/Length
+./Vehicle/Chassis/ParkingBrake/IsEngaged
+./Vehicle/Chassis/SteeringWheel/Angle
+./Vehicle/Chassis/SteeringWheel/Extension
+./Vehicle/Chassis/SteeringWheel/Tilt
+./Vehicle/Chassis/TowWeight
+./Vehicle/Chassis/Track
+./Vehicle/Chassis/Trailer/Connected
+./Vehicle/Chassis/Wheelbase
+./Vehicle/Chassis/Width
+./Vehicle/DriveTime
+./Vehicle/Drivetrain/BatteryManagement/BatteryCapacity
+./Vehicle/Drivetrain/BatteryManagement/BatteryTemperature
+./Vehicle/Drivetrain/BatteryManagement/ChargingInlet
+./Vehicle/Drivetrain/BatteryManagement/LowBatteryLevel
+./Vehicle/Drivetrain/ElectricMotor
+./Vehicle/Drivetrain/FuelCell
+./Vehicle/Drivetrain/FuelSystem/AverageConsumption
+./Vehicle/Drivetrain/FuelSystem/ConsumptionSinceStart
+./Vehicle/Drivetrain/FuelSystem/EngineStopStartEnabled
+./Vehicle/Drivetrain/FuelSystem/FuelType
+./Vehicle/Drivetrain/FuelSystem/HybridType
+./Vehicle/Drivetrain/FuelSystem/InstantConsumption
+./Vehicle/Drivetrain/FuelSystem/Level
+./Vehicle/Drivetrain/FuelSystem/LowFuelLevel
+./Vehicle/Drivetrain/FuelSystem/Range
+./Vehicle/Drivetrain/FuelSystem/TankCapacity
+./Vehicle/Drivetrain/FuelSystem/TimeSinceStart
+./Vehicle/Drivetrain/InternalCombustionEngine/Configuration
+./Vehicle/Drivetrain/InternalCombustionEngine/Displacement
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/AmbientAirTemperature
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/ECT
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/EOP
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/EOT
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/MAF
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/MAP
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/Power
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/Speed
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/Torque
+./Vehicle/Drivetrain/InternalCombustionEngine/Engine/TPS
+./Vehicle/Drivetrain/InternalCombustionEngine/FuelType
+./Vehicle/Drivetrain/InternalCombustionEngine/MaxPower
+./Vehicle/Drivetrain/InternalCombustionEngine/MaxTorque
+./Vehicle/Drivetrain/Transmission/ClutchWear
+./Vehicle/Drivetrain/Transmission/DriveType
+./Vehicle/Drivetrain/Transmission/Gear
+./Vehicle/Drivetrain/Transmission/GearChangeMode
+./Vehicle/Drivetrain/Transmission/GearCount
+./Vehicle/Drivetrain/Transmission/PerformanceMode
+./Vehicle/Drivetrain/Transmission/Speed
+./Vehicle/Drivetrain/Transmission/Temperature
+./Vehicle/Drivetrain/Transmission/TravelledDistance
+./Vehicle/Drivetrain/Transmission/Type
+./Vehicle/emissionsCO2
+./Vehicle/IdleTime
+./Vehicle/IgnitionOffTime
+./Vehicle/IgnitionOnTime
+./Vehicle/IsMoving
+./Vehicle/OBD/AbsoluteLoad
+./Vehicle/OBD/AcceleratorPositionD
+./Vehicle/OBD/AcceleratorPositionE
+./Vehicle/OBD/AcceleratorPositionF
+./Vehicle/OBD/AirStatus
+./Vehicle/OBD/AmbientAirTemperature
+./Vehicle/OBD/AuxInputStatus
+./Vehicle/OBD/BarometricPressure
+./Vehicle/OBD/Catalyst/Bank1/Temperature1
+./Vehicle/OBD/Catalyst/Bank1/Temperature2
+./Vehicle/OBD/Catalyst/Bank2/Temperature1
+./Vehicle/OBD/Catalyst/Bank2/Temperature2
+./Vehicle/OBD/CommandedEGR
+./Vehicle/OBD/CommandedEquivalenceRatio
+./Vehicle/OBD/CommandedEVAP
+./Vehicle/OBD/ControlModuleVoltage
+./Vehicle/OBD/CoolantTemperature
+./Vehicle/OBD/DistanceSinceDTCClear
+./Vehicle/OBD/DistanceWithMIL
+./Vehicle/OBD/DriveCycleStatus/DTCCount
+./Vehicle/OBD/DriveCycleStatus/IgnitionType
+./Vehicle/OBD/DriveCycleStatus/MIL
+./Vehicle/OBD/EGRError
+./Vehicle/OBD/EngineLoad
+./Vehicle/OBD/EngineSpeed
+./Vehicle/OBD/EthanolPercent
+./Vehicle/OBD/EVAPVaporPressure
+./Vehicle/OBD/EVAPVaporPressureAbsolute
+./Vehicle/OBD/EVAPVaporPressureAlternate
+./Vehicle/OBD/FreezeDTC
+./Vehicle/OBD/FuelInjectionTiming
+./Vehicle/OBD/FuelLevel
+./Vehicle/OBD/FuelPressure
+./Vehicle/OBD/FuelRailPressureAbsolute
+./Vehicle/OBD/FuelRailPressureDirect
+./Vehicle/OBD/FuelRailPressureVac
+./Vehicle/OBD/FuelRate
+./Vehicle/OBD/FuelStatus
+./Vehicle/OBD/FuelType
+./Vehicle/OBD/HybridBatteryRemaining
+./Vehicle/OBD/IntakeTemp
+./Vehicle/OBD/LongTermFuelTrim1
+./Vehicle/OBD/LongTermFuelTrim2
+./Vehicle/OBD/LongTermO2Trim1
+./Vehicle/OBD/LongTermO2Trim2
+./Vehicle/OBD/MAF
+./Vehicle/OBD/MAP
+./Vehicle/OBD/MaxMAF
+./Vehicle/OBD/O2Alt/Bank1/Sensor1
+./Vehicle/OBD/O2Alt/Bank1/Sensor2
+./Vehicle/OBD/O2Alt/Bank1/Sensor3
+./Vehicle/OBD/O2Alt/Bank1/Sensor4
+./Vehicle/OBD/O2Alt/Bank2/Sensor1
+./Vehicle/OBD/O2Alt/Bank2/Sensor2
+./Vehicle/OBD/O2Alt/Bank2/Sensor3
+./Vehicle/OBD/O2Alt/Bank2/Sensor4
+./Vehicle/OBD/O2/Bank1/Sensor1/Voltage
+./Vehicle/OBD/O2/Bank1/Sensor2/Voltage
+./Vehicle/OBD/O2/Bank1/Sensor3/Voltage
+./Vehicle/OBD/O2/Bank1/Sensor4/Voltage
+./Vehicle/OBD/O2/Bank2/Sensor1/Voltage
+./Vehicle/OBD/O2/Bank2/Sensor2/Voltage
+./Vehicle/OBD/O2/Bank2/Sensor3/Voltage
+./Vehicle/OBD/O2/Bank2/Sensor4/Voltage
+./Vehicle/OBD/O2WR/Sensor1/Current
+./Vehicle/OBD/O2WR/Sensor1/Voltage
+./Vehicle/OBD/O2WR/Sensor2/Current
+./Vehicle/OBD/O2WR/Sensor2/Voltage
+./Vehicle/OBD/O2WR/Sensor3/Current
+./Vehicle/OBD/O2WR/Sensor3/Voltage
+./Vehicle/OBD/O2WR/Sensor4/Current
+./Vehicle/OBD/O2WR/Sensor4/Voltage
+./Vehicle/OBD/O2WR/Sensor5/Current
+./Vehicle/OBD/O2WR/Sensor5/Voltage
+./Vehicle/OBD/O2WR/Sensor6/Current
+./Vehicle/OBD/O2WR/Sensor6/Voltage
+./Vehicle/OBD/O2WR/Sensor7/Current
+./Vehicle/OBD/O2WR/Sensor7/Voltage
+./Vehicle/OBD/O2WR/Sensor8/Current
+./Vehicle/OBD/O2WR/Sensor8/Voltage
+./Vehicle/OBD/OilTemperature
+./Vehicle/OBD/PidsA
+./Vehicle/OBD/PidsB
+./Vehicle/OBD/PidsC
+./Vehicle/OBD/RelativeAcceleratorPosition
+./Vehicle/OBD/RelativeThrottlePosition
+./Vehicle/OBD/RunTime
+./Vehicle/OBD/RunTimeMIL
+./Vehicle/OBD/ShortTermFuelTrim1
+./Vehicle/OBD/ShortTermFuelTrim2
+./Vehicle/OBD/ShortTermO2Trim1
+./Vehicle/OBD/ShortTermO2Trim2
+./Vehicle/OBD/Speed
+./Vehicle/OBD/Status/DTCCount
+./Vehicle/OBD/Status/IgnitionType
+./Vehicle/OBD/Status/MIL
+./Vehicle/OBD/ThrottleActuator
+./Vehicle/OBD/ThrottlePosition
+./Vehicle/OBD/ThrottlePositionB
+./Vehicle/OBD/ThrottlePositionC
+./Vehicle/OBD/TimeSinceDTCCleared
+./Vehicle/OBD/TimingAdvance
+./Vehicle/OBD/WarmupsSinceDTCClear
+./Vehicle/RoofLoad
+./Vehicle/Speed
+./Vehicle/TravelledDistance
+./Vehicle/TripMeterReading
+./Vehicle/VehicleIdentification/ACRISSCode
+./Vehicle/VehicleIdentification/bodyType
+./Vehicle/VehicleIdentification/Brand
+./Vehicle/VehicleIdentification/dateVehicleFirstRegistered
+./Vehicle/VehicleIdentification/knownVehicleDamages
+./Vehicle/VehicleIdentification/meetsEmissionStandard
+./Vehicle/VehicleIdentification/Model
+./Vehicle/VehicleIdentification/productionDate
+./Vehicle/VehicleIdentification/purchaseDate
+./Vehicle/VehicleIdentification/vehicleConfiguration
+./Vehicle/VehicleIdentification/vehicleinteriorColor
+./Vehicle/VehicleIdentification/vehicleinteriorType
+./Vehicle/VehicleIdentification/vehicleModelDate
+./Vehicle/VehicleIdentification/vehicleSeatingCapacity
+./Vehicle/VehicleIdentification/vehicleSpecialUsage
+./Vehicle/VehicleIdentification/VIN
+./Vehicle/VehicleIdentification/WMI
+./Vehicle/VehicleIdentification/Year
+-->
