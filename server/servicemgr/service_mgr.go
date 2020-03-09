@@ -399,12 +399,16 @@ func main() {
 				subscriptionId++
 				responseStatus = true
 			case "unsubscribe":
-				if subscriptionIdStr, ok := requestMap["subscriptionId"].(string); ok {
-					if ok == true {
-						deactivateSubscription(subscriptionList, subscriptionIdStr)
-					}
-					responseStatus = ok
-				}
+                                if requestMap["subscriptionId"] != nil {
+				        if subscriptionIdStr, ok := requestMap["subscriptionId"].(string); ok {
+					        if ok == true {
+						        deactivateSubscription(subscriptionList, subscriptionIdStr)
+					        }
+					        responseStatus = true
+				        }
+                                } else {
+				        responseStatus = false
+                                }
 			default:
 				responseStatus = false
 			} // switch
