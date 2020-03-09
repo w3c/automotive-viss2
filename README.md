@@ -13,10 +13,6 @@ These directories each contain language specific directories for respective play
 # 3. pre_dev
 The real playing should be done under this directory, where new ideas, etc can be evaluated. Please create a directory for the play, and create a README.md file from the template.
 
-# Client testing without building the server
-Thanks to W3C and MIT the project has a server instance running on the following URL: puppis.w3.org.
-So anyone interesting in testing from a client perspective can e.g. play with the client apps found in the client/client-1.0/Javascript directory, or write their own client.
-The server runs the latest, or close to it at least, from this repo. Which means it may crash. If so, please submit an Issue to report it, with as much context as possible describing the client actions leading to it.
 
 
 # Starting and building the server

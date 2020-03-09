@@ -52,7 +52,7 @@ func receiveSubscriptions(dataConn *websocket.Conn, triggerChannel chan string) 
 			utils.Error.Println("Watchdog read error:", err)
 			return
 		}
-//                utils.Info.Println("Watchdog subscription received.Message=%s", response)
+                utils.Info.Println("Watchdog subscription received.Message=%s", response)
                 triggerChannel <- string(response)
         }
 }
