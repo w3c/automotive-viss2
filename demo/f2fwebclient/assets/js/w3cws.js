@@ -113,6 +113,6 @@ class W3CWebSocket extends W3CClient {
   unsubscribe(reqid, subscriptionid) {
     //{"action":"unsubscribe", "subscriptionId":"789", "requestId":"234"}
     console.log(reqid, subscriptionid);
-    this.socket.send(JSON.stringify({ 'action': 'unsubscribe', 'subscriptionid': subscriptionid, 'requestId': reqid }));
+    this.socket.send(JSON.stringify({ 'action': 'unsubscribe', 'subscriptionId': subscriptionid, 'requestId': reqid }));
   }
 }
