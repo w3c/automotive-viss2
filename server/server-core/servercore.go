@@ -236,7 +236,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 		var responseMap = make(map[string]interface{})
 		if err != nil {
 			utils.Error.Println("Service datachannel read error:", err)
-			response = []byte(finalizeMessage(errorResponseMap)) // needs improvement
+			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
 		} else {
 			utils.ExtractPayload(string(response), &responseMap)
 		}
@@ -465,32 +465,16 @@ func aggregateResponse(iterator int, path string, response string, aggregatedRes
 	}
 }
 
-func setErrorResponse(reqMap map[string]interface{}, number string, reason string, message string) {
-	if reqMap["MgrId"] != nil {
-		errorResponseMap["MgrId"] = reqMap["MgrId"]
-	}
-	if reqMap["ClientId"] != nil {
-		errorResponseMap["ClientId"] = reqMap["ClientId"]
-	}
-	if reqMap["action"] != nil {
-		errorResponseMap["action"] = reqMap["action"]
-	}
-	if reqMap["requestId"] != nil {
-		errorResponseMap["requestId"] = reqMap["requestId"]
-	}
-	errorResponseMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
-}
-
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 	switch errorCode {
 	case 1:
-		setErrorResponse(reqMap, "400", "Token missing.", "")
+		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Token missing.", "")
 	case 2:
-		setErrorResponse(reqMap, "400", "Invalid token signature.", "")
+		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Invalid token signature.", "")
 	case 3:
-		setErrorResponse(reqMap, "400", "Insufficient token permission.", "")
+		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Insufficient token permission.", "")
 	case 4:
-		setErrorResponse(reqMap, "400", "Token expired.", "")
+		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Token expired.", "")
 	}
 }
 
@@ -576,8 +560,8 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, &validation)
 	utils.Info.Printf("Max validation from search=%d", int(validation))
 	if matches == 0 {
-		setErrorResponse(requestMap, "400", "No signals matching path.", "")
-		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
+		transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	} else {
 		switch int(validation) {
@@ -595,12 +579,12 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			}
 			if errorCode > 0 {
 				setTokenErrorResponse(requestMap, errorCode)
-				transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+				transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
 		default: // should not be possible...
-			setErrorResponse(requestMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
-			transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return
 		}
 		var response string
@@ -616,7 +600,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			pathLen := getPathLen(string(searchData[i].responsePath[:]))
 			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
 
-			serviceDataChan[sDChanIndex] <- finalizeMessage(requestMap)
+			serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 			response = <-serviceDataChan[sDChanIndex]
 			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
 				if matches > 1 {
@@ -628,25 +612,16 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 
 		}
 		if foundMatch == 0 {
-			setErrorResponse(requestMap, "400", "Data not matching query.", "")
-			transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Data not matching query.", "")
+			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		} else {
 			if matches == 1 {
 				transportDataChan[tDChanIndex] <- response
 			} else {
-				transportDataChan[tDChanIndex] <- finalizeMessage(aggregatedResponseMap)
+				transportDataChan[tDChanIndex] <- utils.FinalizeMessage(aggregatedResponseMap)
 			}
 		}
 	}
-}
-
-func finalizeMessage(responseMap map[string]interface{}) string {
-	response, err := json.Marshal(responseMap)
-	if err != nil {
-		utils.Error.Print("Server core-finalizeMessage: JSON encode failed. ", err)
-		return `{"error":{"number":400,"reason":"JSON marshal error","message":""}}` //???
-	}
-	return string(response)
 }
 
 func removeQuery(path string) string {
@@ -878,7 +853,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec")) //TODO restrict tree to depth (handle error case)
 			delete(requestMap, "path")
 			requestMap["timestamp"] = 1234
-			transportDataChan[tDChanIndex] <- finalizeMessage(requestMap)
+			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
 		} else {
 			if listContainsName(filterList, "$path") == true {
 				requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") //When/if VSS changes to slash delimiter, update here
@@ -900,8 +875,8 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		transportDataChan[tDChanIndex] <- response
 	default:
 		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
-		setErrorResponse(requestMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
-		transportDataChan[tDChanIndex] <- finalizeMessage(errorResponseMap)
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
+		transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 	}
 }
 

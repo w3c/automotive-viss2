@@ -127,3 +127,30 @@ func ExtractFromToken(token string, claim string) string { // TODO remove white 
 	}
 	return ""
 }
+
+func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
+	if reqMap["MgrId"] != nil {
+		errRespMap["MgrId"] = reqMap["MgrId"]
+	}
+	if reqMap["ClientId"] != nil {
+		errRespMap["ClientId"] = reqMap["ClientId"]
+	}
+	if reqMap["action"] != nil {
+		errRespMap["action"] = reqMap["action"]
+	}
+	if reqMap["requestId"] != nil {
+		errRespMap["requestId"] = reqMap["requestId"]
+	}
+	errRespMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
+}
+
+func FinalizeMessage(responseMap map[string]interface{}) string {
+	response, err := json.Marshal(responseMap)
+	if err != nil {
+		Error.Print("Server core-FinalizeMessage: JSON encode failed. ", err)
+		return `{"error":{"number":400,"reason":"JSON marshal error","message":""}}` //???
+	}
+	return string(response)
+}
+
+
