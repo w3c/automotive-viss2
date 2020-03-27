@@ -50,6 +50,15 @@ type SubscriptionState struct {
 
 var hostIp string
 
+var errorResponseMap = map[string]interface{}{
+	"MgrId":     0,
+	"ClientId":  0,
+	"action":    "unknown",
+	"requestId": "XX",
+	"error":     `{"number":AA, "reason": "BB", "message": "CC"}`,
+	"timestamp": 123,
+}
+
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 	url := "http://" + hostIp + ":8082/service/reg"
 	utils.Info.Printf("ServerCore URL %s", url)
@@ -161,6 +170,7 @@ func deactivateInterval(subscriptionId int) {
 }
 
 func getSubcriptionStateIndex(subscriptionId int, subscriptionList []SubscriptionState) int {
+	utils.Info.Printf("getSubcriptionStateIndex: len(subscriptionList)=%d", len(subscriptionList))
 	for i := 0; i < len(subscriptionList); i++ {
 		if subscriptionList[i].subscriptionId == subscriptionId {
 			return i
@@ -229,7 +239,7 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 		subscriptionMap["ClientId"] = subscriptionState.clientId
 		subscriptionMap["requestId"] = subscriptionState.requestId
 		subscriptionMap["value"] = currentValue
-		backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
+		backendChannel <- utils.FinalizeMessage(subscriptionMap)
 	default:
 		// check $range, $change trigger points
 		for i := range subscriptionList {
@@ -241,24 +251,11 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 				subscriptionMap["ClientId"] = subscriptionState.clientId
 				subscriptionMap["requestId"] = subscriptionState.requestId
 				subscriptionMap["value"] = currentValue
-				backendChannel <- finalizeResponse_smgr(subscriptionMap, true)
+				backendChannel <- utils.FinalizeMessage(subscriptionMap)
 			}
 			subscriptionList[i].latestValue = currentValue
 		}
 	}
-}
-
-func finalizeResponse_smgr(responseMap map[string]interface{}, responseStatus bool) string {
-	if responseStatus == false {
-		responseMap["error"] = "{\"number\":99, \"reason\": \"BBB\", \"message\": \"CCC\"}" // TODO
-	}
-	responseMap["timestamp"] = 1234
-	response, err := json.Marshal(responseMap)
-	if err != nil {
-		utils.Error.Printf(err.Error(), " Server core-finalizeResponse: JSON encode failed.")
-		return ""
-	}
-	return string(response)
 }
 
 func updateState(path string, subscriptionState *SubscriptionState) {
@@ -316,14 +313,18 @@ func processFilters(path string, filterList *[]filterDef_t) {
 	}
 }
 
-func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId string) {
+func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId string) (int, []SubscriptionState) {
 	id, _ := strconv.Atoi(subscriptionId)
 	index := getSubcriptionStateIndex(id, subscriptionList)
+        if (index == -1) {
+            return -1, subscriptionList
+        }
 	deactivateInterval(subscriptionList[index].subscriptionId)
 	//remove from list
 	subscriptionList[index] = subscriptionList[len(subscriptionList)-1] // Copy last element to index i.
 	//    subscriptionList[len(subscriptionList)-1] = ""   // Erase last element (write zero value).
 	subscriptionList = subscriptionList[:len(subscriptionList)-1] // Truncate slice.
+        return 1, subscriptionList
 }
 
 func getIndexForInterval(filterList []filterDef_t) int {
@@ -366,15 +367,14 @@ func main() {
 			responseMap["MgrId"] = requestMap["MgrId"]
 			responseMap["ClientId"] = requestMap["ClientId"]
 			responseMap["action"] = requestMap["action"]
-			var responseStatus bool
 			switch requestMap["action"] {
 			case "get":
 				responseMap["value"] = strconv.Itoa(requestValue)
 				requestValue++
-				responseStatus = true
+			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "set":
 				// TODO: interact with underlying subsystem to set the value
-				responseStatus = true
+			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "subscribe":
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
@@ -382,6 +382,11 @@ func main() {
 				subscriptionState.clientId = int(requestMap["ClientId"].(float64))
 				subscriptionState.requestId = requestMap["requestId"].(string)
 				subscriptionState.filterList = []filterDef_t{}
+                                if (requestMap["filter"] == nil) {
+		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
+			                dataChan <- utils.FinalizeMessage(errorResponseMap)
+                                        break
+                                }
 				processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
 				subscriptionState.latestValue = subscriptionValue
 				subscriptionState.timestamp = time.Now()
@@ -397,23 +402,26 @@ func main() {
 					}
 				}
 				subscriptionId++
-				responseStatus = true
+			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "unsubscribe":
                                 if requestMap["subscriptionId"] != nil {
+                                        status := -1
 				        if subscriptionIdStr, ok := requestMap["subscriptionId"].(string); ok {
 					        if ok == true {
-						        deactivateSubscription(subscriptionList, subscriptionIdStr)
+						        status, subscriptionList = deactivateSubscription(subscriptionList, subscriptionIdStr)
 					        }
-					        responseStatus = true
+                                                if (status != -1) {
+			                            dataChan <- utils.FinalizeMessage(responseMap)
+                                                    break
+                                                }
 				        }
-                                } else {
-				        responseStatus = false
                                 }
+		                utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsubscribe failed.", "Incorrect or missing subscription id.")
+			        dataChan <- utils.FinalizeMessage(errorResponseMap)
 			default:
-				responseStatus = false
+		                utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unknown action.", "")
+			        dataChan <- utils.FinalizeMessage(errorResponseMap)
 			} // switch
-			dataChan <- finalizeResponse_smgr(responseMap, responseStatus)
-			utils.Info.Println("Service mgr channel message to core server frontend:" + finalizeResponse_smgr(responseMap, responseStatus))
 		case <-dummyTicker.C:
 			subscriptionValue++
 			if subscriptionValue > 999 {
