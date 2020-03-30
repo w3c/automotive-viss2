@@ -170,7 +170,6 @@ func deactivateInterval(subscriptionId int) {
 }
 
 func getSubcriptionStateIndex(subscriptionId int, subscriptionList []SubscriptionState) int {
-	utils.Info.Printf("getSubcriptionStateIndex: len(subscriptionList)=%d", len(subscriptionList))
 	for i := 0; i < len(subscriptionList); i++ {
 		if subscriptionList[i].subscriptionId == subscriptionId {
 			return i
@@ -206,15 +205,21 @@ func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool 
 		}
 	}
 	if filter.name == "$change" {
-		if filter.operator == "gt" {
+		if filter.operator == "gt" { // abs(current-latest) > filter
 			filterValue, _ := strconv.Atoi(filter.value)
 			if currentValue > latestValue+filterValue {
 				return true
+                        }
+			if currentValue < latestValue-filterValue {
+				return true
 			}
 			return false
-		} else if filter.operator == "lt" {
+		} else if filter.operator == "lt" {  // abs(current-latest) < filter
 			filterValue, _ := strconv.Atoi(filter.value)
 			if currentValue < latestValue+filterValue {
+				return true
+			}
+			if currentValue > latestValue-filterValue {
 				return true
 			}
 			return false
@@ -251,9 +256,9 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 				subscriptionMap["ClientId"] = subscriptionState.clientId
 				subscriptionMap["requestId"] = subscriptionState.requestId
 				subscriptionMap["value"] = currentValue
+  			        subscriptionList[i].latestValue = currentValue
 				backendChannel <- utils.FinalizeMessage(subscriptionMap)
 			}
-			subscriptionList[i].latestValue = currentValue
 		}
 	}
 }
@@ -262,7 +267,7 @@ func updateState(path string, subscriptionState *SubscriptionState) {
 
 }
 
-func processOneFilter(filter string, filterList *[]filterDef_t) {
+func processOneFilter(filter string, filterList *[]filterDef_t) int {
 	filterDef := filterDef_t{}
 	if strings.Contains(filter, "$interval") == true {
 		filterDef.name = "$interval"
@@ -271,7 +276,7 @@ func processOneFilter(filter string, filterList *[]filterDef_t) {
 	} else if strings.Contains(filter, "$change") == true {
 		filterDef.name = "$change"
 	} else {
-		return
+		return 0
 	}
 	valueStart := strings.Index(filter, "EQ")
 	if valueStart != -1 {
@@ -290,27 +295,30 @@ func processOneFilter(filter string, filterList *[]filterDef_t) {
 	filterDef.value = filter[valueStart+2:]
 	*filterList = append(*filterList, filterDef)
 	utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s\n", filterDef.name, filterDef.operator, filterDef.value)
+        return 1
 }
 
-func processFilters(path string, filterList *[]filterDef_t) {
+func processFilters(path string, filterList *[]filterDef_t) int {
 	utils.Info.Printf("Service-mgr: Entering processFilters().Filter=%s", path)
 	queryDelim := strings.Index(path, "?")
 	query := path[queryDelim+1:]
 	if queryDelim == -1 {
-		return
+		return 0
 	}
 	numOfFilters := strings.Count(query, "AND") + 1
 	utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)
 	filterStart := 0
+        processedFilters := 0
 	for i := 0; i < numOfFilters; i++ {
 		filterEnd := strings.Index(query[filterStart:], "AND")
 		if filterEnd == -1 {
 			filterEnd = len(query)
 		}
 		filter := query[filterStart:filterEnd]
-		processOneFilter(filter, filterList)
+		processedFilters += processOneFilter(filter, filterList)
 		filterStart = filterEnd + 3 //len(AND)=3
 	}
+        return processedFilters
 }
 
 func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId string) (int, []SubscriptionState) {
@@ -382,12 +390,17 @@ func main() {
 				subscriptionState.clientId = int(requestMap["ClientId"].(float64))
 				subscriptionState.requestId = requestMap["requestId"].(string)
 				subscriptionState.filterList = []filterDef_t{}
-                                if (requestMap["filter"] == nil) {
+					utils.Info.Printf("filter=%s", requestMap["filter"])
+                                if (requestMap["filter"] == nil || requestMap["filter"] == "") {
 		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
 			                dataChan <- utils.FinalizeMessage(errorResponseMap)
                                         break
                                 }
-				processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
+				filters := processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
+                                if (filters == 0) {
+		                    utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsupported filter.", "See Gen2 Core documentation.")
+			            dataChan <- utils.FinalizeMessage(errorResponseMap)
+                                }
 				subscriptionState.latestValue = subscriptionValue
 				subscriptionState.timestamp = time.Now()
 				subscriptionList = append(subscriptionList, subscriptionState)

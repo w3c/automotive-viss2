@@ -10,7 +10,8 @@ Get request with search and $data query:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpenAND$dataEQ1", "requestId":"242"}
 
 Get request with AT token (XXX must be replaced with actual token):
-{"action":"get", "path":"Vehicle/ADAS/CruiseControl/Error", "token":"XXX", "requestId":"241"}
+{"action":"get", "path":"Vehicle/ADAS/CruiseControl/Error", "authorization":"XXX", "requestId":"241"}
+{"action":"get", "path":"Vehicle/Body/BodyType", "authorization":"XXX", "requestId":"243"}
 
 Service discovery request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right?$specEQ0", "requestId":"236"}
@@ -21,6 +22,8 @@ Set request:
 Subscribe request:
 {"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "filter":"$intervalEQ2", "requestId":"238"}
 {"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position", "filter":"$rangeGT100AND$rangeLT110", "requestId":"239"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position", "filter":"$rangeGT500AND$changeGT50", "requestId":"244"}
+
 
 Unsubscribe request:
 {"action":"unsubscribe", "subscriptionId":"1", "requestId":"240"}
@@ -58,5 +61,7 @@ agtserver
 atserver
 {"scope":"AAA","token":"BBB"}
 
+AAA = ["VehicleRead", "VehicleControl"]
+BBB = AG Token
 
 
