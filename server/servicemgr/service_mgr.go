@@ -56,7 +56,7 @@ var errorResponseMap = map[string]interface{}{
 	"action":    "unknown",
 	"requestId": "XX",
 	"error":     `{"number":AA, "reason": "BB", "message": "CC"}`,
-	"timestamp": 123,
+	"timestamp": "yy",
 }
 
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
@@ -375,6 +375,7 @@ func main() {
 			responseMap["MgrId"] = requestMap["MgrId"]
 			responseMap["ClientId"] = requestMap["ClientId"]
 			responseMap["action"] = requestMap["action"]
+                        responseMap["timestamp"] = utils.GetRfcTime()
 			switch requestMap["action"] {
 			case "get":
 				responseMap["value"] = strconv.Itoa(requestValue)

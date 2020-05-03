@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+        "time"
 )
 
 const IpModel = 0 // IpModel = [0,1,2] = [localhost,extIP,envVarIP]
@@ -142,6 +143,7 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 		errRespMap["requestId"] = reqMap["requestId"]
 	}
 	errRespMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
+        errRespMap["timestamp"] = GetRfcTime()
 }
 
 func FinalizeMessage(responseMap map[string]interface{}) string {
@@ -151,6 +153,12 @@ func FinalizeMessage(responseMap map[string]interface{}) string {
 		return `{"error":{"number":400,"reason":"JSON marshal error","message":""}}` //???
 	}
 	return string(response)
+}
+
+func GetRfcTime() string {
+    withTimeZone := time.Now().Format(time.RFC3339)   // 2020-05-01T15:34:35+02:00
+    withoutTimeZone := withTimeZone[:len(withTimeZone)-6] + "Z"
+    return withoutTimeZone
 }
 
 
