@@ -38,7 +38,7 @@ func main() {
 
 	go utils.HttpWSsession{}.TransportHubFrontendWSsession(dataConn, utils.AppClientChan) // receives messages from server core
 	utils.Info.Println("**** HTTP manager entering server loop... ****")
-	loopIter := 0
+	// loopIter := 0
 	for {
 		select {
 		case reqMessage := <-utils.AppClientChan[0]:
@@ -52,9 +52,9 @@ func main() {
 				utils.Warning.Println("Datachannel write error:" + err.Error())
 			}
 		}
-		loopIter++
-		if loopIter%1000 == 0 {
-			utils.TrimLogFile(utils.Logfile)
-		}
+		// loopIter++
+		// if loopIter%1000 == 0 {
+		// 	//utils.TrimLogFile(utils.Logfile)
+		// }
 	}
 }
