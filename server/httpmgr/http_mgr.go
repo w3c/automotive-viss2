@@ -54,7 +54,7 @@ func main() {
 		}
 		loopIter++
 		if loopIter%1000 == 0 {
-			utils.TrimLogFile(utils.Logfile)
+			//utils.TrimLogFile(utils.Logfile)
 		}
 	}
 }
