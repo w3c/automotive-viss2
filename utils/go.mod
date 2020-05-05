@@ -1,4 +1,4 @@
-module github.com/basanjeev/W3C_VehicleSignalInterfaceImpl/utils
+module github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils
 
 go 1.13
 

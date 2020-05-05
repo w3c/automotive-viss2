@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/basanjeev/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 	"github.com/gorilla/websocket"
 )
 
