@@ -11,7 +11,7 @@ startme() {
 	for service in ${services[@]}; do
 		echo "Starting $service"
 		mkdir -p logs
-		screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/${service}_log.txt && popd"
+		screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
 		if [ $service == "server_core" ]; then
 			sleep 5s
 		fi
