@@ -9,13 +9,13 @@ usage() {
 
 startme() {
 	echo "starting ..."
-	screen -d -m -S service bash -c 'cd server/server-core  && go build && ./server-core'
+	screen -d -m -S service bash -c 'cd server/server-core  && go build && mkdir logs && ./server-core &>  ./logs/servercore-log.txt'
 	sleep 5s
-	screen -d -m -S serviceMgr bash -c 'cd server/servicemgr && go build service_mgr.go && ./service_mgr'
-	screen -d -m -S wsMgr bash -c 'cd server/wsmgr && go build ws_mgr.go && ./ws_mgr'
-	screen -d -m -S httpMgr bash -c 'cd server/httpmgr && go build http_mgr.go && ./http_mgr'
-	screen -d -m -S agtServer bash -c 'cd client/client-1.0/Go && go build agt-server.go && ./agt-server'
-	screen -d -m -S atServer bash -c 'cd server/atserver && go build at-server.go && ./at-server'
+	screen -d -m -S serviceMgr bash -c 'cd server/servicemgr && go build service_mgr.go && mkdir logs && ./service_mgr &> ./logs/service-mgr-log.txt'
+	screen -d -m -S wsMgr bash -c 'cd server/wsmgr && go build ws_mgr.go && mkdir logs && ./ws_mgr &> ./logs/ws-mgr-log.txt'
+	screen -d -m -S httpMgr bash -c 'cd server/httpmgr && go build http_mgr.go && mkdir logs && ./http_mgr &> ./logs/http-mgr-log.txt'
+	screen -d -m -S agtServer bash -c 'cd client/client-1.0/Go && go build agt-server.go && mkdir logs && ./agt-server &> ./logs/agtserver-log.txt'
+	screen -d -m -S atServer bash -c 'cd server/atserver && go build at-server.go && mkdir logs && ./at-server &> ./logs/atserver-log.txt'
 	screen -list
 }
 

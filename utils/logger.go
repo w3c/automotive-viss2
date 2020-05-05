@@ -46,19 +46,17 @@ func InitLog(filename string, logdir string) {
 		},
 		//PrettyPrint: true,
 	}
-
 	logger.SetOutput(os.Stdout)
 
-	os.MkdirAll(logdir, 0700)
-	path := filepath.Join(logdir, filename)
+	// os.MkdirAll(logdir, 0700)
+	// path := filepath.Join(logdir, filename)
+	// Logfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+	// if err != nil {
+	// 	logger.Fatal(err)
+	// }
 
-	Logfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	logger.SetOutput(Logfile)
-	logrus.RegisterExitHandler(CloseLogFile)
+	// logger.SetOutput(Logfile)
+	// logrus.RegisterExitHandler(CloseLogFile)
 
 	Info, Warning, Error = logger, logger, logger
 }
