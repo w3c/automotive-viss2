@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 
 	"github.com/sirupsen/logrus"
@@ -46,7 +45,8 @@ func InitLog(filename string, logdir string) {
 		},
 		//PrettyPrint: true,
 	}
-	logger.SetOutput(os.Stdout)
+	iow := io.Writer(os.Stdout)
+	logger.SetOutput(iow)
 
 	// os.MkdirAll(logdir, 0700)
 	// path := filepath.Join(logdir, filename)
@@ -65,7 +65,6 @@ func CloseLogFile() {
 	if Logfile != nil {
 		Logfile.Close()
 	}
-
 }
 
 /**

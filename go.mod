@@ -7,8 +7,7 @@ go 1.13
 //replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => ./utils
 
 require (
-	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191204211610-3716e7ac1e5f // indirect
-	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200503093621-4e8edac3582d
+	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200505115319-5bce2ad3b1e2
 	github.com/golang/protobuf v1.4.1
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
