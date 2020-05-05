@@ -28,16 +28,20 @@ DS_Store
 
 
 # Server binaries
-server-core
+server_core
 service_mgr
 ws_mgr
 http_mgr
-at-server
-agt-server
+agt_server
+at_server
 
 # Folders
-!server/servicemgr/
-!server/server-core/
-!server/wsmgr/
+!server/service_mgr/
+!server/server_core/
+!server/ws_mgr/
+!server/http_mgr/
+!server/agt_server/
+!server/at_server/
 vendor/
 logs/
+
