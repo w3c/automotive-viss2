@@ -18,6 +18,8 @@
 #include "vssparserutilities.h"
 #include "nativeCnodeDef.h"
 
+size_t dummyRet;  // used to silence fread return values
+
 FILE* treeFp;
 int currentDepth;
 int maxTreeDepth;
@@ -42,20 +44,20 @@ void printTreeDepth() {
 }
 
 void readCommonPart(common_node_data_t* commonData, char** name, char**uuid, char** descr) {
-    fread(commonData, sizeof(common_node_data_t), 1, treeFp);
+    dummyRet = fread(commonData, sizeof(common_node_data_t), 1, treeFp);
     *name = (char*) malloc(sizeof(char)*(commonData->nameLen+1));
     *uuid = (char*) malloc(sizeof(char)*(commonData->uuidLen+1));
     *descr = (char*) malloc(sizeof(char)*(commonData->descrLen+1));
-    fread(*name, sizeof(char)*commonData->nameLen, 1, treeFp);
+    dummyRet = fread(*name, sizeof(char)*commonData->nameLen, 1, treeFp);
     (*name)[commonData->nameLen] = '\0';
-printf("Name = %s\n", *name);
-    fread(*uuid, sizeof(char)*commonData->uuidLen, 1, treeFp);
+//printf("Name = %s\n", *name);
+    dummyRet= fread(*uuid, sizeof(char)*commonData->uuidLen, 1, treeFp);
     (*uuid)[commonData->uuidLen] = '\0';
-printf("UUID = %s\n", *uuid);
-    fread(*descr, sizeof(char)*commonData->descrLen, 1, treeFp);
+//printf("UUID = %s\n", *uuid);
+    dummyRet = fread(*descr, sizeof(char)*commonData->descrLen, 1, treeFp);
     *((*descr)+commonData->descrLen) = '\0';
-printf("Description = %s\n", *descr);
-printf("Children = %d\n", commonData->children);
+//printf("Description = %s\n", *descr);
+//printf("Children = %d\n", commonData->children);
 }
 
 void copyData(node_t* node, common_node_data_t* commonData, char* name, char* uuid, char* descr) {
@@ -86,8 +88,8 @@ void copyData(node_t* node, common_node_data_t* commonData, char* name, char* uu
 	* min/max/unit/enum
 */
 struct node_t* traverseAndReadNode(struct node_t* parentPtr) {
-if (parentPtr != NULL)
-  printf("parent node name = %s\n", parentPtr->name);
+//if (parentPtr != NULL)
+//  printf("parent node name = %s\n", parentPtr->name);
     common_node_data_t* common_data = (common_node_data_t*)malloc(sizeof(common_node_data_t));
     if (common_data == NULL) {
         printf("traverseAndReadNode: 1st malloc failed\n");
@@ -99,50 +101,50 @@ if (parentPtr != NULL)
     char* descr;
     readCommonPart(common_data, &name, &uuid, &descr);
     node_t* node = NULL;
-printf("Type=%d\n",common_data->type);
+//printf("Type=%d\n",common_data->type);
 
     node_t* node2 = (node_t*) malloc(sizeof(node_t));
     node2->parent = parentPtr;
     copyData((node_t*)node2, common_data, name, uuid, descr);
     if (node2->children > 0)
         node2->child = (node_t**) malloc(sizeof(node_t**)*node2->children);
-    fread(&(node2->datatype), sizeof(int), 1, treeFp);
-    fread(&(node2->min), sizeof(int), 1, treeFp);
-    fread(&(node2->max), sizeof(int), 1, treeFp);
-    fread(&(node2->unitLen), sizeof(int), 1, treeFp);
+    dummyRet = fread(&(node2->datatype), sizeof(int), 1, treeFp);
+    dummyRet = fread(&(node2->min), sizeof(int), 1, treeFp);
+    dummyRet = fread(&(node2->max), sizeof(int), 1, treeFp);
+    dummyRet = fread(&(node2->unitLen), sizeof(int), 1, treeFp);
     node2->unit = NULL;
     if (node2->unitLen > 0) {
         node2->unit = (char*) malloc(sizeof(char)*(node2->unitLen+1));
-        fread(node2->unit, sizeof(char)*node2->unitLen, 1, treeFp);
+        dummyRet = fread(node2->unit, sizeof(char)*node2->unitLen, 1, treeFp);
         node2->unit[node2->unitLen] = '\0';
     }
-if (node2->unitLen > 0)
-    printf("Unit = %s\n", node2->unit);
+//if (node2->unitLen > 0)
+//    printf("Unit = %s\n", node2->unit);
 
-    fread(&(node2->numOfEnumElements), sizeof(int), 1, treeFp);
+    dummyRet = fread(&(node2->numOfEnumElements), sizeof(int), 1, treeFp);
     if (node2->numOfEnumElements > 0) {
         node2->enumeration = (enum_t*) malloc(sizeof(enum_t)*node2->numOfEnumElements);
-        fread(node2->enumeration, sizeof(enum_t)*node2->numOfEnumElements, 1, treeFp);
+        dummyRet = fread(node2->enumeration, sizeof(enum_t)*node2->numOfEnumElements, 1, treeFp);
     }
-for (int i = 0 ; i < node2->numOfEnumElements ; i++)
-  printf("Enum[%d]=%s\n", i, (char*)node2->enumeration[i]);
+//for (int i = 0 ; i < node2->numOfEnumElements ; i++)
+//  printf("Enum[%d]=%s\n", i, (char*)node2->enumeration[i]);
 
-    fread(&(node2->functionLen), sizeof(int), 1, treeFp);
+    dummyRet = fread(&(node2->functionLen), sizeof(int), 1, treeFp);
     node2->function = NULL;
     if (node2->functionLen > 0) {
         node2->function = (char*) malloc(sizeof(char)*(node2->functionLen+1));
-        fread(node2->function, sizeof(char)*node2->functionLen, 1, treeFp);
+        dummyRet = fread(node2->function, sizeof(char)*node2->functionLen, 1, treeFp);
         node2->function[node2->functionLen] = '\0';
     }
-if (node2->functionLen > 0)
-    printf("Function = %s\n", node2->function);
+//if (node2->functionLen > 0)
+//    printf("Function = %s\n", node2->function);
             node = (node_t*)node2;
 
     free(common_data);
     free(name);
     free(uuid);
     free(descr);
-printf("node->children = %d\n", node->children);
+//printf("node->children = %d\n", node->children);
     int childNo = 0;
     while(childNo < node->children) {
         node->child[childNo++] = traverseAndReadNode(node);
@@ -371,7 +373,7 @@ void writeCommonPart(struct node_t* node) {
 void traverseAndWriteNode(struct node_t* node) {
     if (node == NULL) //not needed?
         return;
-    printf("Node name = %s, type=%d\n", node->name, node->type);
+//    printf("Node name = %s, type=%d\n", node->name, node->type);
     writeCommonPart(node);
     fwrite(&(node->datatype), sizeof(int), 1, treeFp);
     fwrite(&(node->min), sizeof(int), 1, treeFp);
@@ -388,10 +390,10 @@ void traverseAndWriteNode(struct node_t* node) {
         fwrite(node->function, sizeof(char)*node->functionLen, 1, treeFp);
 
 //printf("numOfEnumElements=%d, unitlen=%d, functionLen=%d\n", node->numOfEnumElements, node->unitLen, node->functionLen);
-for (int i = 0 ; i < node->numOfEnumElements ; i++)
-  printf("Enum[%d]=%s\n", i, (char*)node->enumeration[i]);
+//for (int i = 0 ; i < node->numOfEnumElements ; i++)
+//  printf("Enum[%d]=%s\n", i, (char*)node->enumeration[i]);
     int childNo = 0;
-printf("node->children = %d\n", node->children);
+//printf("node->children = %d\n", node->children);
     while(childNo < node->children) {
          traverseAndWriteNode(node->child[childNo++]);
     }
