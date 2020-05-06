@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
+//	"path/filepath"
 	"runtime"
 
 	"github.com/sirupsen/logrus"
@@ -49,6 +49,7 @@ func InitLog(filename string, logdir string) {
 
 	iow := io.Writer(os.Stdout)
 	logger.SetOutput(iow)
+        logger.SetLevel(logrus.ErrorLevel)  // change to InfoLevel if all logs to be saved
 
 	// os.MkdirAll(logdir, 0700)
 	// path := filepath.Join(logdir, filename)
