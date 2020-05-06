@@ -1,6 +1,6 @@
 #!/bin/bash
 
-services=(at-server http_mgr service_mgr ws_mgr agt-server)
+services=(server_core service_mgr at_server agt_server http_mgr ws_mgr)
 
 usage() {
 	#    echo "usage: $0 startme|stopme|configureme" >&2
@@ -8,25 +8,22 @@ usage() {
 }
 
 startme() {
-	echo "starting ..."
-	screen -d -m -S service bash -c 'cd server/server-core  && go build && mkdir logs && ./server-core &>  ./logs/servercore-log.txt'
-	sleep 5s
-	screen -d -m -S serviceMgr bash -c 'cd server/servicemgr && go build service_mgr.go && mkdir logs && ./service_mgr &> ./logs/service-mgr-log.txt'
-	screen -d -m -S wsMgr bash -c 'cd server/wsmgr && go build ws_mgr.go && mkdir logs && ./ws_mgr &> ./logs/ws-mgr-log.txt'
-	screen -d -m -S httpMgr bash -c 'cd server/httpmgr && go build http_mgr.go && mkdir logs && ./http_mgr &> ./logs/http-mgr-log.txt'
-	screen -d -m -S agtServer bash -c 'cd client/client-1.0/Go && go build agt-server.go && mkdir logs && ./agt-server &> ./logs/agtserver-log.txt'
-	screen -d -m -S atServer bash -c 'cd server/atserver && go build at-server.go && mkdir logs && ./at-server &> ./logs/atserver-log.txt'
+	for service in ${services[@]}; do
+		echo "Starting $service"
+		mkdir -p logs
+		screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
+		if [ $service == "server_core" ]; then
+			sleep 5s
+		fi
+		popd
+	done
 	screen -list
 }
 
 stopme() {
-	screen -X -S atServer quit
-	screen -X -S agtServer quit
-	screen -X -S httpMgr quit
-	screen -X -S wsMgr quit
-	screen -X -S serviceMgr quit
-	screen -X -S serverCore quit
 	for service in ${services[@]}; do
+		echo "Stopping $service"
+		screen -X -S $service quit
 		killall -9 $service	
 	done
 	screen -wipe
@@ -40,20 +37,20 @@ if [ $# -ne 1 ]
 then
 	usage $0
 	exit 1
-	fi
+fi
 
-	case "$1" in 
-		startme)
-			stopme
-			startme ;;
-		stopme)
-			stopme
-			;;
-		#configureme)
+case "$1" in 
+	startme)
+		stopme
+		startme ;;
+	stopme)
+		stopme
+		;;
+	#configureme)
 		#	configureme
 		#	;; 
-		*)
-			usage
-			exit 1
-			;;
+	*)
+		usage
+		exit 1
+		;;
 esac
