@@ -1,8 +1,8 @@
 #editable variables
 ARG GO_VERSION=1.13
-ARG DEFAULT_APP_NAME="httpmgr"
+ARG DEFAULT_APP_NAME="service_mgr"
 ARG DEFAULT_APP_PATH="/app"
-ARG DEFAULT_SRCDIR="server/httpmgr/"
+ARG DEFAULT_SRCDIR="server/${DEFAULT_APP_NAME}/"
 
 #dont edit below this line
 FROM golang:${GO_VERSION}-alpine AS dev
@@ -20,7 +20,7 @@ COPY go.mod go.sum ./
 #compile servercore
 RUN go build -o ${APP_NAME} .
 
-FROM alpine AS httpmgr
+FROM alpine AS servermgr
 ARG DEFAULT_APP_NAME
 ARG DEFAULT_APP_PATH
 

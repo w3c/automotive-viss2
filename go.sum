@@ -1,5 +1,8 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191204211610-3716e7ac1e5f h1:Mj8ZJoEy1nMf/ep+jTA7dnAt4aYE08kz88Y59SqCUQU=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191204211610-3716e7ac1e5f/go.mod h1:6vCcSD8K6+BsIjt6ylO/UwfUIEw5IJUvUvR0WCPC034=
+github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20191115082053-a43ecd5fad8d/go.mod h1:DbTRb4Dw7z3jc/xM8oBe/uHSm+F9GUgCAr9fUcVI8UQ=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200503093621-4e8edac3582d h1:DLZMgQjpj4cyqxLyy4uA0RTDqH5TSWTSlE2fxwPzCws=
 github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200503093621-4e8edac3582d/go.mod h1:wuxI6n2M6LDldW50c3ZXRoRFfv3eZrlJFyudiFgEr/E=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
@@ -96,6 +99,7 @@ google.golang.org/genproto v0.0.0-20200430143042-b979b6f78d84 h1:pSLkPbrjnPyLDYU
 google.golang.org/genproto v0.0.0-20200430143042-b979b6f78d84/go.mod h1:55QSHmfGQM9UVYDPBsyGGes0y52j32PQ3BqQfXhyH3c=
 google.golang.org/grpc v1.19.0/go.mod h1:mqu4LbDTu4XGKhr4mRzUsmM4RtVoemTSY81AxZiDr8c=
 google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyacEbxg=
+google.golang.org/grpc v1.25.0/go.mod h1:c3i+UQWmh7LiEpx4sFZnkU36qjEYZ0imhYfXVyQciAY=
 google.golang.org/grpc v1.25.1/go.mod h1:c3i+UQWmh7LiEpx4sFZnkU36qjEYZ0imhYfXVyQciAY=
 google.golang.org/grpc v1.27.0 h1:rRYRFMVgRv6E0D70Skyfsr28tDXIuuPZyWGMPdMcnXg=
 google.golang.org/grpc v1.27.0/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=

@@ -1,8 +1,8 @@
 ARG GO_VERSION=1.13
-ARG DEFAULT_APP_NAME="servercore"
+ARG DEFAULT_APP_NAME="server_core"
 ARG DEFAULT_VSSTREE_NAME="vss_rel_2.0.0-alpha+006.cnative"
 ARG DEFAULT_APP_PATH="/app"
-ARG DEFAULT_SRCDIR="server/server-core/"
+ARG DEFAULT_SRCDIR="server/${DEFAULT_APP_NAME}/"
 
 
 FROM golang:${GO_VERSION}-alpine AS dev
