@@ -157,8 +157,11 @@ func FinalizeMessage(responseMap map[string]interface{}) string {
 
 func GetRfcTime() string {
     withTimeZone := time.Now().Format(time.RFC3339)   // 2020-05-01T15:34:35+02:00
-    withoutTimeZone := withTimeZone[:len(withTimeZone)-6] + "Z"
-    return withoutTimeZone
+    if (withTimeZone[len(withTimeZone)-6] == '+') {
+        return withTimeZone[:len(withTimeZone)-6] + "Z"
+    } else {
+        return withTimeZone
+    }
 }
 
 
