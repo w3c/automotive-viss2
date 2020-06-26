@@ -1,0 +1,60 @@
+#!/bin/bash
+
+services=(server_core service_mgr at_server agt_server http_mgr ws_mgr)
+
+usage() {
+	#    echo "usage: $0 startme|stopme|configureme" >&2
+	echo "usage: $0 startme|stopme" >&2
+}
+
+startme() {
+	for service in ${services[@]}; do
+		echo "Starting $service"
+		mkdir -p logs
+		if [ $service == "service_mgr" ]; then
+		        screen -S service_mgr -dm bash -c "pushd server/service_mgr && go build && mkdir -p logs && ./service_mgr statestorage.db &> ./logs/service_mgr-log.txt && popd"
+		else
+ 		        screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
+		fi
+		if [ $service == "server_core" ]; then
+			sleep 5s
+		fi
+		popd
+	done
+	screen -list
+}
+
+stopme() {
+	for service in ${services[@]}; do
+		echo "Stopping $service"
+		screen -X -S $service quit
+		killall -9 $service	
+	done
+	screen -wipe
+}
+
+#configureme() {
+#ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
+#}
+
+if [ $# -ne 1 ]
+then
+	usage $0
+	exit 1
+fi
+
+case "$1" in 
+	startme)
+		stopme
+		startme ;;
+	stopme)
+		stopme
+		;;
+	#configureme)
+		#	configureme
+		#	;; 
+	*)
+		usage
+		exit 1
+		;;
+esac
