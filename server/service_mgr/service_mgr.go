@@ -17,7 +17,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"os"
+        "database/sql"
+        _ "github.com/mattn/go-sqlite3"
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
@@ -43,9 +45,10 @@ type SubscriptionState struct {
 	mgrId          int
 	clientId       int
 	requestId      string
+	path           string
 	filterList     []filterDef_t
-	latestValue    int
-	timestamp      time.Time
+	latestValue    string
+	timestamp      string
 }
 
 var hostIp string
@@ -58,6 +61,12 @@ var errorResponseMap = map[string]interface{}{
 	"error":     `{"number":AA, "reason": "BB", "message": "CC"}`,
 	"timestamp": "yy",
 }
+
+var db *sql.DB
+var dbErr error
+var isStateStorage = false
+
+var dummyValue int  // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
 
 func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 	url := "http://" + hostIp + ":8082/service/reg"
@@ -178,7 +187,9 @@ func getSubcriptionStateIndex(subscriptionId int, subscriptionList []Subscriptio
 	return -1
 }
 
-func checkRangeChangeFilter(filterList []filterDef_t, latestValue int, currentValue int) bool {
+func checkRangeChangeFilter(filterList []filterDef_t, latestVal string, currentVal string) bool {
+        latestValue, _ := strconv.Atoi(latestVal)
+        currentValue, _ := strconv.Atoi(currentVal)
 	for i := range filterList {
 		result := evaluateFilter(filterList[i], latestValue, currentValue)
 		if result == false {
@@ -233,7 +244,7 @@ func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool 
 	return false
 }
 
-func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState, currentValue int) {
+func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState) {
 	var subscriptionMap = make(map[string]interface{})
 	subscriptionMap["action"] = "subscription"
 	select {
@@ -243,11 +254,12 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 		subscriptionMap["MgrId"] = subscriptionState.mgrId
 		subscriptionMap["ClientId"] = subscriptionState.clientId
 		subscriptionMap["requestId"] = subscriptionState.requestId
-		subscriptionMap["value"] = currentValue
+		subscriptionMap["value"], subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
 		backendChannel <- utils.FinalizeMessage(subscriptionMap)
 	default:
 		// check $range, $change trigger points
 		for i := range subscriptionList {
+	               currentValue, timeStamp := getVehicleData(subscriptionList[i].path)
 			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestValue, currentValue)
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
@@ -256,7 +268,8 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 				subscriptionMap["ClientId"] = subscriptionState.clientId
 				subscriptionMap["requestId"] = subscriptionState.requestId
 				subscriptionMap["value"] = currentValue
-  			        subscriptionList[i].latestValue = currentValue
+				subscriptionMap["timestamp"]  = timeStamp
+  			        subscriptionList[i].latestValue = subscriptionMap["value"].(string)
 				backendChannel <- utils.FinalizeMessage(subscriptionMap)
 			}
 		}
@@ -344,7 +357,37 @@ func getIndexForInterval(filterList []filterDef_t) int {
 	return -1
 }
 
+func getVehicleData(path string) (string, string) {
+    if (isStateStorage == true) {
+	rows, err := db.Query("SELECT `value`, `timestamp` FROM VSS_MAP WHERE `path`=?", path)
+	if err != nil {
+		return "", ""
+	}
+	value := ""
+	timestamp := ""
+
+	rows.Next()
+	err = rows.Scan(&value, &timestamp)
+	if err != nil {
+		return "", ""
+	}
+	rows.Close()
+	return value, timestamp
+    } else {
+        return strconv.Itoa(dummyValue), utils.GetRfcTime()
+    }
+}
+
 func main() {
+        if (len(os.Args) == 2) {
+ 	    db, dbErr = sql.Open("sqlite3", os.Args[1])
+	    if dbErr != nil {
+                utils.Info.Printf("Could not open DB file = %s, err = %s\n", os.Args[1], dbErr)
+                os.Exit(1)
+            }
+            defer db.Close()
+            isStateStorage = true
+        }
 	utils.InitLog("service-mgr-log.txt", "./logs")
 	hostIp = utils.GetModelIP(2)
 
@@ -353,8 +396,6 @@ func main() {
 	backendChan := make(chan string)
 	regRequest := RegRequest{Rootnode: "Vehicle"}
 	subscriptionChan := make(chan int)
-	subscriptionValue := 0
-	requestValue := 0
 	subscriptionList := []SubscriptionState{}
 	subscriptionId := 1 // do not start with zero!
 
@@ -375,11 +416,9 @@ func main() {
 			responseMap["MgrId"] = requestMap["MgrId"]
 			responseMap["ClientId"] = requestMap["ClientId"]
 			responseMap["action"] = requestMap["action"]
-                        responseMap["timestamp"] = utils.GetRfcTime()
 			switch requestMap["action"] {
 			case "get":
-				responseMap["value"] = strconv.Itoa(requestValue)
-				requestValue++
+		               responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
 			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "set":
 				// TODO: interact with underlying subsystem to set the value
@@ -390,6 +429,7 @@ func main() {
 				subscriptionState.mgrId = int(requestMap["MgrId"].(float64))
 				subscriptionState.clientId = int(requestMap["ClientId"].(float64))
 				subscriptionState.requestId = requestMap["requestId"].(string)
+				subscriptionState.path = requestMap["path"].(string)
 				subscriptionState.filterList = []filterDef_t{}
 					utils.Info.Printf("filter=%s", requestMap["filter"])
                                 if (requestMap["filter"] == nil || requestMap["filter"] == "") {
@@ -402,8 +442,7 @@ func main() {
 		                    utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsupported filter.", "See Gen2 Core documentation.")
 			            dataChan <- utils.FinalizeMessage(errorResponseMap)
                                 }
-				subscriptionState.latestValue = subscriptionValue
-				subscriptionState.timestamp = time.Now()
+				subscriptionState.latestValue, subscriptionState.timestamp = getVehicleData(subscriptionState.path)
 				subscriptionList = append(subscriptionList, subscriptionState)
 				responseMap["subscriptionId"] = strconv.Itoa(subscriptionId)
 				filterIndex := getIndexForInterval(subscriptionState.filterList)
@@ -437,12 +476,12 @@ func main() {
 			        dataChan <- utils.FinalizeMessage(errorResponseMap)
 			} // switch
 		case <-dummyTicker.C:
-			subscriptionValue++
-			if subscriptionValue > 999 {
-				subscriptionValue = 0
+			dummyValue++
+			if dummyValue > 999 {
+				dummyValue = 0
 			}
 		default:
-			checkSubscription(subscriptionChan, backendChan, subscriptionList, subscriptionValue)
+			checkSubscription(subscriptionChan, backendChan, subscriptionList)
 			time.Sleep(10 * time.Millisecond)
 		} // select
 	} // for
