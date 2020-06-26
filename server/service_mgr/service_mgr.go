@@ -361,7 +361,7 @@ func getVehicleData(path string) (string, string) {
     if (isStateStorage == true) {
 	rows, err := db.Query("SELECT `value`, `timestamp` FROM VSS_MAP WHERE `path`=?", path)
 	if err != nil {
-		return "", ""
+            return strconv.Itoa(dummyValue), utils.GetRfcTime()
 	}
 	value := ""
 	timestamp := ""
@@ -369,7 +369,7 @@ func getVehicleData(path string) (string, string) {
 	rows.Next()
 	err = rows.Scan(&value, &timestamp)
 	if err != nil {
-		return "", ""
+            return strconv.Itoa(dummyValue), utils.GetRfcTime()
 	}
 	rows.Close()
 	return value, timestamp
