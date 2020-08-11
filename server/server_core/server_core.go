@@ -11,7 +11,7 @@
 package main
 
 import (
-	//    "fmt"
+	 //   "fmt"
 	"flag"
 	"regexp"
 
@@ -686,7 +686,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 	var newJsonBuffer string
 	nodeName := C.GoString(C.getName(nodeHandle))
 	newJsonBuffer += `"` + nodeName + `":{`
-	nodeType := int(C.getType(nodeHandle))
+	nodeType := int(C.VSSgetType(nodeHandle))
 	newJsonBuffer += `"type":` + `"` + nodeTypesToString(nodeType) + `",`
 	nodeDescr := C.GoString(C.getDescr(nodeHandle))
 	newJsonBuffer += `"description":` + `"` + nodeDescr + `",`
@@ -700,7 +700,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 		fallthrough
 	case 13: // attribute
 		// TODO Look for other metadata, unit, enum, ...
-		nodeDatatype := int(C.getDatatype(nodeHandle))
+		nodeDatatype := int(C.VSSgetDatatype(nodeHandle))
 		newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
 	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
 		return ""
