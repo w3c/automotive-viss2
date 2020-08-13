@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+//	"strconv"
         "time"
 )
 
@@ -162,6 +163,103 @@ func GetRfcTime() string {
     } else {
         return withTimeZone
     }
+}
+
+func nextQuoteMark(message []byte, offset int) int {
+    for i := offset ; i < len(message) ; i++ {
+        if (message[i] == '"') {
+            return i
+        }
+    }
+    return offset
+}
+
+func getMessageToken(message []byte, offset int) []byte {
+    var token []byte
+    if (message[offset] == '"') {
+        offset2 := nextQuoteMark(message, offset+1)
+        token = message[offset:offset2+1]
+    } else {
+        token = []byte(string(message[offset]))
+    }
+    return token
+}
+
+func getKwListIndex(token string) byte {
+    var i byte
+    listLen := byte(len(kwList.Kw))
+    for i = 0 ; i < listLen ; i++ {
+Info.Printf("kwList.Kw[%d]=%s, token=%s", i, kwList.Kw[i], token)
+        if (kwList.Kw[i] == token[1:len(token)-1]) {
+            return i
+        }
+    }
+    return 255
+}
+
+func DecompressMessage(message []byte) []byte {
+    var message2 []byte
+    message2 = message // for testing of compress...
+    return message2
+}
+
+func CompressMessage(message []byte) []byte {
+    var message2 []byte
+    if (len(kwList.Kw) == 0) {
+        jsonToStructList(keywordlist)
+    }
+    for offset := 0 ; offset < len(message) ; {
+        token := getMessageToken(message, offset)
+Info.Printf("Token=%s, len=%d", string(token), len(token))
+        offset += len(token)
+        if (len(token) == 1) {
+            message2 = append(message2, token...)
+        } else {
+            listIndex := getKwListIndex(string(token))
+Info.Printf("listIndex=%d", listIndex)
+            listLen := byte(len(kwList.Kw))
+            if (listIndex < listLen) {
+                listIndex += 16
+                index := make([]byte, 1)
+                index[0] = listIndex
+Info.Printf("index=%d, index[0]=%d", index, index[0])
+                message2 = append(message2, index...)  
+            } else if (listIndex == KEYWORDLISTINDEXTS) {
+                message2 = append(message2, token...)   // this should not be, only for temp testing => previousToken = token, tested on when listIndex < 0...
+//                previousToken = token
+            } else {
+                message2 = append(message2, token...)
+            }
+        }
+    }
+    Info.Printf("Compressed message:%s, len(message)=%d", message2, len(message2))
+    return message2
+}
+
+/*
+* The keywordlist shall contain all keys used in JSON payloads, and also all "constant" key values.
+  If the list is extended, the keys must be placed before the constant key values in the list, 
+* and the KEYWORDLISTDELIM must be updated to the number of elements in the list that are keys.
+*/
+var keywordlist string = `{"keywords":["action", "path", "value", "timestamp", "requestId", "subscriptionId", "filter", "authorization", "get", "set", "subscribe", "unsubscribe", "subscription"]}`
+
+const KEYWORDLISTDELIM = 8  // must be set to the number of keywordlist elements that are keys
+const KEYWORDLISTINDEXTS = 3  // must be set to the list index of the "timestamp" element
+
+type KwList struct {
+	Kw []string `json:"keywords"`
+}
+
+var kwList KwList
+
+func jsonToStructList(jsonList string) int {
+	err := json.Unmarshal([]byte(jsonList), &kwList)
+	if err != nil {
+		Error.Printf("Error unmarshal json=%s\n", err)
+		return 0
+	}
+Info.Printf("jsonToStructList():len(kwList.Kw)=%d", len(kwList.Kw))
+	return len(kwList.Kw)
 }
 
 

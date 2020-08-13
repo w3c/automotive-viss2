@@ -52,7 +52,7 @@
     try {
         function setHostIP() {
             hostIP = externHostIp.value;
-                socket = new WebSocket("ws://" + hostIP + ":8080");
+                socket = new WebSocket("ws://" + hostIP + ":8080", "gen2");
 
                 socket.onopen = function () {
                     output.innerHTML += "Status: Connected\n";
