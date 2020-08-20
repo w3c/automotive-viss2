@@ -75,7 +75,8 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 		// Write message back to server core
 		response := []byte(message)
 
-		err := conn.WriteMessage(websocket.TextMessage, response)
+//		err := conn.WriteMessage(websocket.TextMessage, response)
+		err := conn.WriteMessage(websocket.BinaryMessage, response)
 		if err != nil {
 			Error.Printf("Service data write error: %s", err)
 			break
@@ -176,7 +177,7 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	}
 }
 
-func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, isCompressProtocol bool) {
+func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, isCompressProtocol bool, uuidLen int) {
 	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -186,7 +187,7 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 		}
 
 		if (isCompressProtocol == true) {
-		    msg = DecompressMessage(msg)
+		    msg = DecompressMessage(msg, uuidLen)
 		}
 		payload := UrlToPath(string(msg)) // if path in payload slash delimited, replace with dot delimited
 		Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), payload, len(payload))
@@ -198,7 +199,7 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 	}
 }
 
-func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string, isCompressProtocol bool) {
+func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string, isCompressProtocol bool, uuidLen int) {
 	defer conn.Close()
 	for {
 		message := <-clientBackendChannel
@@ -206,11 +207,14 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string,
 		Info.Printf("backendWSAppSession(): Message received=%s\n", message)
 		// Write message back to app client
 		response := []byte(message)
+		var err error
 
 		if (isCompressProtocol == true) {
-		    response = CompressMessage(response)
-		}
-		err := conn.WriteMessage(websocket.TextMessage, response)
+		    response = CompressMessage(response, uuidLen)
+ 		    err = conn.WriteMessage(websocket.BinaryMessage, response)
+		} else {
+		    err = conn.WriteMessage(websocket.TextMessage, response)
+               }
 		if err != nil {
 			Error.Print("App client write error:", err)
 			break
@@ -235,16 +239,23 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			Info.Printf("we are upgrading to a websocket connection. Server index=%d", *wsH.serverIndex)
 			Upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 			isCompressProtocol := false
+			uuidLen := 0
 			h := http.Header{}
 			for _, sub := range websocket.Subprotocols(req) {
-			   if sub == "gen2compress" {
+			   if len(sub) > len("gen2")+1 && sub[:len("gen2")+1] == "gen2c" { // "gen2cx ; x =[1..32]
 			      isCompressProtocol = true
-			      h.Set("Sec-Websocket-Protocol", "gen2compress")
+			      var err2 error
+			      uuidLen, err2 = strconv.Atoi(sub[len("gen2")+1:])
+			      if (err2 != nil) {
+			          Error.Print("Subprotocol: Cannot convert uuid length:", err2)
+			          break
+			      }
+			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
 			   }
 			   if sub == "gen2" {
-			      isCompressProtocol = true
-			      h.Set("Sec-Websocket-Protocol", "gen2")
+			      isCompressProtocol = false
+			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
 			   }
 			}
@@ -255,8 +266,8 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			}
 			Info.Printf("len(appClientChannel)=%d", len(appClientChannel))
 			if *wsH.serverIndex < len(appClientChannel) {
-				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol)
-				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol)
+				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol, uuidLen)
+				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol, uuidLen)
 				*wsH.serverIndex += 1
 			} else {
 				Error.Printf("not possible to start more app client sessions.")

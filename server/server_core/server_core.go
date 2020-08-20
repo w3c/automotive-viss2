@@ -435,30 +435,28 @@ func synthesizeValueObject(path string, value string) string {
 }
 
 /**
-* aggregateResponse synthezises the response when multiple matches may occur. The non-search response pattern for the value, "value": "123",
+* aggregateValue synthezises the "value" value when multiple matches may occur. The non-search response pattern for the value, "value": "123",
 * is not sufficient as the response does not contain the corresponding path. So the following pattern is then used:
 * For single match search result:
-* "value": {"path": "path-to-match", "value": "123"}
+* {"path": "path-to-match", "value": "123"}
 * For multiple match search result:
-* "value": [{"path": "path-to-match1", "value": "123"}, {"path": "path-to-match2", "value": "456"}, ..]
+* "[{"path": "path-to-match1", "value": "123"}, {"path": "path-to-match2", "value": "456"}, ..]
 **/
-func aggregateResponse(iterator int, path string, response string, aggregatedResponseMap *map[string]interface{}) {
+func aggregateValue(iterator int, path string, response string, aggregatedValue *string) {
 
-	var multipleResponseMap map[string]interface{}
-	utils.ExtractPayload(response, &multipleResponseMap)
-	value := multipleResponseMap["value"].(string)
+	var responseMap map[string]interface{}
+	utils.ExtractPayload(response, &responseMap)
+	value := responseMap["value"].(string)
 
-	switch multipleResponseMap["action"] {
+	switch responseMap["action"] {
 	case "get":
 		switch iterator {
 		case 0:
-			utils.ExtractPayload(response, aggregatedResponseMap)
-			(*aggregatedResponseMap)["value"] = synthesizeValueObject(path, value)
+			*aggregatedValue += synthesizeValueObject(path, value)
 		case 1:
-			(*aggregatedResponseMap)["value"] = "[" + (*aggregatedResponseMap)["value"].(string) + ", " + synthesizeValueObject(path, value) + "]"
+			*aggregatedValue = "[" + *aggregatedValue + ", " + synthesizeValueObject(path, value) + "]"
 		default:
-			aggregatedResponse := (*aggregatedResponseMap)["value"].(string)
-			(*aggregatedResponseMap)["value"] = aggregatedResponse[:len(aggregatedResponse)-1] + ", " + synthesizeValueObject(path, value) + "]"
+			*aggregatedValue = (*aggregatedValue)[:len(*aggregatedValue)-1] + ", " + synthesizeValueObject(path, value) + "]"
 		}
 	default: // set, subscribe: shall multiple matches be allowed??
 
@@ -549,6 +547,25 @@ func isDataMatch(queryData string, response string) bool {
 	return false
 }
 
+func nextQuoteMark(message string) int {
+    for i := 0 ; i < len(message) ; i++ {
+        if (message[i] == '"') {
+            return i
+        }
+    }
+    return -1
+}
+
+func modifyResponse(resp string, aggregatedValue string) string {
+    index := strings.Index(resp, "value") + 5
+//    quoteIndex1 := strings.Index(resp[index:], "\"")
+    quoteIndex1 := nextQuoteMark(resp[index+1:])
+utils.Info.Printf("quoteIndex1=%d", quoteIndex1)
+//    quoteIndex2 := strings.Index(resp[index+quoteIndex1+1:], "\"")
+    quoteIndex2 := nextQuoteMark(resp[index+1+quoteIndex1+1:])
+    return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
+}
+
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
 	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
 	var anyDepth C.bool = false
@@ -588,7 +605,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			return
 		}
 		var response string
-		var aggregatedResponseMap map[string]interface{}
+		var aggregatedValue string
 		var foundMatch int = 0
 		var dataQuery bool = false
 		var queryData string
@@ -604,8 +621,7 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			response = <-serviceDataChan[sDChanIndex]
 			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
 				if matches > 1 {
-
-					aggregateResponse(foundMatch, requestMap["path"].(string), response, &aggregatedResponseMap)
+				    aggregateValue(foundMatch, requestMap["path"].(string), response, &aggregatedValue)
 				}
 				foundMatch++
 			}
@@ -618,7 +634,10 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			if matches == 1 {
 				transportDataChan[tDChanIndex] <- response
 			} else {
-				transportDataChan[tDChanIndex] <- utils.FinalizeMessage(aggregatedResponseMap)
+utils.Info.Printf("aggregatedValue=%s", aggregatedValue)
+	                       response = modifyResponse(response, aggregatedValue)
+utils.Info.Printf("aggregatedResponse=%s", response)
+				transportDataChan[tDChanIndex] <- response
 			}
 		}
 	}

@@ -2,9 +2,11 @@
 
 Get request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
+{"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}
 
 Get request with search:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}
+{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}
 
 Get request with search and $data query:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpenAND$dataEQ1", "requestId":"242"}

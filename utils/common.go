@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
-//	"strconv"
+	"io/ioutil"
         "time"
 )
 
@@ -189,7 +189,7 @@ func getKwListIndex(token string) byte {
     var i byte
     listLen := byte(len(kwList.Kw))
     for i = 0 ; i < listLen ; i++ {
-Info.Printf("kwList.Kw[%d]=%s, token=%s", i, kwList.Kw[i], token)
+//Info.Printf("kwList.Kw[%d]=%s, token=%s", i, kwList.Kw[i], token)
         if (kwList.Kw[i] == token[1:len(token)-1]) {
             return i
         }
@@ -197,53 +197,108 @@ Info.Printf("kwList.Kw[%d]=%s, token=%s", i, kwList.Kw[i], token)
     return 255
 }
 
-func DecompressMessage(message []byte) []byte {
+func DecompressMessage(message []byte, uuidLen int) []byte {
     var message2 []byte
     message2 = message // for testing of compress...
     return message2
 }
 
-func CompressMessage(message []byte) []byte {
+func compressPath(path []byte, uuidLen int) []byte {
+    for i := 0 ; i < len(uuidList.Object) ; i++ {
+Info.Printf("%s == %s", uuidList.Object[i].Path, string(path[1:len(path)-1]))
+        if (uuidList.Object[i].Path == string(path[1:len(path)-1])) {
+            return []byte(uuidList.Object[i].Uuid[:uuidLen])
+        }
+    }
+    return path
+}
+
+func twoToOneByte(twoByte []byte) []byte {
+    oneByte := make([]byte, 1)
+    oneByte[0] = (twoByte[0]-48)*10 + (twoByte[1]-48)  
+    return oneByte
+}
+
+func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z"
+    var compressedTs []byte
+
+    compressedTs = append(compressedTs, twoToOneByte(ts[3:5])...)  // year, only last two digits
+    compressedTs = append(compressedTs, twoToOneByte(ts[6:8])...)  // month
+    compressedTs = append(compressedTs, twoToOneByte(ts[9:11])...)  // day
+    compressedTs = append(compressedTs, twoToOneByte(ts[12:14])...)  // hour
+    compressedTs = append(compressedTs, twoToOneByte(ts[15:17])...)  // minute
+    compressedTs = append(compressedTs, twoToOneByte(ts[18:20])...)  // second
+//    subsecond := ts[20:len(ts)-2]  TODO: handle subsecond
+    return compressedTs
+}
+
+func createUuidList(fname string) int {
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		Error.Printf("Error reading %s: %s", fname, err)
+		return 0
+	}
+	jsonToStructList(string(data), &uuidList)
+	return len(uuidList.Object)
+}
+
+func CompressMessage(message []byte, uuidLen int) []byte {
     var message2 []byte
     if (len(kwList.Kw) == 0) {
-        jsonToStructList(keywordlist)
+        jsonToStructList(keywordlist, &kwList)
     }
+    if (len(uuidList.Object) == 0) {
+        numOfUuids := createUuidList("../uuidlist.txt") // assuming that the file is in the server directory...
+        Info.Printf("UUID list elements=%d\n", numOfUuids)
+    }
+    var tokenState byte
+    tokenState = 255
     for offset := 0 ; offset < len(message) ; {
         token := getMessageToken(message, offset)
-Info.Printf("Token=%s, len=%d", string(token), len(token))
+//Info.Printf("Token=%s, len=%d", string(token), len(token))
         offset += len(token)
         if (len(token) == 1) {
             message2 = append(message2, token...)
         } else {
             listIndex := getKwListIndex(string(token))
-Info.Printf("listIndex=%d", listIndex)
+//Info.Printf("listIndex=%d", listIndex)
             listLen := byte(len(kwList.Kw))
             if (listIndex < listLen) {
-                listIndex += 16
                 index := make([]byte, 1)
-                index[0] = listIndex
-Info.Printf("index=%d, index[0]=%d", index, index[0])
-                message2 = append(message2, index...)  
-            } else if (listIndex == KEYWORDLISTINDEXTS) {
-                message2 = append(message2, token...)   // this should not be, only for temp testing => previousToken = token, tested on when listIndex < 0...
-//                previousToken = token
+                index[0] = listIndex + 128   //16 gives printout in wsclient.html without binaryMessage set, 128 does not...
+                message2 = append(message2, index...)
+                if (listIndex == KEYWORDLISTINDEXTS || listIndex == KEYWORDLISTINDEXPATH) {
+                    tokenState = listIndex
+                }
             } else {
-                message2 = append(message2, token...)
+                if (tokenState == KEYWORDLISTINDEXTS) {
+                    message2 = append(message2, compressTS(token)...)
+                    tokenState = 255
+                } else if (tokenState == KEYWORDLISTINDEXPATH) {
+                    message2 = append(message2, compressPath(token, uuidLen)...)
+                    tokenState = 255
+                } else {
+                    message2 = append(message2, token...)
+                }
             }
         }
     }
-    Info.Printf("Compressed message:%s, len(message)=%d", message2, len(message2))
+    Info.Printf("Length of compressed message=%d\n", len(message2))
+    for i := 0 ; i < len(message2) ; i++ {
+        Info.Printf("mess[%d]=%d,", i, message2[i])
+    }
     return message2
 }
 
 /*
 * The keywordlist shall contain all keys used in JSON payloads, and also all "constant" key values.
-  If the list is extended, the keys must be placed before the constant key values in the list, 
-* and the KEYWORDLISTDELIM must be updated to the number of elements in the list that are keys.
+  If the list is extended, the keys shall be placed before the constant key values in the list, 
+* and the constant key values at the end of the list.
+* The KEYWORDLISTDELIM must be updated to the correct element numbers.
 */
 var keywordlist string = `{"keywords":["action", "path", "value", "timestamp", "requestId", "subscriptionId", "filter", "authorization", "get", "set", "subscribe", "unsubscribe", "subscription"]}`
 
-const KEYWORDLISTDELIM = 8  // must be set to the number of keywordlist elements that are keys
+const KEYWORDLISTINDEXPATH = 1  // must be set to the list index of the "path" element
 const KEYWORDLISTINDEXTS = 3  // must be set to the list index of the "timestamp" element
 
 type KwList struct {
@@ -252,14 +307,23 @@ type KwList struct {
 
 var kwList KwList
 
-func jsonToStructList(jsonList string) int {
-	err := json.Unmarshal([]byte(jsonList), &kwList)
+func jsonToStructList(jsonList string, list interface{}) {
+	err := json.Unmarshal([]byte(jsonList), list)
 	if err != nil {
 		Error.Printf("Error unmarshal json=%s\n", err)
-		return 0
+		return
 	}
-Info.Printf("jsonToStructList():len(kwList.Kw)=%d", len(kwList.Kw))
-	return len(kwList.Kw)
+//Info.Printf("jsonToStructList():len(kwList.Kw)=%d", len(kwList.Kw))
+//	return len(kwList.Kw)
 }
 
+type UuidListElem struct {
+	Path string  `json:"path"`
+	Uuid string  `json:"uuid"`
+}
 
+type UuidList struct {
+	Object []UuidListElem `json:"leafuuids"`
+}
+
+var uuidList UuidList
