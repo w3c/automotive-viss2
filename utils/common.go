@@ -174,10 +174,101 @@ func nextQuoteMark(message []byte, offset int) int {
     return offset
 }
 
-func getMessageToken(message []byte, offset int) []byte {
+func decompressPath(uuidCompressed []byte, uuidLen int) []byte {
+    for i := 0 ; i < len(uuidList.Object) ; i++ {
+        if (string(uuidCompressed[:uuidLen]) == uuidList.Object[i].Uuid[:uuidLen]) {
+            path := make([]byte, 1)
+            path[0] = '"'
+            path = append(path, []byte(uuidList.Object[i].Path)...)
+            quoteByte := make([]byte, 1)
+            quoteByte[0] = '"'
+            path = append(path, quoteByte...)
+            return path
+        }
+    }
+    Error.Printf("Compressed UUID=%s could not be found.", string(uuidCompressed[:uuidLen]))
+    return []byte(`"Unknown path"`)
+}
+
+func expandTsItem(tsItem byte,index int) []byte { //yyyy-mm-ddThh:mm:ss<.ssss>Z  TODO: support for subsec
+    expandedItem := make([]byte, 3)
+    expandedItem[0] = tsItem/10 + '0'
+    expandedItem[1] = tsItem%10 + '0'
+    if (index < 2) {
+        expandedItem[2] = '-'
+    } else if (index == 2) {
+        expandedItem[2] = 'T'
+    } else if (index > 2 && index < 5) {
+        expandedItem[2] = ':'
+    } else {
+        expandedItem[2] = 'Z'
+    }
+    return expandedItem
+}
+
+func decompressTs(tsCompressed []byte, tsLen int) []byte {
+    tsUncompressed := make([]byte, 3)
+    tsUncompressed[0] = '"'
+    tsUncompressed[1] = '2'
+    tsUncompressed[2] = '0'  // needs to be updated year 2100...
+    for i := 0 ; i < tsLen ; i++ {
+        tsUncompressed = append(tsUncompressed, expandTsItem(tsCompressed[i],i)...)
+    }
+    quoteByte := make([]byte, 1)
+    quoteByte[0] = '"'
+    tsUncompressed = append(tsUncompressed, quoteByte...)
+    return tsUncompressed
+}
+
+func readCompressedMessage(message []byte, offset int, uuidLen int) ([]byte, int) {
+    var unCompressedToken []byte
+    noCompressByte := make([]byte, 1)
+    bytesRead := 1
+    if (message[offset] > 127) {
+        noCompressByte[0] = '"'  // quote
+        unCompressedToken = append(unCompressedToken, noCompressByte...)
+        unCompressedToken = append(unCompressedToken, []byte(kwList.Kw[message[offset]-128])...)
+        unCompressedToken = append(unCompressedToken, noCompressByte...)
+        if (message[offset]-128 == KEYWORDLISTINDEXPATH) {
+            noCompressByte[0] = message[offset+1]  // colon
+            unCompressedToken = append(unCompressedToken, noCompressByte...)
+            unCompressedToken = append(unCompressedToken, decompressPath(message[offset+2:], uuidLen)...)
+            bytesRead += 1 + uuidLen
+        } else if (message[offset]-128 == KEYWORDLISTINDEXTS) {
+            noCompressByte[0] = message[offset+1]  // colon
+            unCompressedToken = append(unCompressedToken, noCompressByte...)
+            unCompressedToken = append(unCompressedToken, decompressTs(message[offset+2:], 6)...)
+            bytesRead += 1 + 6
+        }
+    } else {
+        noCompressByte[0] = message[offset]
+        unCompressedToken = append(unCompressedToken, noCompressByte...)
+    }
+    return unCompressedToken, bytesRead
+}
+
+func DecompressMessage(message []byte, uuidLen int) []byte {
+    var message2 []byte
+    if (len(kwList.Kw) == 0) {
+        jsonToStructList(keywordlist, &kwList)
+    }
+    if (len(uuidList.Object) == 0) {
+        numOfUuids := createUuidList("../uuidlist.txt") // assuming that the file is in the server directory...
+        Info.Printf("UUID list elements=%d\n", numOfUuids)
+    }
+    for offset := 0 ; offset < len(message) ; {
+        uncompressedToken, compressedLen := readCompressedMessage(message, offset, uuidLen)
+        offset += compressedLen
+        message2 = append(message2, uncompressedToken...)
+    }
+    return message2
+}
+
+func readUncompressedMessage(message []byte, offset int) []byte {
     var token []byte
     if (message[offset] == '"') {
         offset2 := nextQuoteMark(message, offset+1)
+//        offset2 := strings.Index(string(message[offset+1:]), "\"")
         token = message[offset:offset2+1]
     } else {
         token = []byte(string(message[offset]))
@@ -197,15 +288,9 @@ func getKwListIndex(token string) byte {
     return 255
 }
 
-func DecompressMessage(message []byte, uuidLen int) []byte {
-    var message2 []byte
-    message2 = message // for testing of compress...
-    return message2
-}
-
 func compressPath(path []byte, uuidLen int) []byte {
     for i := 0 ; i < len(uuidList.Object) ; i++ {
-Info.Printf("%s == %s", uuidList.Object[i].Path, string(path[1:len(path)-1]))
+//Info.Printf("%s == %s", uuidList.Object[i].Path, string(path[1:len(path)-1]))
         if (uuidList.Object[i].Path == string(path[1:len(path)-1])) {
             return []byte(uuidList.Object[i].Uuid[:uuidLen])
         }
@@ -254,11 +339,13 @@ func CompressMessage(message []byte, uuidLen int) []byte {
     var tokenState byte
     tokenState = 255
     for offset := 0 ; offset < len(message) ; {
-        token := getMessageToken(message, offset)
+        token := readUncompressedMessage(message, offset)
 //Info.Printf("Token=%s, len=%d", string(token), len(token))
         offset += len(token)
         if (len(token) == 1) {
-            message2 = append(message2, token...)
+            if (token[0] != ' ') {  // remove space
+                message2 = append(message2, token...)
+            }
         } else {
             listIndex := getKwListIndex(string(token))
 //Info.Printf("listIndex=%d", listIndex)
@@ -283,10 +370,11 @@ func CompressMessage(message []byte, uuidLen int) []byte {
             }
         }
     }
-    Info.Printf("Length of compressed message=%d\n", len(message2))
-    for i := 0 ; i < len(message2) ; i++ {
+//    Info.Printf("Decompressed message=%s", DecompressMessage(message2, uuidLen))
+    Info.Printf("Length of compressed message=%d", len(message2))
+/*    for i := 0 ; i < len(message2) ; i++ {
         Info.Printf("mess[%d]=%d,", i, message2[i])
-    }
+    }*/
     return message2
 }
 
