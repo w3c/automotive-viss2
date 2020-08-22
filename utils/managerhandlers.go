@@ -242,7 +242,7 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			uuidLen := 0
 			h := http.Header{}
 			for _, sub := range websocket.Subprotocols(req) {
-			   if len(sub) > len("gen2")+1 && sub[:len("gen2")+1] == "gen2c" { // "gen2cx ; x =[1..32]
+			   if len(sub) > len("gen2")+1 && sub[:len("gen2")+1] == "gen2c4" { // "gen2cx ; x =[1..32]
 			      isCompressProtocol = true
 			      var err2 error
 			      uuidLen, err2 = strconv.Atoi(sub[len("gen2")+1:])
