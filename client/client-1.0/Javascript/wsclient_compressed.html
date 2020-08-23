@@ -20,7 +20,7 @@
 <button onclick="setHostIP()">Server IP</button>
 </div>
 <div>
-<input id="input" type="text" placeholder="JSON payload"/>
+<input id="w3creq" type="text" placeholder="JSON payload"/>
 <button onclick="send()">Send</button>
 <pre id="output"></pre>
 </div>
@@ -28,10 +28,60 @@
 <script>
     var externHostIp = document.getElementById("host-ip");
     var hostIP = "Host unknown";
-    var input = document.getElementById("input");
+    var input = document.getElementById("w3creq");
     var output = document.getElementById("output");
     var sessionOpen = false;
     var socket;
+    var UUID_LEN = 4;
+    var uuidmap = new Map(uuidlist["leafuuids"].map(obj => [obj.uuid, obj.path]));
+    
+    
+    //DUMMY request default.
+    document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}'
+
+
+    function decompressMessage(message) {
+        var finalMsg = ""
+        index = 0
+        while (index < message.length) {
+            charmsg = message.charCodeAt(index)
+            // console.log(charmsg);
+            if (charmsg > 127) {
+                finalMsg = finalMsg + '"' +  keywordlist["keywords"][charmsg-128] + '"'
+                index = index + 1
+                finalMsg += message.charAt(index) //colon
+                index = index + 1
+                // console.log("case " + keywordlist["keywords"][charmsg-128])
+                if (charmsg - 128 == 1) {
+                    actionval = message.substring(index+1, 4);
+                    // console.log("ActionVal = " + actionval)
+                    for (const [key, value] of uuidmap.entries()) {
+                        if(key.startsWith(actionval)) {
+                            finalMsg += '"' + value + '"'
+                            break;
+                        }
+                    }
+                    index = index + 1
+                } else if (charmsg - 128 == 3) {
+                    timestamp = "20"
+                    for (var i=0; i<6; i++) {
+                        timestamp += ("00" + message.charCodeAt(index + i)).slice(-2)
+                        if (i == 2) timestamp += 'T'
+                        if (i == 5) timestamp += 'Z'
+
+                    }
+                    finalMsg = finalMsg + '"' + timestamp + '"'
+                    // console.log("Timestamp assigned " + timestamp )
+                    index = index + 6
+                }
+            } else {
+		        finalMsg += message.charAt(index)
+                index = index+1
+            }
+        }
+        // console.log(finalMsg)
+        return finalMsg
+    }
 
     try {
         function send() {
@@ -52,14 +102,24 @@
     try {
         function setHostIP() {
             hostIP = externHostIp.value;
-                socket = new WebSocket("ws://" + hostIP + ":8080", "gen2c4");   // 4 => first 4 bytes of uuid are used
+                socket = new WebSocket("ws://" + hostIP + ":8080", "gen2c" + UUID_LEN);   // 4 => first 4 bytes of uuid are used
+                socket.binaryType = "blob";
+
 
                 socket.onopen = function () {
                     output.innerHTML += "Status: Connected\n";
                 };
 
                 socket.onmessage = function (e) {
-                    output.innerHTML += "Server: " + e.data + "\n";
+                    if (e.data instanceof Blob) {
+                        reader = new FileReader();
+                        reader.onload = () => {
+                            output.innerHTML += "Reply: " + decompressMessage(reader.result) + "\n";
+                        };
+                        reader.readAsBinaryString(e.data);
+                    } else {
+                        output.innerHTML += "Reply: " + e.data + "\n";
+                    }
                 };
                 sessionOpen = true;
         }
@@ -68,6 +128,7 @@
     }
 
 </script>
+<script type="text/javascript" src="uuiddata.js"></script>
 
 </body>
 </html>
