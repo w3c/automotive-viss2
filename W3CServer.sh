@@ -15,7 +15,6 @@ startme() {
 		if [ $service == "server_core" ]; then
 			sleep 5s
 		fi
-		popd
 	done
 	screen -list
 }
