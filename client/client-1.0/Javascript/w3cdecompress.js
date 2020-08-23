@@ -1,5 +1,6 @@
 function decompressMessage(message) {
     var finalMsg = ""
+    var actionval = ""
     index = 0
     while (index < message.length) {
         charmsg = message.charCodeAt(index)
@@ -10,15 +11,20 @@ function decompressMessage(message) {
             finalMsg += message.charAt(index) //colon
             index = index + 1
             // console.log("case " + keywordlist["keywords"][charmsg-128])
+            // console.log("case " + charmsg-128)
             if (charmsg - 128 == 1) {
-                actionval = message.substring(index+1, 4);
+                for (var i = 0; i < 4; i++)
+                    actionval[i] = message.charAt(index+i);
+
                 // console.log("ActionVal = " + actionval)
                 for (const [key, value] of uuidmap.entries()) {
+                    console.log("Key = " + key + " Value =" + value)
                     if(key.startsWith(actionval)) {
                         finalMsg += '"' + value + '"'
                         break;
                     }
                 }
+                index = index + 4
             } else if (charmsg - 128 == 3) {
                 timestamp = "20"
                 for (var i=0; i<6; i++) {
@@ -39,6 +45,5 @@ function decompressMessage(message) {
             index = index+1
         }
     }
-    // console.log(finalMsg)
     return finalMsg
 }

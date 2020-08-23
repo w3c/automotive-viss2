@@ -70,9 +70,10 @@
                     if (e.data instanceof Blob) {
                         reader = new FileReader();
                         reader.onload = () => {
-                            decObj = JSON.parse(decompressMessage(reader.result))
-                            decStr = JSON.stringify(decObj, null, 4)
-                            output.innerHTML += "Decompressed : " + decStr.length + "\n" + decStr + "\n";
+                            decStr = decompressMessage(reader.result)
+                            decObj = JSON.parse(decStr)
+                            prettyObj = JSON.stringify(decObj, null, 2)
+                            output.innerHTML += "Decompressed : " + prettyObj.length + "\n" + prettyObj + "\n";
                             output.innerHTML += "Compressed   : " + reader.result.length + "\n" + reader.result + "\n\n";
                         };
                         reader.readAsBinaryString(e.data);
