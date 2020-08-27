@@ -13,25 +13,31 @@
 <html>
 <body>
 
-<h2>Websocket client example</h2>
+<h2>Websocket client example, compressed response</h2>
 
 <div>
 <input id="host-ip" type="text" placeholder="host ip"/>
 <button onclick="setHostIP()">Server IP</button>
 </div>
 <div>
-<input id="input" type="text" placeholder="JSON payload"/>
+<input id="w3creq" type="text" placeholder="JSON payload"/>
 <button onclick="send()">Send</button>
 <pre id="output"></pre>
 </div>
-
+<script type="text/javascript" src="./uuiddata.js"></script>
+<script type="text/javascript" src="./w3cdecompress.js"></script>
 <script>
     var externHostIp = document.getElementById("host-ip");
     var hostIP = "Host unknown";
-    var input = document.getElementById("input");
+    var input = document.getElementById("w3creq");
     var output = document.getElementById("output");
     var sessionOpen = false;
     var socket;
+    var UUID_LEN = 4;
+    var uuidmap = new Map(uuidlist["leafuuids"].map(obj => [obj.uuid, obj.path]));
+        
+    //DUMMY request default.
+    document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}'
 
     try {
         function send() {
@@ -52,14 +58,28 @@
     try {
         function setHostIP() {
             hostIP = externHostIp.value;
-                socket = new WebSocket("ws://" + hostIP + ":8080");
+                socket = new WebSocket("ws://" + hostIP + ":8080", "gen2c" + UUID_LEN);   // 4 => first 4 bytes of uuid are used
+                socket.binaryType = "blob";
+
 
                 socket.onopen = function () {
                     output.innerHTML += "Status: Connected\n";
                 };
 
                 socket.onmessage = function (e) {
-                    output.innerHTML += "Server: " + e.data + "\n";
+                    if (e.data instanceof Blob) {
+                        reader = new FileReader();
+                        reader.onload = () => {
+                            decStr = decompressMessage(reader.result)
+                            decObj = JSON.parse(decStr)
+                            prettyObj = JSON.stringify(decObj, null, 2)
+                            output.innerHTML += "Decompressed : " + prettyObj.length + "\n" + prettyObj + "\n";
+                            output.innerHTML += "Compressed   : " + reader.result.length + "\n" + reader.result + "\n\n";
+                        };
+                        reader.readAsBinaryString(e.data);
+                    } else {
+                        output.innerHTML += "Reply: " + e.data + "\n";
+                    }
                 };
                 sessionOpen = true;
         }
@@ -71,4 +91,3 @@
 
 </body>
 </html>
-

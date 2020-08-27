@@ -49,7 +49,8 @@ func InitLog(filename string, logdir string) {
 
 	iow := io.Writer(os.Stdout)
 	logger.SetOutput(iow)
-        logger.SetLevel(logrus.ErrorLevel)  // change to InfoLevel if all logs to be saved
+//        logger.SetLevel(logrus.ErrorLevel)  // change to InfoLevel if all logs to be saved
+        logger.SetLevel(logrus.InfoLevel)
 
 	// os.MkdirAll(logdir, 0700)
 	// path := filepath.Join(logdir, filename)
