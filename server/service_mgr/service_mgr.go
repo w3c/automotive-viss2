@@ -416,6 +416,7 @@ func main() {
 			responseMap["MgrId"] = requestMap["MgrId"]
 			responseMap["ClientId"] = requestMap["ClientId"]
 			responseMap["action"] = requestMap["action"]
+			responseMap["requestId"] = requestMap["requestId"]
 			switch requestMap["action"] {
 			case "get":
 		               responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
