@@ -206,49 +206,64 @@ func expandTsItem(tsItem byte,index int) []byte { //yyyy-mm-ddThh:mm:ss<.ssss>Z 
     return expandedItem
 }
 
-func decompressTs(tsCompressed []byte, tsLen int) []byte {
-    tsUncompressed := make([]byte, 3)
+func decompressTs(tsCompressed []byte) []byte {
+Info.Printf("tsCompressed[0]=%d, tsCompressed[1]=%d, tsCompressed[2]=%d, tsCompressed[3]=%d", tsCompressed[0], tsCompressed[1], tsCompressed[2], tsCompressed[3])
+    tsUncompressed := make([]byte, 22)
     tsUncompressed[0] = '"'
     tsUncompressed[1] = '2'
-    tsUncompressed[2] = '0'  // needs to be updated year 2100...
-    for i := 0 ; i < tsLen ; i++ {
-        tsUncompressed = append(tsUncompressed, expandTsItem(tsCompressed[i],i)...)
-    }
-    quoteByte := make([]byte, 1)
-    quoteByte[0] = '"'
-    tsUncompressed = append(tsUncompressed, quoteByte...)
+    tsUncompressed[2] = '0'
+    tsUncompressed[3] = '2'  // TODO: get the three MSDigit(year) from system clock
+    tsUncompressed[4] = tsCompressed[0] / 4 + '0'
+    tsUncompressed[5] = '-'
+    tsUncompressed[6] = ((tsCompressed[1] & 0xC0) / 64 + (tsCompressed[0] & 0x3) * 4) / 10 + '0'
+    tsUncompressed[7] = ((tsCompressed[1] & 0xC0) / 64 + (tsCompressed[0] & 0x3) * 4) % 10 + '0'
+    tsUncompressed[8] = '-'
+    tsUncompressed[9] = ((tsCompressed[1] & 0x31) / 2) / 10 + '0'
+    tsUncompressed[10] = ((tsCompressed[1] & 0x31) / 2) % 10 + '0'
+    tsUncompressed[11] = 'T'
+    tsUncompressed[12] = ((tsCompressed[2] & 0xF0) / 16 + (tsCompressed[1] & 0x1) * 16) / 10 + '0'
+    tsUncompressed[13] = ((tsCompressed[2] & 0xF0) / 16 + (tsCompressed[1] & 0x1) * 16) % 10 + '0'
+    tsUncompressed[14] = ':'
+    tsUncompressed[15] = ((tsCompressed[3] & 0xC0) / 64 + (tsCompressed[2] & 0x0F) * 4) / 10 + '0'
+    tsUncompressed[16] = ((tsCompressed[3] & 0xC0) / 64 + (tsCompressed[2] & 0x0F) * 4) % 10 + '0'
+    tsUncompressed[17] = ':'
+    tsUncompressed[18] = ((tsCompressed[3] & 0x3F) / 10) + '0'
+    tsUncompressed[19] = ((tsCompressed[3] & 0x3F) % 10) + '0'
+    tsUncompressed[20] = 'Z'
+    tsUncompressed[21] = '"'
     return tsUncompressed
 }
 
 func readCompressedMessage(message []byte, offset int, uuidLen int) ([]byte, int) {
     var unCompressedToken []byte
-    noCompressByte := make([]byte, 1)
+    extraByte := make([]byte, 1)
     bytesRead := 1
     if (message[offset] > 127) {
-        noCompressByte[0] = '"'  // quote
-        unCompressedToken = append(unCompressedToken, noCompressByte...)
+        extraByte[0] = '"'  // quote
+        unCompressedToken = append(unCompressedToken, extraByte...)
         unCompressedToken = append(unCompressedToken, []byte(kwList.Kw[message[offset]-128])...)
-        unCompressedToken = append(unCompressedToken, noCompressByte...)
+        unCompressedToken = append(unCompressedToken, extraByte...)
+        if (message[offset] < KEYWORDLISTKEYS + 128) { // this is a key, so a colon should follow
+            extraByte[0] = ':'
+            unCompressedToken = append(unCompressedToken, extraByte...)
+        }
         if (message[offset]-128 == KEYWORDLISTINDEXPATH) {
-            noCompressByte[0] = message[offset+1]  // colon
-            unCompressedToken = append(unCompressedToken, noCompressByte...)
-            unCompressedToken = append(unCompressedToken, decompressPath(message[offset+2:], uuidLen)...)
-            bytesRead += 1 + uuidLen
+            unCompressedToken = append(unCompressedToken, decompressPath(message[offset+1:], uuidLen)...)
+            bytesRead += uuidLen
         } else if (message[offset]-128 == KEYWORDLISTINDEXTS) {
-            noCompressByte[0] = message[offset+1]  // colon
-            unCompressedToken = append(unCompressedToken, noCompressByte...)
-            unCompressedToken = append(unCompressedToken, decompressTs(message[offset+2:], 6)...)
-            bytesRead += 1 + 6
+            unCompressedToken = append(unCompressedToken, decompressTs(message[offset+1:])...)
+            bytesRead += 4
         }
     } else {
-        noCompressByte[0] = message[offset]
-        unCompressedToken = append(unCompressedToken, noCompressByte...)
+        extraByte[0] = message[offset]
+        unCompressedToken = append(unCompressedToken, extraByte...)
     }
     return unCompressedToken, bytesRead
 }
 
 func DecompressMessage(message []byte, uuidLen int) []byte {
     var message2 []byte
+    curlyBrace := make([]byte, 1)
     if (len(kwList.Kw) == 0) {
         jsonToStructList(keywordlist, &kwList)
     }
@@ -256,10 +271,18 @@ func DecompressMessage(message []byte, uuidLen int) []byte {
         numOfUuids := createUuidList("../uuidlist.txt") // assuming that the file is in the server directory...
         Info.Printf("UUID list elements=%d\n", numOfUuids)
     }
+    if (message[0] != '{') {
+        curlyBrace[0] = '{'
+        message2 = append(message2, curlyBrace...)
+    }
     for offset := 0 ; offset < len(message) ; {
         uncompressedToken, compressedLen := readCompressedMessage(message, offset, uuidLen)
         offset += compressedLen
         message2 = append(message2, uncompressedToken...)
+    }
+    if (message[len(message)-1] != '}') {
+        curlyBrace[0] = '}'
+        message2 = append(message2, curlyBrace...)
     }
     return message2
 }
@@ -298,13 +321,13 @@ func compressPath(path []byte, uuidLen int) []byte {
     return path
 }
 
-func twoToOneByte(twoByte []byte) []byte {
-    oneByte := make([]byte, 1)
-    oneByte[0] = (twoByte[0]-48)*10 + (twoByte[1]-48)  
+func twoToOneByte(twoByte []byte) byte {
+    var oneByte byte
+    oneByte = (twoByte[0]-48)*10 + (twoByte[1]-48)  // decimal ASCII value for zero = 48
     return oneByte
 }
 
-func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z"
+/*func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z"
     var compressedTs []byte
 
     compressedTs = append(compressedTs, twoToOneByte(ts[3:5])...)  // year, only last two digits
@@ -313,6 +336,25 @@ func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z"
     compressedTs = append(compressedTs, twoToOneByte(ts[12:14])...)  // hour
     compressedTs = append(compressedTs, twoToOneByte(ts[15:17])...)  // minute
     compressedTs = append(compressedTs, twoToOneByte(ts[18:20])...)  // second
+//    subsecond := ts[20:len(ts)-2]  TODO: handle subsecond
+    return compressedTs
+} */
+
+func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z", LSDigit(year) => 4 bits, month=>4 bits, day=>5 bits, hour=>5 bits, minute=>6 bits, second=>6 bits
+    compressedTs := make([]byte, 4)
+
+    second := twoToOneByte(ts[18:20])
+    minute := twoToOneByte(ts[15:17])
+    hour := twoToOneByte(ts[12:14])
+    day := twoToOneByte(ts[9:11])
+    month := twoToOneByte(ts[6:8])
+    year := ts[4] - '0'
+Info.Printf("year=%d, month=%d, day=%d, hour=%d, minute=%d, second=%d", year, month, day, hour, minute, second)
+    compressedTs[3] = (minute & 0x3)*64 + second  // 2 LSB from minute, and 6 bits from second
+    compressedTs[2] = (hour & 0xF)*16 + (minute / 4) // 4 LSB from hour, and 4 MSB from minute
+    compressedTs[1] = (month & 0x3)*64 + (day * 2) + (hour / 16) // 2 LSB from month, 5 bits from day, and 1 MSB from hour
+    compressedTs[0] = (year * 4) + (month / 4) // 4 bits from year, and 2 MSB from month
+Info.Printf("compressedTs[0]=%d, compressedTs[1]=%d, compressedTs[2]=%d, compressedTs[3]=%d", compressedTs[0], compressedTs[1], compressedTs[2], compressedTs[3])
 //    subsecond := ts[20:len(ts)-2]  TODO: handle subsecond
     return compressedTs
 }
@@ -344,6 +386,9 @@ func CompressMessage(message []byte, uuidLen int) []byte {
         offset += len(token)
         if (len(token) == 1) {
             if (token[0] != ' ') {  // remove space
+                if ((token[0] == '{' && offset == 1) || (token[0] == '}' && offset == len(message)) || (token[0] == ':')) { //remove leading/trailing curly braces, and colon
+                    continue
+                }
                 message2 = append(message2, token...)
             }
         } else {
@@ -370,11 +415,11 @@ func CompressMessage(message []byte, uuidLen int) []byte {
             }
         }
     }
-//    Info.Printf("Decompressed message=%s", DecompressMessage(message2, uuidLen))
+    Info.Printf("Decompressed message=%s", DecompressMessage(message2, uuidLen))
     Info.Printf("Length of compressed message=%d", len(message2))
-/*    for i := 0 ; i < len(message2) ; i++ {
+    for i := 0 ; i < len(message2) ; i++ {
         Info.Printf("mess[%d]=%d,", i, message2[i])
-    }*/
+    }
     return message2
 }
 
@@ -388,6 +433,7 @@ var keywordlist string = `{"keywords":["action", "path", "value", "timestamp", "
 
 const KEYWORDLISTINDEXPATH = 1  // must be set to the list index of the "path" element
 const KEYWORDLISTINDEXTS = 3  // must be set to the list index of the "timestamp" element
+const KEYWORDLISTKEYS = 8  // must be set to the number of keys in the list
 
 type KwList struct {
 	Kw []string `json:"keywords"`
@@ -399,10 +445,7 @@ func jsonToStructList(jsonList string, list interface{}) {
 	err := json.Unmarshal([]byte(jsonList), list)
 	if err != nil {
 		Error.Printf("Error unmarshal json=%s\n", err)
-		return
 	}
-//Info.Printf("jsonToStructList():len(kwList.Kw)=%d", len(kwList.Kw))
-//	return len(kwList.Kw)
 }
 
 type UuidListElem struct {

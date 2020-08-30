@@ -255,7 +255,7 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 		subscriptionMap["ClientId"] = subscriptionState.clientId
 		subscriptionMap["requestId"] = subscriptionState.requestId
 		subscriptionMap["value"], subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
-		backendChannel <- utils.FinalizeMessage(subscriptionMap)
+ 	                       backendChannel <- utils.FinalizeMessage(subscriptionMap)
 	default:
 		// check $range, $change trigger points
 		for i := range subscriptionList {
@@ -374,6 +374,10 @@ func getVehicleData(path string) (string, string) {
 	rows.Close()
 	return value, timestamp
     } else {
+	if (dummyValue%10 == 0) {// Return array type instead. Must be represented as string due to server core inability to handle it otherwise...
+	    dummyArray := `["` + strconv.Itoa(dummyValue) + "\",\"" + strconv.Itoa(dummyValue+1) + "\",\"" + strconv.Itoa(dummyValue+2) + "\"]"
+	    return dummyArray, utils.GetRfcTime()
+	}
         return strconv.Itoa(dummyValue), utils.GetRfcTime()
     }
 }
@@ -403,7 +407,7 @@ func main() {
 		return
 	}
 	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
-	dummyTicker := time.NewTicker(50 * time.Millisecond)
+	dummyTicker := time.NewTicker(47 * time.Millisecond)
 	utils.Info.Printf("initDataServer() done\n")
 	for {
 		select {
@@ -416,10 +420,11 @@ func main() {
 			responseMap["MgrId"] = requestMap["MgrId"]
 			responseMap["ClientId"] = requestMap["ClientId"]
 			responseMap["action"] = requestMap["action"]
+			responseMap["requestId"] = requestMap["requestId"]
 			switch requestMap["action"] {
 			case "get":
 		               responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
-			        dataChan <- utils.FinalizeMessage(responseMap)
+ 		               dataChan <- utils.FinalizeMessage(responseMap)
 			case "set":
 				// TODO: interact with underlying subsystem to set the value
 			        dataChan <- utils.FinalizeMessage(responseMap)
