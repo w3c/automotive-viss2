@@ -75,8 +75,10 @@
                             console.log(decStr)
                             decObj = JSON.parse(decStr)
                             prettyObj = JSON.stringify(decObj, null, 2)
-                            output.innerHTML += "Decompressed : " + prettyObj.length + "\n" + JSON.stringify(decObj) + "\n";
-                            output.innerHTML += "Compressed   : " + reader.result.length + "\n" + reader.result + "\n\n";
+                            ratio = Math.round((decStr.length*100)/reader.result.length);
+                            output.innerHTML += "Decompressed : " + decStr.length + "\n" + JSON.stringify(decObj) + "\n";
+                            output.innerHTML += "Compressed   : " + reader.result.length + "\n" + reader.result + "\n";
+                            output.innerHTML += "Compression rate : " + ratio + "%\n\n";
                         };
                         reader.readAsBinaryString(e.data);
                     } else {
