@@ -72,9 +72,10 @@
                         reader = new FileReader();
                         reader.onload = () => {
                             decStr = decompressMessage(reader.result)
+                            console.log(decStr)
                             decObj = JSON.parse(decStr)
                             prettyObj = JSON.stringify(decObj, null, 2)
-                            output.innerHTML += "Decompressed : " + prettyObj.length + "\n" + prettyObj + "\n";
+                            output.innerHTML += "Decompressed : " + prettyObj.length + "\n" + JSON.stringify(decObj) + "\n";
                             output.innerHTML += "Compressed   : " + reader.result.length + "\n" + reader.result + "\n\n";
                         };
                         reader.readAsBinaryString(e.data);
