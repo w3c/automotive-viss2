@@ -32,6 +32,7 @@ function decompressMessage(message) {
 
             if (testmsg == "get" || 
                 testmsg == "set" || 
+                testmsg == "subscription" || 
                 testmsg == "subscribe" || 
                 testmsg == "unsubscribe") {
                     console.log("skiping colon")
