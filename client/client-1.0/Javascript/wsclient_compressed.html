@@ -17,7 +17,7 @@
 <h2>Websocket client example, compressed response</h2>
 
 <div>
-<input id="host-ip" type="text" placeholder="host ip"/>
+<input id="host-ip" type="text" value="172.30.1.34" placeholder="172.30.1.34"/>
 <button onclick="setHostIP()">Server IP</button>
 </div>
 <div>
@@ -39,6 +39,7 @@
         
     //DUMMY request default.
     document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}'
+    // document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}'
 
     try {
         function send() {
