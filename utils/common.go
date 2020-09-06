@@ -495,7 +495,7 @@ func compressBoolValue(value []byte) []byte {
         compressedVal := make([]byte, 2)
         compressedVal[0] = getCodeListIndex("bool") + 128
         compressedVal[1] = byte(0)
-        if (string(value) == "true") {
+        if (string(value) == "\"true\"") {
             compressedVal[1] = byte(1)
         }
         return compressedVal
