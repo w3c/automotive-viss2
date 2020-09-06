@@ -20,7 +20,6 @@ function decompressMessage(message) {
     var finalMsg = ""
     var actionval = ""
     index = 0
-    var numvals = 0
     while (index < message.length) {
         charmsg = message.charCodeAt(index)
         console.log("message[" + index + "] " + charmsg);
@@ -28,55 +27,12 @@ function decompressMessage(message) {
             var testmsg = keywordlist["keywords"][charmsg-128]
             index = index + 1
             //keywords
-            if (
-                testmsg == "get" || 
-                testmsg == "set" || 
-                testmsg == "subscription" || 
-                testmsg == "subscribe" || 
-                testmsg == "unsubscribe") {
+            if (charmsg-128 > 7 && charmsg-128 < 13) {
                     
                     finalMsg = finalMsg + '"' +  keywordlist["keywords"][charmsg-128] + '"'
                     //console.log("skiping colon")
-
-            }
-            else if (charmsg-128 > 12 && charmsg-128 < 22){
-                if(testmsg.startsWith("n")) {
-                    finalMsg += '-'
-                }
-
-                if(testmsg.endsWith("int8")) {
-                    numvals = 1
-                }
-                if(testmsg.endsWith("int16")) {
-                    numvals = 2
-                }
-                if(testmsg.endsWith("int24")) {
-                    numvals = 3
-                }
-                if(testmsg.endsWith("int32")) {
-                    numvals = 4
-                }
-                console.log("numvals = " + numvals)
-            }else{
-                finalMsg = finalMsg + '"' +  keywordlist["keywords"][charmsg-128] + '"'
-                finalMsg += ':' //colon
-            }
-            
-            if(numvals!=0){
-                var realval = 0;
-                for(var i = 0; i < numvals ; i++)
-                {
-                    realval = (realval << 8) + message.charCodeAt(index + i)
-                    console.log("realval = " + realval + " " + message.charCodeAt(index + i))
-                }
-                console.log("numvals = " + numvals + " realvalue " + realval)
-                index = index + numvals
-                finalMsg += realval.toString()
-                numvals = 0
-                continue;
-            }
+            }else if (charmsg - 128 == 4) { 
 //path
-            if (charmsg - 128 == 4) { 
                 for (var i = 0; i < 4; i++) {
                     actionval[i] = message.charAt(index+i);
                     console.log("av = " + actionval[i])
@@ -91,8 +47,64 @@ function decompressMessage(message) {
                     }
                 }
                 index = index + 4
+            } else if (charmsg-128 > 12 && charmsg-128 < 22){
+                var numvals = 0
+                finalMsg += '"'
+                if(testmsg.startsWith("n")) {
+                    finalMsg += '-'
+                }
+                if(testmsg.endsWith("int8")) {
+                    numvals = 1
+                }
+                if(testmsg.endsWith("int16")) {
+                    numvals = 2
+                }
+                if(testmsg.endsWith("int24")) {
+                    numvals = 3
+                }
+                if(testmsg.endsWith("int32")) {
+                    numvals = 4
+                }
+                if(testmsg.endsWith("bool")) {
+                    numvals = 1
+                }
+                if(numvals!=0){
+                    var realval = 0;
+                    for(var i = 0; i < numvals ; i++)
+                    {
+                        realval = (realval << 8) + message.charCodeAt(index + i)
+                    }
+                    index = index + numvals
+                    if (testmsg.endsWith("bool")){
+                        if(realval==0){
+                            finalMsg += "false"
+                        }else{
+                            finalMsg += "true"
+                        }
+                    }else{
+                        finalMsg += realval.toString()
+                    }
+                    numvals = 0
+                }else{
+                    var i = 0
+                    while (message.charCodeAt(index + i)) {
+                        console.log(message.charCodeAt(index + i))
+                        i = i + 1
+                    }
+                    index = index + i
+                }
+                finalMsg += '"'
+                continue;
+            }else{
+                if (charmsg-128 != 22) {
+                    finalMsg = finalMsg + '"' +  keywordlist["keywords"][charmsg-128] + '"'
+                    console.log("Adding " + keywordlist["keywords"][charmsg-128])
+                    finalMsg += ':' //colon
+                }
+            }
+
+            if (charmsg - 128 == 3) {
 //timestamp                
-            } else if (charmsg - 128 == 3) {
                 const todayYr = new Date()
                 timestamp = parseInt(Math.floor(todayYr.getFullYear()/10)*10)
                 
