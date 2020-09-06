@@ -556,13 +556,17 @@ func nextQuoteMark(message string) int {
     return -1
 }
 
-func modifyResponse(resp string, aggregatedValue string) string {
+func modifyResponse(resp string, aggregatedValue string) string {  // "value":"xxx" OR "value":"["xxx","yyy",..]"
     index := strings.Index(resp, "value") + 5
-//    quoteIndex1 := strings.Index(resp[index:], "\"")
     quoteIndex1 := nextQuoteMark(resp[index+1:])
 utils.Info.Printf("quoteIndex1=%d", quoteIndex1)
-//    quoteIndex2 := strings.Index(resp[index+quoteIndex1+1:], "\"")
-    quoteIndex2 := nextQuoteMark(resp[index+1+quoteIndex1+1:])
+    quoteIndex2 := 0
+    if (strings.Contains(resp[index+1:] , "\"[") == false) {
+        quoteIndex2 = nextQuoteMark(resp[index+1+quoteIndex1+1:])
+    } else {
+        quoteIndex2 = strings.Index(resp[index+1+quoteIndex1+1:], "]\"") + 1
+    }
+utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
     return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
 }
 
