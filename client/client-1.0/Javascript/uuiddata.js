@@ -1,4 +1,30 @@
-var keywordlist = {"keywords":["action", "path", "value", "timestamp", "requestId", "subscriptionId", "filter", "authorization", "get", "set", "subscribe", "unsubscribe", "subscription"]};
+var keywordlist = {
+    "keywords":[
+        "action",
+        "requestId",
+        "value",
+        "timestamp",
+        "path",
+        "subscriptionId",
+        "filter",
+        "authorization",
+        "get",
+        "set",
+        "subscribe",
+        "unsubscribe",
+        "subscription",
+        "nint8",
+        "pint8",
+        "nint16",
+        "pint16",
+        "nint24",
+        "pint24",
+        "nint32",
+        "pint32",
+        "bool",
+        "unknown"
+    ]
+};
 var uuidlist = {
     "leafuuids": [
         {

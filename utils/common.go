@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"strconv"
 	"io/ioutil"
         "time"
 )
@@ -207,7 +208,7 @@ func expandTsItem(tsItem byte,index int) []byte { //yyyy-mm-ddThh:mm:ss<.ssss>Z 
 }
 
 func decompressTs(tsCompressed []byte) []byte {
-Info.Printf("tsCompressed[0]=%d, tsCompressed[1]=%d, tsCompressed[2]=%d, tsCompressed[3]=%d", tsCompressed[0], tsCompressed[1], tsCompressed[2], tsCompressed[3])
+//Info.Printf("tsCompressed[0]=%d, tsCompressed[1]=%d, tsCompressed[2]=%d, tsCompressed[3]=%d", tsCompressed[0], tsCompressed[1], tsCompressed[2], tsCompressed[3])
     tsUncompressed := make([]byte, 22)
     tsUncompressed[0] = '"'
     tsUncompressed[1] = '2'
@@ -234,38 +235,120 @@ Info.Printf("tsCompressed[0]=%d, tsCompressed[1]=%d, tsCompressed[2]=%d, tsCompr
     return tsUncompressed
 }
 
+func decompressOneValue(valueCompressed []byte) ([]byte, int) {
+    var unCompressedValue []byte
+    var bytesRead int
+    valueLead := "\""
+    switch codeList.Code[valueCompressed[0]-128] {
+      case "nint8":
+        valueLead += "-"
+        fallthrough
+      case "pint8":
+        value := valueLead + strconv.Itoa(int(valueCompressed[1])) + "\""
+        unCompressedValue = append(unCompressedValue, []byte(value)...)
+        bytesRead = 2
+      case "nint16":
+        valueLead += "-"
+        fallthrough
+      case "pint16":
+        value := valueLead + strconv.Itoa(int(valueCompressed[1])*256+int(valueCompressed[2])) + "\""
+        unCompressedValue = append(unCompressedValue, []byte(value)...)
+        bytesRead = 3
+      case "nint24":
+        valueLead += "-"
+        fallthrough
+      case "pint24":
+        value := valueLead + strconv.Itoa(int(valueCompressed[1])*65536+int(valueCompressed[2])*256+int(valueCompressed[3])) + "\""
+        unCompressedValue = append(unCompressedValue, []byte(value)...)
+        bytesRead = 4
+      case "nint32":
+        valueLead += "-"
+        fallthrough
+      case "pint32":
+        value := valueLead + strconv.Itoa(int(valueCompressed[1])*16777216+int(valueCompressed[2])*65536+int(valueCompressed[3])*256+int(valueCompressed[4])) + "\""
+        unCompressedValue = append(unCompressedValue, []byte(value)...)
+        bytesRead = 5
+      case "bool":
+        if (valueCompressed[1] == 0) {
+            unCompressedValue = append(unCompressedValue, []byte("\"false\"")...)
+        } else {
+            unCompressedValue = append(unCompressedValue, []byte("\"true\"")...)
+        }
+        bytesRead = 2
+//      case "unknown":
+      default:
+        bytesRead = strings.Index(string(valueCompressed[3:]), "\"") + 4
+        unCompressedValue = valueCompressed[1:bytesRead]
+    }
+    return unCompressedValue, bytesRead
+}
+
+func decompressValue(valueCompressed []byte) ([]byte, int) {
+    var unCompressedValue []byte
+    var unCompressedOneValue []byte
+    nonValue := make([]byte, 1)
+    var bytesRead int
+    index := 0
+    isDone := false
+    for isDone != true {
+        if (valueCompressed[index] == '[' || valueCompressed[index] == ']' || valueCompressed[index] == ',' || valueCompressed[index] == '{') {
+            nonValue[0] = valueCompressed[index]
+            unCompressedValue = append(unCompressedValue, nonValue...)
+            if (valueCompressed[index] == ']' || valueCompressed[index] == '{') {
+                isDone = true
+            }
+            index += 1
+        } else {
+            unCompressedOneValue, bytesRead = decompressOneValue(valueCompressed[index:])
+            unCompressedValue = append(unCompressedValue, unCompressedOneValue...)
+            if (index == 0) {
+                isDone = true
+            }
+            index += bytesRead
+        }
+    }
+    return unCompressedValue, index
+}
+
 func readCompressedMessage(message []byte, offset int, uuidLen int) ([]byte, int) {
     var unCompressedToken []byte
     extraByte := make([]byte, 1)
     bytesRead := 1
-    if (message[offset] > 127) {
-        extraByte[0] = '"'  // quote
-        unCompressedToken = append(unCompressedToken, extraByte...)
-        unCompressedToken = append(unCompressedToken, []byte(kwList.Kw[message[offset]-128])...)
-        unCompressedToken = append(unCompressedToken, extraByte...)
-        if (message[offset] < KEYWORDLISTKEYS + 128) { // this is a key, so a colon should follow
-            extraByte[0] = ':'
+    if (message[offset] >= 128) {
+        if (message[offset]-128 < CODELISTKEYVALUES) {
+            extraByte[0] = '"'  // quote
             unCompressedToken = append(unCompressedToken, extraByte...)
+            unCompressedToken = append(unCompressedToken, []byte(codeList.Code[message[offset]-128])...)
+            unCompressedToken = append(unCompressedToken, extraByte...)
+            if (message[offset] < CODELISTKEYS + 128) { // this is a key, so a colon should follow
+                extraByte[0] = ':'
+                unCompressedToken = append(unCompressedToken, extraByte...)
+            }
         }
-        if (message[offset]-128 == KEYWORDLISTINDEXPATH) {
+        if (message[offset]-128 == CODELISTINDEXPATH) {
             unCompressedToken = append(unCompressedToken, decompressPath(message[offset+1:], uuidLen)...)
             bytesRead += uuidLen
-        } else if (message[offset]-128 == KEYWORDLISTINDEXTS) {
+        } else if (message[offset]-128 == CODELISTINDEXTS) {
             unCompressedToken = append(unCompressedToken, decompressTs(message[offset+1:])...)
             bytesRead += 4
+        } else if (message[offset]-128 == CODELISTINDEXVALUE || message[offset]-128 == CODELISTINDEXREQID || message[offset]-128 == CODELISTINDEXSUBID) {
+            value, bytes := decompressValue(message[offset+1:])
+            unCompressedToken = append(unCompressedToken, value...)
+            bytesRead += bytes
         }
     } else {
         extraByte[0] = message[offset]
         unCompressedToken = append(unCompressedToken, extraByte...)
     }
+//Info.Printf("readCompressedMessage():offset=%d, bytesRead=%d, unCompressedToken=%s", offset, bytesRead, string(unCompressedToken))
     return unCompressedToken, bytesRead
 }
 
 func DecompressMessage(message []byte, uuidLen int) []byte {
     var message2 []byte
     curlyBrace := make([]byte, 1)
-    if (len(kwList.Kw) == 0) {
-        jsonToStructList(keywordlist, &kwList)
+    if (len(codeList.Code) == 0) {
+        jsonToStructList(codelist, &codeList)
     }
     if (len(uuidList.Object) == 0) {
         numOfUuids := createUuidList("../uuidlist.txt") // assuming that the file is in the server directory...
@@ -299,12 +382,12 @@ func readUncompressedMessage(message []byte, offset int) []byte {
     return token
 }
 
-func getKwListIndex(token string) byte {
+func getCodeListIndex(token string) byte {
     var i byte
-    listLen := byte(len(kwList.Kw))
+    listLen := byte(len(codeList.Code))
     for i = 0 ; i < listLen ; i++ {
-//Info.Printf("kwList.Kw[%d]=%s, token=%s", i, kwList.Kw[i], token)
-        if (kwList.Kw[i] == token[1:len(token)-1]) {
+//Info.Printf("codeList.Code[%d]=%s, token=%s", i, codeList.Code[i], token)
+        if (codeList.Code[i] == token) {
             return i
         }
     }
@@ -327,19 +410,6 @@ func twoToOneByte(twoByte []byte) byte {
     return oneByte
 }
 
-/*func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z"
-    var compressedTs []byte
-
-    compressedTs = append(compressedTs, twoToOneByte(ts[3:5])...)  // year, only last two digits
-    compressedTs = append(compressedTs, twoToOneByte(ts[6:8])...)  // month
-    compressedTs = append(compressedTs, twoToOneByte(ts[9:11])...)  // day
-    compressedTs = append(compressedTs, twoToOneByte(ts[12:14])...)  // hour
-    compressedTs = append(compressedTs, twoToOneByte(ts[15:17])...)  // minute
-    compressedTs = append(compressedTs, twoToOneByte(ts[18:20])...)  // second
-//    subsecond := ts[20:len(ts)-2]  TODO: handle subsecond
-    return compressedTs
-} */
-
 func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z", LSDigit(year) => 4 bits, month=>4 bits, day=>5 bits, hour=>5 bits, minute=>6 bits, second=>6 bits
     compressedTs := make([]byte, 4)
 
@@ -349,14 +419,121 @@ func compressTS(ts []byte) []byte {  // ts = "YYYY-MM-DDTHH:MM:SS<.sss...>Z", LS
     day := twoToOneByte(ts[9:11])
     month := twoToOneByte(ts[6:8])
     year := ts[4] - '0'
-Info.Printf("year=%d, month=%d, day=%d, hour=%d, minute=%d, second=%d", year, month, day, hour, minute, second)
+//Info.Printf("year=%d, month=%d, day=%d, hour=%d, minute=%d, second=%d", year, month, day, hour, minute, second)
     compressedTs[3] = (minute & 0x3)*64 + second  // 2 LSB from minute, and 6 bits from second
     compressedTs[2] = (hour & 0xF)*16 + (minute / 4) // 4 LSB from hour, and 4 MSB from minute
     compressedTs[1] = (month & 0x3)*64 + (day * 2) + (hour / 16) // 2 LSB from month, 5 bits from day, and 1 MSB from hour
     compressedTs[0] = (year * 4) + (month / 4) // 4 bits from year, and 2 MSB from month
-Info.Printf("compressedTs[0]=%d, compressedTs[1]=%d, compressedTs[2]=%d, compressedTs[3]=%d", compressedTs[0], compressedTs[1], compressedTs[2], compressedTs[3])
+//Info.Printf("compressedTs[0]=%d, compressedTs[1]=%d, compressedTs[2]=%d, compressedTs[3]=%d", compressedTs[0], compressedTs[1], compressedTs[2], compressedTs[3])
 //    subsecond := ts[20:len(ts)-2]  TODO: handle subsecond
     return compressedTs
+}
+
+func getIntType(byteSize int, isPos bool) string {
+    if (byteSize == 1) {
+        if (isPos == true) {
+            return "pint8"
+        }
+        return "nint8"
+    }
+    if (byteSize == 2) {
+        if (isPos == true) {
+            return "pint16"
+        }
+        return "nint16"
+    }
+    if (byteSize == 3) {
+        if (isPos == true) {
+            return "pint24"
+        }
+        return "nint24"
+    }
+    if (isPos == true) {
+        return "pint32"
+    }
+    return "nint32"
+}
+
+func compressIntValue(value []byte) []byte {
+    intVal, _ := strconv.Atoi(string(value[1:len(value)-1]))
+    isPos := true
+    if (intVal < 0) {
+        isPos = false
+        intVal = intVal * -1
+    }
+    if (intVal < 256) { // nint8/pint8
+        compressedVal := make([]byte, 2)
+        compressedVal[0] = getCodeListIndex(getIntType(1, isPos))+128
+        compressedVal[1] = byte(intVal)
+        return compressedVal
+    } else if (intVal < 65536) {  // nint16/pint16
+        compressedVal := make([]byte, 3)
+        compressedVal[0] = getCodeListIndex(getIntType(2, isPos))+128
+        compressedVal[1] = byte((intVal & 0xFF00)/256)
+        compressedVal[2] = byte(intVal & 0x00FF)
+        return compressedVal
+    } else if (intVal < 16777216) {  // nint24/pint24
+        compressedVal := make([]byte, 4)
+        compressedVal[0] = getCodeListIndex(getIntType(3, isPos))+128
+        compressedVal[1] = byte((intVal & 0xFF0000)/65536)
+        compressedVal[2] = byte((intVal & 0xFF00)/256)
+        compressedVal[3] = byte(intVal & 0x00FF)
+        return compressedVal
+    } else if (intVal < 4294967296) {  // nint32/pint32
+        compressedVal := make([]byte, 5)
+        compressedVal[0] = getCodeListIndex(getIntType(4, isPos))+128
+        compressedVal[1] = byte((intVal & 0xFF000000)/16777216)
+        compressedVal[2] = byte((intVal & 0xFF0000)/65536)
+        compressedVal[3] = byte((intVal & 0xFF00)/256)
+        compressedVal[4] = byte(intVal & 0x00FF)
+        return compressedVal
+    }
+    return value // int64 will stay uncoded
+}
+
+func compressBoolValue(value []byte) []byte {
+        compressedVal := make([]byte, 2)
+        compressedVal[0] = getCodeListIndex("bool") + 128
+        compressedVal[1] = byte(0)
+        if (string(value) == "\"true\"") {
+            compressedVal[1] = byte(1)
+        }
+        return compressedVal
+}
+
+func compressOtherValue(value []byte) []byte {
+    var compressedValue []byte
+    valueTypeEncoding := make([]byte, 1)
+    valueTypeEncoding[0] = getCodeListIndex("unknown") + 128
+    compressedValue = append(compressedValue, valueTypeEncoding...)
+    compressedValue = append(compressedValue, []byte(value)...)
+    return compressedValue
+}
+
+func analyzeValueType(value []byte) int {
+    _, err := strconv.Atoi(string(value[1:len(value)-1]))
+    if (err == nil) {
+        return 1  //int type
+    }
+    if (string(value[1:len(value)-1]) == "true" || string(value[1:len(value)-1]) == "false") {
+        return 2 // bool type
+    }
+    return 0
+}
+
+func compressValue(value []byte) []byte {
+    var compressedValue []byte
+
+    switch analyzeValueType(value) {
+      case 1: // int type
+        compressedValue = append(compressedValue, compressIntValue(value)...)
+      case 2: // bool type
+        compressedValue = append(compressedValue, compressBoolValue(value)...)
+      case 0: // any other type
+        compressedValue = append(compressedValue, compressOtherValue(value)...)
+    }
+//Info.Printf("analyzeValueType()=%d, value=%s", analyzeValueType(value), string(value))
+    return compressedValue
 }
 
 func createUuidList(fname string) int {
@@ -371,8 +548,8 @@ func createUuidList(fname string) int {
 
 func CompressMessage(message []byte, uuidLen int) []byte {
     var message2 []byte
-    if (len(kwList.Kw) == 0) {
-        jsonToStructList(keywordlist, &kwList)
+    if (len(codeList.Code) == 0) {
+        jsonToStructList(codelist, &codeList)
     }
     if (len(uuidList.Object) == 0) {
         numOfUuids := createUuidList("../uuidlist.txt") // assuming that the file is in the server directory...
@@ -380,6 +557,7 @@ func CompressMessage(message []byte, uuidLen int) []byte {
     }
     var tokenState byte
     tokenState = 255
+    isArray := false
     for offset := 0 ; offset < len(message) ; {
         token := readUncompressedMessage(message, offset)
 //Info.Printf("Token=%s, len=%d", string(token), len(token))
@@ -389,24 +567,37 @@ func CompressMessage(message []byte, uuidLen int) []byte {
                 if ((token[0] == '{' && offset == 1) || (token[0] == '}' && offset == len(message)) || (token[0] == ':')) { //remove leading/trailing curly braces, and colon
                     continue
                 }
+                if (token[0] == '[') {
+                    isArray = true
+                }
+                if (token[0] == ']') {
+                    isArray = false
+                }
                 message2 = append(message2, token...)
             }
         } else {
-            listIndex := getKwListIndex(string(token))
+            listIndex := getCodeListIndex(string(token[1:len(token)-1]))
 //Info.Printf("listIndex=%d", listIndex)
-            listLen := byte(len(kwList.Kw))
+            listLen := byte(len(codeList.Code))
             if (listIndex < listLen) {
                 index := make([]byte, 1)
-                index[0] = listIndex + 128   //16 gives printout in wsclient.html without binaryMessage set, 128 does not...
+                index[0] = listIndex + 128
                 message2 = append(message2, index...)
-                if (listIndex == KEYWORDLISTINDEXTS || listIndex == KEYWORDLISTINDEXPATH) {
+                if (listIndex == CODELISTINDEXTS || listIndex == CODELISTINDEXVALUE || listIndex == CODELISTINDEXPATH || 
+                    listIndex == CODELISTINDEXREQID || listIndex == CODELISTINDEXSUBID) {
                     tokenState = listIndex
+                    isArray = false
                 }
             } else {
-                if (tokenState == KEYWORDLISTINDEXTS) {
+                if (tokenState == CODELISTINDEXTS) {
                     message2 = append(message2, compressTS(token)...)
                     tokenState = 255
-                } else if (tokenState == KEYWORDLISTINDEXPATH) {
+                } else if (tokenState == CODELISTINDEXVALUE || tokenState == CODELISTINDEXREQID || tokenState == CODELISTINDEXSUBID) {
+                    message2 = append(message2, compressValue(token)...)
+                    if (isArray == false) {
+                    tokenState = 255
+                    }
+                } else if (tokenState == CODELISTINDEXPATH) {
                     message2 = append(message2, compressPath(token, uuidLen)...)
                     tokenState = 255
                 } else {
@@ -415,31 +606,37 @@ func CompressMessage(message []byte, uuidLen int) []byte {
             }
         }
     }
-    Info.Printf("Decompressed message=%s", DecompressMessage(message2, uuidLen))
-    Info.Printf("Length of compressed message=%d", len(message2))
     for i := 0 ; i < len(message2) ; i++ {
         Info.Printf("mess[%d]=%d,", i, message2[i])
     }
+    Info.Printf("Decompressed message=%s, length=%d", DecompressMessage(message2, uuidLen), len(DecompressMessage(message2, uuidLen)))
+    Info.Printf("Length of compressed message=%d, ratio =%d%", len(message2), len(DecompressMessage(message2, uuidLen))*100/len(message2))
     return message2
 }
 
 /*
-* The keywordlist shall contain all keys used in JSON payloads, and also all "constant" key values.
-  If the list is extended, the keys shall be placed before the constant key values in the list, 
-* and the constant key values at the end of the list.
-* The KEYWORDLISTDELIM must be updated to the correct element numbers.
+* The codelist shall contain all keys used in JSON payloads, all "constant" key values, and number types.
+  If the list is extended, keys shall be placed in front of the list, 
+* constant key values in the middle of the lst, and number types at the end of the list.
+* The CODELISTDELIM must be updated to the correct element numbers.
 */
-var keywordlist string = `{"keywords":["action", "path", "value", "timestamp", "requestId", "subscriptionId", "filter", "authorization", "get", "set", "subscribe", "unsubscribe", "subscription"]}`
+var codelist string = `{"codes":["action", "requestId", "value", "timestamp", "path", "subscriptionId", "filter", "authorization",
+                        "get", "set", "subscribe", "unsubscribe", "subscription", 
+                        "nint8", "pint8", "nint16", "pint16", "nint24", "pint24", "nint32", "pint32", "bool", "unknown"]}`
 
-const KEYWORDLISTINDEXPATH = 1  // must be set to the list index of the "path" element
-const KEYWORDLISTINDEXTS = 3  // must be set to the list index of the "timestamp" element
-const KEYWORDLISTKEYS = 8  // must be set to the number of keys in the list
+const CODELISTINDEXREQID = 1  // must be set to the list index of the "requestId" element
+const CODELISTINDEXVALUE = 2  // must be set to the list index of the "value" element
+const CODELISTINDEXTS = 3  // must be set to the list index of the "timestamp" element
+const CODELISTINDEXPATH = 4  // must be set to the list index of the "path" element
+const CODELISTINDEXSUBID = 5  // must be set to the list index of the "subscriptionId" element
+const CODELISTKEYS = 8  // must be set to the number of keys in the list
+const CODELISTKEYVALUES = 13  // must be set to the number of keys plus values in the list (excl value types)
 
-type KwList struct {
-	Kw []string `json:"keywords"`
+type CodeList struct {
+	Code []string `json:"codes"`
 }
 
-var kwList KwList
+var codeList CodeList
 
 func jsonToStructList(jsonList string, list interface{}) {
 	err := json.Unmarshal([]byte(jsonList), list)

@@ -304,6 +304,20 @@ func finalizeResponse(responseMap map[string]interface{}) string {
 	return string(response)
 }
 
+func removeInternalData(response string) (string, int) {
+    actionIndex := strings.Index(response, "\"action\"")
+    clientidIndexFront := strings.Index(response, "\"clientId\"") + 13
+    clientidIndexEnd := strings.Index(response[clientidIndexFront:], ",")
+//Info.Printf("ClientId=%s, Front=%d, End=%d", response[clientidIndexFront:clientidIndexFront+clientidIndexEnd], clientidIndexFront, clientidIndexEnd)
+    clientId, err := strconv.Atoi(response[clientidIndexFront:clientidIndexFront+clientidIndexEnd])
+    if err != nil {
+	Error.Println("removeInternalData() error:" + err.Error())
+	return "", -1
+    }
+    trimmedResponse := "{" + response[actionIndex:]
+    return trimmedResponse, clientId
+}
+
 func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
 	for {
 		_, response, err := dataConn.ReadMessage()
@@ -312,14 +326,8 @@ func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataCon
 			return // ??
 		}
 		Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
-		var responseMap = make(map[string]interface{})
-		ExtractPayload(string(response), &responseMap)
-		clientId := int(responseMap["ClientId"].(float64))
-		//              Info.Printf("Client id: %s", clientId)
-		delete(responseMap, "MgrId")
-		delete(responseMap, "ClientId")
-		appClientChannel[clientId] <- finalizeResponse(responseMap) // no need for clientBackendChannel as subscription notifications not supported
-		//              Info.Println("HTTP core server hub channel message to transport frontend:" + finalizeResponse(responseMap))
+		trimmedResponse, clientId := removeInternalData(string(response))
+		appClientChannel[clientId] <- trimmedResponse // no need for clientBackendChannel as subscription notifications not supported
 	}
 }
 
@@ -331,17 +339,11 @@ func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *w
 			return // ??
 		}
 		Info.Printf("Server hub: WS response from server core:%s\n", string(response))
-		var responseMap = make(map[string]interface{})
-		ExtractPayload(string(response), &responseMap)
-		clientId := int(responseMap["ClientId"].(float64))
-		//              Info.Printf("Client id: %s", clientId)
-		delete(responseMap, "MgrId")
-		delete(responseMap, "ClientId")
-		if responseMap["action"] == "subscription" {
-			wsCoreSocketSession.ClientBackendChannel[clientId] <- finalizeResponse(responseMap) //subscription notification
+		trimmedResponse, clientId := removeInternalData(string(response))
+		if strings.Contains(trimmedResponse, "subscription") {
+			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
 		} else {
-			appClientChannel[clientId] <- finalizeResponse(responseMap)
-			//                      utils.Info.Println("WS core server hub channel message to transport frontend:" + finalizeResponse(responseMap))
+			appClientChannel[clientId] <- trimmedResponse
 		}
 	}
 }
