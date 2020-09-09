@@ -3,6 +3,7 @@
 Get request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
 {"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}
+{"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "requestId":"233"}
 
 Get request with search:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}

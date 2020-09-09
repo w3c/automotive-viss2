@@ -61,7 +61,7 @@
     try {
         function setHostIP() {
             hostIP = externHostIp.value;
-                socket = new WebSocket("ws://" + hostIP + ":8080", "gen2c" + UUID_LEN);   // 4 => first 4 bytes of uuid are used
+                socket = new WebSocket("ws://" + hostIP + ":8080", "gen2c");
                 socket.binaryType = "blob";
 
 
