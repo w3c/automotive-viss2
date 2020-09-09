@@ -3,8 +3,8 @@
 
 All files and artifacts in this repository are licensed under the provisions of the license provided by the LICENSE file in this repository.
 
-<title>W3C_VehicleSignalInterfaceImpl</title>
-This project implements the Gen2 specification under development at W3C <a href="https://github.com/w3c/automotive">W3C Automotive Working Group</a>.<br>
+# W3C_VehicleSignalInterfaceImpl
+This project implements the Gen2 specification under development at <a href="https://github.com/w3c/automotive">W3C Automotive Working Group</a>.<br>
 
 
 # Starting and building the server
