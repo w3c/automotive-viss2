@@ -25,6 +25,7 @@
 <button onclick="send()">Send</button>
 <pre id="output"></pre>
 </div>
+<script type="text/javascript" src="./vsspathlist.js"></script>
 <script type="text/javascript" src="./uuiddata.js"></script>
 <script type="text/javascript" src="./w3cdecompress.js"></script>
 <script>
@@ -35,12 +36,12 @@
     var sessionOpen = false;
     var socket;
     var UUID_LEN = 4;
-    var uuidmap = new Map(uuidlist["leafuuids"].map(obj => [obj.uuid, obj.path]));
-        
+    var uuidmap = new Array(uuidlist["LeafPaths"]);
+
     //DUMMY request default.
     // document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}'
     // document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}'
-    document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"abc"}'
+    document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "requestId":"233"}'
 
     try {
         function send() {
