@@ -17,6 +17,9 @@ WORKDIR ${APP_PATH}
 COPY ${DEFAULT_SRCDIR} .
 COPY go.mod go.sum ./
 
+#install gcc and std lib
+RUN apk add --no-cache gcc musl-dev
+
 #compile servercore
 RUN go build -o ${APP_NAME} .
 
