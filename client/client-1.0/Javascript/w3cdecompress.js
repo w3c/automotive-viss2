@@ -20,10 +20,11 @@ function binaryToString(input) {
 
 function decompressMessage(message) {
     index = 0
+    var finalMsg = ""
     var uuidmap = uuidlist["LeafPaths"];
     while (index < message.length) {
         charmsg = message.charCodeAt(index)
-        // console.log("message[" + index + "] " + charmsg);
+        console.log("message[" + index + "] " + charmsg);
         if (charmsg > 127) {
             var testmsg = keywordlist["keywords"][charmsg - 128]
             index = index + 1
@@ -168,7 +169,7 @@ function decompressMessage(message) {
             }
         } else {
             finalMsg += message.charAt(index)
-            // console.log("Adding " + message.charAt(index))
+            console.log("Adding " + message.charAt(index))
             index = index + 1
         }
     }
