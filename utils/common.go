@@ -327,6 +327,10 @@ func decompressValue(valueCompressed []byte) ([]byte, int) {
         } else {
             unCompressedOneValue, bytesRead = decompressOneValue(valueCompressed[index:])
             unCompressedValue = append(unCompressedValue, unCompressedOneValue...)
+            if (index+bytesRead < len(valueCompressed) && valueCompressed[index+bytesRead] == valueCompressed[index]) {
+                nonValue[0] = ','
+                unCompressedValue = append(unCompressedValue, nonValue...)
+            }
             if (index == 0) {
                 isDone = true
             }
@@ -354,7 +358,7 @@ func readCompressedMessage(message []byte, offset int) ([]byte, int) {
         if (message[offset]-128 == CODELISTINDEXPATH) {
             unCompressedToken = append(unCompressedToken, decompressPath(message[offset+1:])...)
             bytesRead += 2
-        } else if (message[offset]-128 == CODELISTINDEXTS) {
+        } else if (message[offset]-128 == getCodeListIndex("timestamp")) {
             unCompressedToken = append(unCompressedToken, decompressTs(message[offset+1:])...)
             bytesRead += 4
         } else if (message[offset]-128 == CODELISTINDEXVALUE || message[offset]-128 == CODELISTINDEXREQID || message[offset]-128 == CODELISTINDEXSUBID) {
@@ -362,9 +366,21 @@ func readCompressedMessage(message []byte, offset int) ([]byte, int) {
             unCompressedToken = append(unCompressedToken, value...)
             bytesRead += bytes
         }
+        if (message[offset]-128 < CODELISTKEYVALUES && message[offset]-128 != getCodeListIndex("action") && 
+            message[offset]-128 != getCodeListIndex("filter") && message[offset]-128 != getCodeListIndex("authorization") &&
+            offset + bytesRead != len(message) && message[offset+bytesRead] != '}' && message[offset+bytesRead] != ']' && 
+            message[offset+bytesRead-1] != '{' && message[offset+bytesRead-1] != '[') {
+//Info.Printf("readCompressedMessage():offset=%d, bytesRead=%d, message[offset:]=%s", offset, bytesRead, string(message[offset:]))
+          extraByte[0] = ','
+          unCompressedToken = append(unCompressedToken, extraByte...)
+        }
     } else {
         extraByte[0] = message[offset]
         unCompressedToken = append(unCompressedToken, extraByte...)
+        if (offset+1 < len(message) && message[offset] == '}' && message[offset+1] == '{') {
+        extraByte[0] = ','
+        unCompressedToken = append(unCompressedToken, extraByte...)
+        }
     }
 //Info.Printf("readCompressedMessage():offset=%d, bytesRead=%d, unCompressedToken=%s", offset, bytesRead, string(unCompressedToken))
     return unCompressedToken, bytesRead
@@ -637,7 +653,8 @@ func CompressMessage(message []byte) []byte {
 //Info.Printf("Token=%s, len=%d", string(token), len(token))
         offset += len(token)
         if (len(token) == 1) {
-            if (token[0] != ' ') {  // remove space
+//            if (token[0] != ' ') {  // remove space
+            if (token[0] != ' ' && token[0] != ',') {  // remove space and comma
                 if ((token[0] == '{' && offset == 1) || (token[0] == '}' && offset == len(message)) || (token[0] == ':')) { //remove leading/trailing curly braces, and colon
                     continue
                 }
@@ -651,7 +668,6 @@ func CompressMessage(message []byte) []byte {
             }
         } else {
             listIndex := getCodeListIndex(string(token[1:len(token)-1]))
-//Info.Printf("listIndex=%d", listIndex)
             listLen := byte(len(codeList.Code))
             if (listIndex < listLen) {
                 index := make([]byte, 1)
@@ -676,6 +692,10 @@ func CompressMessage(message []byte) []byte {
                     tokenState = 255
                 } else {
                     message2 = append(message2, token...)
+                    comma := make([]byte, 1)
+                    comma[0] = ','
+                    message2 = append(message2, comma...)   //simplifies decompress logic
+Info.Printf("CompressMessage:comma added, token=%s", string(token))
                 }
             }
         }

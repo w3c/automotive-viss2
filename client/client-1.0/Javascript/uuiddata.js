@@ -26,7 +26,7 @@ var keywordlist = {
         "unknown"
     ]
 };
-var uuidlist = {
+/*var uuidlist = {
     "leafuuids": [
         {
             "path": "Vehicle.Acceleration.Lateral",
@@ -1437,4 +1437,4 @@ var uuidlist = {
             "uuid": "5d4264def1fd5328a45108a62a4770b1"
         }
     ]
-};
+};*/

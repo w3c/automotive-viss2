@@ -369,6 +369,10 @@ func getVehicleData(path string) (string, string) {
 	rows.Next()
 	err = rows.Scan(&value, &timestamp)
 	if err != nil {
+	    if (dummyValue%10 == 0) {// Return array type instead. Must be represented as string due to server core inability to handle it otherwise...
+	        dummyArray := `["` + strconv.Itoa(dummyValue) + "\",\"" + strconv.Itoa(dummyValue+1) + "\",\"" + strconv.Itoa(dummyValue+2) + "\"]"
+	        return dummyArray, utils.GetRfcTime()
+	    }
             return strconv.Itoa(dummyValue), utils.GetRfcTime()
 	}
 	rows.Close()
