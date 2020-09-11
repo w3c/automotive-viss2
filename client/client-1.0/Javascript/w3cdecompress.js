@@ -1,3 +1,5 @@
+var finalMsg = ""
+
 function stringToBinary(input) {
     const binary = input.toString(2)
     const pad = Math.max(8 - binary.length, 0);
@@ -17,26 +19,24 @@ function binaryToString(input) {
 }
 
 function decompressMessage(message) {
-    var finalMsg = ""
     index = 0
+    var uuidmap = uuidlist["LeafPaths"];
     while (index < message.length) {
         charmsg = message.charCodeAt(index)
-        console.log("message[" + index + "] " + charmsg);
+        // console.log("message[" + index + "] " + charmsg);
         if (charmsg > 127) {
             var testmsg = keywordlist["keywords"][charmsg - 128]
             index = index + 1
             //keywords
             if (charmsg - 128 > 7 && charmsg - 128 < 13) {
-                
                 finalMsg = finalMsg + '"' + keywordlist["keywords"][charmsg - 128] + '"'
                 //console.log("skiping colon")
             } else if (charmsg - 128 == 4) {
                 //path
                 var uuidindex = 0
-                for (var i = 0; i < 2; i++) {
-                    uuidindex = (uuidindex << 8) + message.charCodeAt(index + i)
-                }
-                console.log("index = " + uuidindex + "value = " + uuidmap[uuidindex])
+                uuidindex += (uuidindex << 8) + message.charCodeAt(index + 1)
+                uuidindex += message.charCodeAt(index + 1)
+                // console.log("UUID INDEX = " + uuidindex + "value = " + uuidmap[uuidindex])
                 finalMsg += '"path":"' + uuidmap[uuidindex] + '"'
                 index = index + 2
             } else if (charmsg - 128 > 12 && charmsg - 128 < 23) {
@@ -69,11 +69,11 @@ function decompressMessage(message) {
                         var view = new DataView(buf);
                         for (var i = 0; i < numvals; i++) {
                             view.setUint8(i, message.charCodeAt(index + i))
-                            console.log("Byte Float value = " + message.charCodeAt(index + i))
+                            // console.log("Byte Float value = " + message.charCodeAt(index + i))
                         }
                         index = index + numvals
                         var num = view.getFloat32(0, true);
-                        console.log("Float value = " + Number(num))
+                        // console.log("Float value = " + Number(num))
                         finalMsg += num
                     }else{
                         var realval = 0;
@@ -104,9 +104,9 @@ function decompressMessage(message) {
                 finalMsg += '"'
                 continue;
             } else {
-                if (charmsg - 128 != 22) {
+                if (charmsg - 128 != 23) {
                     finalMsg = finalMsg + '"' + keywordlist["keywords"][charmsg - 128] + '"'
-                    console.log("Adding " + keywordlist["keywords"][charmsg - 128])
+                    // console.log("Adding " + keywordlist["keywords"][charmsg - 128])
                     finalMsg += ':' //colon
                 }
             }
@@ -168,8 +168,12 @@ function decompressMessage(message) {
             }
         } else {
             finalMsg += message.charAt(index)
+            // console.log("Adding " + message.charAt(index))
             index = index + 1
         }
     }
-    return '{' + finalMsg + '}'
+    respMsg = finalMsg.replace(/\"\"/g, '\",\"')
+                        .replace(/\}\{/g, '\},\{')
+    console.log(respMsg)
+    return '{' + respMsg + '}'
 }
