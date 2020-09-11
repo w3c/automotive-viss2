@@ -1,3 +1,5 @@
+var finalMsg = ""
+
 function stringToBinary(input) {
     const binary = input.toString(2)
     const pad = Math.max(8 - binary.length, 0);
@@ -17,7 +19,6 @@ function binaryToString(input) {
 }
 
 function decompressMessage(message) {
-    var finalMsg = ""
     index = 0
     var uuidmap = uuidlist["LeafPaths"];
     while (index < message.length) {
@@ -28,7 +29,6 @@ function decompressMessage(message) {
             index = index + 1
             //keywords
             if (charmsg - 128 > 7 && charmsg - 128 < 13) {
-                
                 finalMsg = finalMsg + '"' + keywordlist["keywords"][charmsg - 128] + '"'
                 //console.log("skiping colon")
             } else if (charmsg - 128 == 4) {
@@ -172,5 +172,8 @@ function decompressMessage(message) {
             index = index + 1
         }
     }
-    return '{' + finalMsg + '}'
+    respMsg = finalMsg.replace(/\"\"/g, '\",\"')
+                        .replace(/\}\{/g, '\},\{')
+    console.log(respMsg)
+    return '{' + respMsg + '}'
 }
