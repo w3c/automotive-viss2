@@ -17,7 +17,7 @@
 <h2>Websocket client example, compressed response</h2>
 
 <div>
-<input id="host-ip" type="text" value="172.30.1.34" placeholder="172.30.1.34"/>
+<input id="host-ip" type="text" value="172.30.1.30" placeholder="172.30.1.30"/>
 <button onclick="setHostIP()">Server IP</button>
 </div>
 <div>
@@ -28,6 +28,7 @@
 <script type="text/javascript" src="./vsspathlist.js"></script>
 <script type="text/javascript" src="./uuiddata.js"></script>
 <script type="text/javascript" src="./w3cdecompress.js"></script>
+
 <script>
     var externHostIp = document.getElementById("host-ip");
     var hostIP = "Host unknown";
@@ -35,13 +36,11 @@
     var output = document.getElementById("output");
     var sessionOpen = false;
     var socket;
-    var UUID_LEN = 4;
-    var uuidmap = new Array(uuidlist["LeafPaths"]);
 
     //DUMMY request default.
     // document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}'
     // document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}'
-    document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "requestId":"233"}'
+    document.getElementById('w3creq').value='{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}'
 
     try {
         function send() {
@@ -95,6 +94,5 @@
     }
 
 </script>
-
 </body>
 </html>
