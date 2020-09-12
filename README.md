@@ -192,7 +192,7 @@ To invoke it a client must set the sub-protocol to "gen2c", in JS something like
 ```
  socket = new WebSocket("ws://url-to-server:8080", "gen2c");
 ```
-For unencoded WebSocket sessions, the sub-protocol shal be set to "gen2", or left out completely.<br>
+For unencoded WebSocket sessions, the sub-protocol shall be set to "gen2", or left out completely.<br>
 The encoding uses both a lookup table to replace known data (paths, and other fixed key-values), removal of rule-based JSON reserved characters, and binary compression of actual data.<br>
 The mechanism of using the sub-protocol parameter to invoke encoding scheme can easily be extended to use other compression schemes.
 For more information about the reference encoding, see README in the utils directory. 
