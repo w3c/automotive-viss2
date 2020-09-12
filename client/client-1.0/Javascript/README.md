@@ -1,3 +1,6 @@
+**(C) 2019 Volvo Cars**<br>
+**(C) 2020 Geotab Inc**<br>
+
 # Project: W3C_VehicleSignalInterfaceImpl: client/client-1.0
 
 Client implementations for communication with the server found at the server/server-1.0 directory.<br>
@@ -24,6 +27,15 @@ Current limitations: <br>
 
 Implementation language: JS. <br>
 
+The availale clients are:<br>
+- httpclient.html              // uses the HTTP protocol to communicate with the Gen2 server. Payload encoding not invoked.<br>
+- wsclient_uncompressed.html   // uses the Websocket protocol to communicate with the Gen2 server. Payload encoding not invoked.<br>
+- wsclient_compressed.html   // uses the Websocket protocol to communicate with the Gen2 server. Payload encoding invoked.<br>
+- agtclient.html   // uses the Websocket protocol to communicate with the Access Grant server.<br>
+- atclient.html   // uses the Websocket protocol to communicate with the Access token server.<br>
+
+The appclient_commands.txt file contains some example payloads that a client can use. Depending on the VSS tree used by the Gen2 server, 
+the paths used in the examples may not address existing nodes in the tree.
 
 ## Build instructions:
 If the server to be used is not the one deployed by the project for public access, see below, then it must be built first, see build instructions in server/server-1.0 directory. <br>
@@ -37,8 +49,7 @@ If the server to be used is the one deployed by the project for public access, t
 After the server URL is set, then requests can be issued to the server. <br>
 For request examples, see the file appclient_commands.txt that contains request examples for both Websockets and HTTP transport protocols.  <br>
 The VSS paths shown in the examples can be replaced by any path that the VSS tree at the VSS Github project supports (https://github.com/GENIVI/vehicle_signal_specification). <br>
-The Gen2 access restriction model describes two authorization servers, the Access Grant Token (AGT) server, and the Access Token (AT) server, <br>
-as described in https://rawcdn.githack.com/w3c/automotive/63ebd2f57f847f5a59dd508dbafcad81a2eba280/spec/Gen2_Core.html#-a-name-userauth-a-user-authentication-and-authorization. <br>
+The Gen2 access restriction model describes two authorization servers, the Access Grant Token (AGT) server, and the Access Token (AT) server. <br>
 To obtain an AGT token the agtclient.html is used. The IP address is the same as for the Gen2 server, the path is "agtserver",<br> 
 and the request to the agtserver must be a JSON formatted message<br>
 {"userid":"XXX","vin":"YYY"}<br>
@@ -48,7 +59,7 @@ For this request, open the atclient.html in a browser, input the same IP address
 {"scope":"AAA","token":"BBB"}<br>
 where AAA must be either "VehicleReadOnly", or "VehicleControl", and BBB is replaced by the AGT token.<br>
 If the AGT token is verified as valid, which it is if it comes from the AGT server, the response contains the AT token that can then be used in requests to the Gen2 server.<br>
-To enable testing of access restriction, all signals in the subtree "Vehicle.Body" require a token with VehicleControl scope for write requests, 
-and all signals in the subtree "Vehicle.ADAS" require a token with scope VehicleReadOnly (or VehicleControl) for read requests, and VehicleControl for write requests.<br>
-Please see https://rawcdn.githack.com/w3c/automotive/63ebd2f57f847f5a59dd508dbafcad81a2eba280/spec/Gen2_Core.html#filtering for extending requests with queries. <br>
+To enable testing of access restriction, all signals in the subtree "Vehicle.Body" require a token with ReadWrite scope for write requests, 
+and all signals in the subtree "Vehicle.ADAS" require a token with scope ReadOnly (or ReadWrite) for read requests, and ReadWrite for write requests.<br>
+Please see the <a href="https://github.com/w3c/automotive/blob/gh-pages/spec/Gen2_Core.html">W3C Gen2 CORE spec, Access Control chapter</a> for more info.
 
