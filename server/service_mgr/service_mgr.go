@@ -369,6 +369,10 @@ func getVehicleData(path string) (string, string) {
 	rows.Next()
 	err = rows.Scan(&value, &timestamp)
 	if err != nil {
+	    if (dummyValue%10 == 0) {// Return array type instead. Must be represented as string due to server core inability to handle it otherwise...
+	        dummyArray := `["` + strconv.Itoa(dummyValue) + "\",\"" + strconv.Itoa(dummyValue+1) + "\",\"" + strconv.Itoa(dummyValue+2) + "\"]"
+	        return dummyArray, utils.GetRfcTime()
+	    }
             return strconv.Itoa(dummyValue), utils.GetRfcTime()
 	}
 	rows.Close()
@@ -383,18 +387,22 @@ func getVehicleData(path string) (string, string) {
 }
 
 func main() {
+	utils.InitLog("service-mgr-log.txt", "./logs")
+	dbFile := "statestorage.db"
         if (len(os.Args) == 2) {
- 	    db, dbErr = sql.Open("sqlite3", os.Args[1])
+            dbFile = os.Args[1]
+        }
+        if (utils.FileExists(dbFile) == true) {
+ 	    db, dbErr = sql.Open("sqlite3", dbFile)
 	    if dbErr != nil {
-                utils.Info.Printf("Could not open DB file = %s, err = %s\n", os.Args[1], dbErr)
+                utils.Error.Printf("Could not open DB file = %s, err = %s\n", os.Args[1], dbErr)
                 os.Exit(1)
             }
             defer db.Close()
             isStateStorage = true
         }
-	utils.InitLog("service-mgr-log.txt", "./logs")
-	hostIp = utils.GetModelIP(2)
 
+	hostIp = utils.GetModelIP(2)
 	var regResponse RegResponse
 	dataChan := make(chan string)
 	backendChan := make(chan string)

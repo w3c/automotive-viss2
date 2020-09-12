@@ -13,19 +13,20 @@ var keywordlist = {
         "subscribe",
         "unsubscribe",
         "subscription",
-        "nint8",
-        "pint8",
-        "nint16",
-        "pint16",
-        "nint24",
-        "pint24",
-        "nint32",
-        "pint32",
+        "nuint8",
+        "uint8",
+        "nuint16",
+        "uint16",
+        "nuint24",
+        "uint24",
+        "nuint32",
+        "uint32",
         "bool",
+        "float",
         "unknown"
     ]
 };
-var uuidlist = {
+/*var uuidlist = {
     "leafuuids": [
         {
             "path": "Vehicle.Acceleration.Lateral",
@@ -1436,4 +1437,4 @@ var uuidlist = {
             "uuid": "5d4264def1fd5328a45108a62a4770b1"
         }
     ]
-};
+};*/

@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+        "sort"
 	"unsafe"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
@@ -395,7 +395,7 @@ func updateServiceRouting(portNo string, rootNode string) {
 }
 
 func initVssFile() bool {
-	filePath := "vss_rel_2.0.0-alpha+006.cnative"
+	filePath := "vss_gen2.cnative"
 	cfilePath := C.CString(filePath)
 	VSSTreeRoot = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
@@ -907,6 +907,35 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 	utils.Info.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d", mgrId, portNum)
 }
 
+type PathList struct {
+	LeafPaths []string
+}
+var pathList PathList
+
+func sortPathList(listFname string) {
+	data, err := ioutil.ReadFile(listFname)
+	if err != nil {
+		utils.Error.Printf("Error reading %s: %s\n", listFname, err)
+		return
+	}
+	err = json.Unmarshal([]byte(data), &pathList)
+	if err != nil {
+		utils.Error.Printf("Error unmarshal json=%s\n", err)
+		return
+	}
+	sort.Strings(pathList.LeafPaths)
+	file, _ := json.Marshal(pathList)
+	_ = ioutil.WriteFile(listFname, file, 0644)
+}
+
+func createPathListFile(listFname string) {
+	// call int VSSGetLeafNodesList(long rootNode, char* leafNodeList);
+	clistFname := C.CString(listFname)
+	C.VSSGetLeafNodesList(VSSTreeRoot, clistFname)
+	C.free(unsafe.Pointer(clistFname))
+	sortPathList(listFname)
+}
+
 func main() {
 	utils.InitLog("servercore-log.txt", "./logs")
 
@@ -914,6 +943,7 @@ func main() {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
+	createPathListFile("../vsspathlist.json")  // save in server directory, where transport managers will expect it to be
 
 	initTransportDataServers(transportDataChan, backendChan)
 	utils.Info.Printf("main():initTransportDataServers() executed...")
