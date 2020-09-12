@@ -18,7 +18,7 @@ function decompressMessage(message) {
                 uuidindex += (uuidindex << 8) + message.charCodeAt(index + 1)
                 uuidindex += message.charCodeAt(index + 1)
                 // console.log("UUID INDEX = " + uuidindex + "value = " + uuidmap[uuidindex])
-                finalMsg += '"path":"' + uuidmap[uuidindex] + '"'
+                finalMsg = finalMsg + '"' + testmsg + '"' + ':' + uuidmap[uuidindex] + '"'
                 index = index + 2
             } else if (charmsg - 128 > 12 && charmsg - 128 < 23) {
                 var numvals = 0
@@ -86,9 +86,8 @@ function decompressMessage(message) {
                 continue;
             } else {
                 if (charmsg - 128 != 23) {
-                    finalMsg = finalMsg + '"' + keywordlist["keywords"][charmsg - 128] + '"'
-                    // console.log("Adding " + keywordlist["keywords"][charmsg - 128])
-                    finalMsg += ':' //colon
+                    finalMsg = finalMsg + '"' + testmsg + '"' + ':'
+                    // console.log("Adding " + testmsg)
                 }
             }
 
