@@ -4,7 +4,7 @@ function decompressMessage(message) {
     var uuidmap = uuidlist["LeafPaths"];
     while (index < message.length) {
         charmsg = message.charCodeAt(index)
-        console.log("message[" + index + "] " + charmsg);
+        // console.log("message[" + index + "] " + charmsg);
         if (charmsg > 127) {
             var testmsg = keywordlist["keywords"][charmsg - 128]
             index = index + 1
@@ -144,12 +144,12 @@ function decompressMessage(message) {
                 // console.log("Timestamp assigned " + timestamp )
 
                 finalMsg = finalMsg + '"' + timestamp + '"'
-                console.log("Timestamp assigned " + timestamp)
+                // console.log("Timestamp assigned " + timestamp)
                 index = index + 4
             }
         } else {
             finalMsg += message.charAt(index)
-            console.log("Adding " + message.charAt(index))
+            // console.log("Adding " + message.charAt(index))
             index = index + 1
         }
     }
