@@ -1,23 +1,3 @@
-var finalMsg = ""
-
-function stringToBinary(input) {
-    const binary = input.toString(2)
-    const pad = Math.max(8 - binary.length, 0);
-    return '0'.repeat(pad) + binary;
-}
-
-function binaryToString(input) {
-    let bytesLeft = input;
-    let result = '';
-
-    while (bytesLeft.length) {
-        const byte = bytesLeft.substr(0, 8);
-        bytesLeft = bytesLeft.substr(8);
-        result += String.fromCharCode(parseInt(byte, 2));
-    }
-    return result;
-}
-
 function decompressMessage(message) {
     index = 0
     var finalMsg = ""
