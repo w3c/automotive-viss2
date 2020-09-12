@@ -389,6 +389,9 @@ func readCompressedMessage(message []byte, offset int) ([]byte, int) {
 func DecompressMessage(message []byte) []byte {
     var message2 []byte
     curlyBrace := make([]byte, 1)
+    if (len(message) == 0) {
+        return message
+    }
     if (len(codeList.Code) == 0) {
         jsonToStructList(codelist, &codeList)
     }
