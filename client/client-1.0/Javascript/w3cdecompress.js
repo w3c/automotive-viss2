@@ -9,10 +9,7 @@ function decompressMessage(message) {
             var testmsg = keywordlist["keywords"][charmsg - 128]
             index = index + 1
             //keywords
-            if (charmsg - 128 > 7 && charmsg - 128 < 13) {
-                finalMsg = finalMsg + '"' + testmsg + '"'
-                //console.log("skiping colon")
-            }else if (charmsg - 128 == 3) {
+            if (charmsg - 128 == 3) {
                 //timestamp                
                 const todayYr = new Date()
                 timestamp = parseInt(Math.floor(todayYr.getFullYear() / 10) * 10)
@@ -75,6 +72,11 @@ function decompressMessage(message) {
                 // console.log("UUID INDEX = " + uuidindex + "value = " + uuidmap[uuidindex])
                 finalMsg = finalMsg + '"' + testmsg + '":"' + uuidmap[uuidindex] + '"'
                 index = index + 2
+                continue
+            } else if (charmsg - 128 > 7 && charmsg - 128 < 13) {
+                finalMsg = finalMsg + '"' + testmsg + '"'
+                //console.log("skiping colon")
+                continue
             } else if (charmsg - 128 > 12 && charmsg - 128 < 23) {
                 var numvals = 0
                 finalMsg += '"'
