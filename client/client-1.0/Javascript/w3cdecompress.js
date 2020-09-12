@@ -10,15 +10,70 @@ function decompressMessage(message) {
             index = index + 1
             //keywords
             if (charmsg - 128 > 7 && charmsg - 128 < 13) {
-                finalMsg = finalMsg + '"' + keywordlist["keywords"][charmsg - 128] + '"'
+                finalMsg = finalMsg + '"' + testmsg + '"'
                 //console.log("skiping colon")
+            }else if (charmsg - 128 == 3) {
+                //timestamp                
+                const todayYr = new Date()
+                timestamp = parseInt(Math.floor(todayYr.getFullYear() / 10) * 10)
+
+                charmsg = message.charCodeAt(index)
+                var byte1 = charmsg
+                // console.log("byte1 " + byte1 )
+                charmsg = message.charCodeAt(index + 1)
+                var byte2 = charmsg
+                // console.log("byte2 " + byte2 )
+                charmsg = message.charCodeAt(index + 2)
+                var byte3 = charmsg
+                // console.log("byte3 " + byte3 )
+                charmsg = message.charCodeAt(index + 3)
+                var byte4 = charmsg
+                // console.log("byte4 " + byte4 )
+
+                var yy = parseInt((byte1 & 0b00111100) >>> 2)
+                timestamp += parseInt(yy)
+                timestamp += '-'
+                // console.log("Timestamp assigned " + timestamp )
+
+                var mm = ((byte1 & 0b00000011) << 2) | ((byte2 & 0b11000000) >>> 6)
+                timestamp += mm.toString().padStart(2, '0')
+                timestamp += '-'
+                // console.log("Timestamp assigned " + timestamp )
+
+                var dd = parseInt((byte2 & 0b00111110) >>> 1)
+                timestamp += parseInt(dd).toString().padStart(2, '0')
+                timestamp += 'T'
+                // console.log("Timestamp assigned " + timestamp )
+
+                var hh = ((byte2 & 0b00000001) << 4) | ((byte3 & 0b11110000) >>> 4)
+                // console.log("Hour  " + hh )
+                timestamp += parseInt(hh).toString().padStart(2, '0')
+                timestamp += ':'
+                // console.log("Timestamp assigned " + timestamp )
+
+                var MM = ((byte3 & 0b00001111) << 2) | ((byte4 & 0b11000000) >>> 6)
+                // console.log("bit1  " + ((byte3 & 0b00001111) <<  2) )
+                // console.log("bit2  " + ((byte4 & 0b11000000) >>> 6) )
+                timestamp += parseInt(MM).toString().padStart(2, '0')
+                timestamp += ':'
+                // console.log("Timestamp assigned " + timestamp )
+
+                var ss = parseInt(byte4 & 0b00111111)
+                timestamp += parseInt(ss).toString().padStart(2, '0')
+                timestamp += 'Z'
+                // console.log("Timestamp assigned " + timestamp )
+
+                finalMsg = finalMsg + '"' + testmsg + '":"' + timestamp + '"'
+                // console.log("Timestamp assigned " + timestamp)
+                index = index + 4
+                continue
             } else if (charmsg - 128 == 4) {
                 //path
                 var uuidindex = 0
                 uuidindex += (uuidindex << 8) + message.charCodeAt(index + 1)
                 uuidindex += message.charCodeAt(index + 1)
                 // console.log("UUID INDEX = " + uuidindex + "value = " + uuidmap[uuidindex])
-                finalMsg = finalMsg + '"' + testmsg + '"' + ':' + uuidmap[uuidindex] + '"'
+                finalMsg = finalMsg + '"' + testmsg + '":"' + uuidmap[uuidindex] + '"'
                 index = index + 2
             } else if (charmsg - 128 > 12 && charmsg - 128 < 23) {
                 var numvals = 0
@@ -86,66 +141,11 @@ function decompressMessage(message) {
                 continue;
             } else {
                 if (charmsg - 128 != 23) {
-                    finalMsg = finalMsg + '"' + testmsg + '"' + ':'
+                    finalMsg = finalMsg + '"' + testmsg + '":'
                     // console.log("Adding " + testmsg)
                 }
             }
 
-            if (charmsg - 128 == 3) {
-                //timestamp                
-                const todayYr = new Date()
-                timestamp = parseInt(Math.floor(todayYr.getFullYear() / 10) * 10)
-
-                charmsg = message.charCodeAt(index)
-                var byte1 = charmsg
-                // console.log("byte1 " + byte1 )
-                charmsg = message.charCodeAt(index + 1)
-                var byte2 = charmsg
-                // console.log("byte2 " + byte2 )
-                charmsg = message.charCodeAt(index + 2)
-                var byte3 = charmsg
-                // console.log("byte3 " + byte3 )
-                charmsg = message.charCodeAt(index + 3)
-                var byte4 = charmsg
-                // console.log("byte4 " + byte4 )
-
-                var yy = parseInt((byte1 & 0b00111100) >>> 2)
-                timestamp += parseInt(yy)
-                timestamp += '-'
-                // console.log("Timestamp assigned " + timestamp )
-
-                var mm = ((byte1 & 0b00000011) << 2) | ((byte2 & 0b11000000) >>> 6)
-                timestamp += mm.toString().padStart(2, '0')
-                timestamp += '-'
-                // console.log("Timestamp assigned " + timestamp )
-
-                var dd = parseInt((byte2 & 0b00111110) >>> 1)
-                timestamp += parseInt(dd).toString().padStart(2, '0')
-                timestamp += 'T'
-                // console.log("Timestamp assigned " + timestamp )
-
-                var hh = ((byte2 & 0b00000001) << 4) | ((byte3 & 0b11110000) >>> 4)
-                // console.log("Hour  " + hh )
-                timestamp += parseInt(hh).toString().padStart(2, '0')
-                timestamp += ':'
-                // console.log("Timestamp assigned " + timestamp )
-
-                var MM = ((byte3 & 0b00001111) << 2) | ((byte4 & 0b11000000) >>> 6)
-                // console.log("bit1  " + ((byte3 & 0b00001111) <<  2) )
-                // console.log("bit2  " + ((byte4 & 0b11000000) >>> 6) )
-                timestamp += parseInt(MM).toString().padStart(2, '0')
-                timestamp += ':'
-                // console.log("Timestamp assigned " + timestamp )
-
-                var ss = parseInt(byte4 & 0b00111111)
-                timestamp += parseInt(ss).toString().padStart(2, '0')
-                timestamp += 'Z'
-                // console.log("Timestamp assigned " + timestamp )
-
-                finalMsg = finalMsg + '"' + timestamp + '"'
-                // console.log("Timestamp assigned " + timestamp)
-                index = index + 4
-            }
         } else {
             finalMsg += message.charAt(index)
             // console.log("Adding " + message.charAt(index))
