@@ -3,9 +3,9 @@ services:
     servercore:
         build:
             context: .  # context set to repo root
-            dockerfile: server/server-core/Dockerfile
+            dockerfile: server/server_core/Dockerfile
         environment:
-            - GEN2MODULEIP=atserver
+            - GEN2MODULEIP=srvcore
         volumes:
             - logdata:/app/logs
         networks:
@@ -15,7 +15,7 @@ services:
     servicemgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/servicemgr/Dockerfile
+            dockerfile: server/service_mgr/Dockerfile
         depends_on:
             - "servercore"
         volumes:
@@ -24,10 +24,11 @@ services:
             - GEN2MODULEIP=srvcore
         networks:
             - internal
+           
     atserver:
         build:
             context: .  # context set to repo root
-            dockerfile: server/atserver/Dockerfile
+            dockerfile: server/at_server/Dockerfile
         depends_on:
             - "servercore"
         volumes:
@@ -43,10 +44,30 @@ services:
             external:
                 aliases:
                     - atserver
+    agtserver:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/agt_server/Dockerfile
+        depends_on:
+            - "servercore"
+        volumes:
+            - logdata:/app/logs
+        environment:
+            - GEN2MODULEIP=srvcore
+        ports:
+            - "7500:7500"
+        networks:
+            internal:
+                aliases:
+                    - agtserver
+            external:
+                aliases:
+                    - agtserver
+                
     httpmgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/httpmgr/Dockerfile
+            dockerfile: server/http_mgr/Dockerfile
         depends_on:
             - "servercore"
         volumes:
@@ -61,7 +82,7 @@ services:
     wsmgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/wsmgr/Dockerfile
+            dockerfile: server/ws_mgr/Dockerfile
         depends_on:
             - "servercore"
         volumes:
