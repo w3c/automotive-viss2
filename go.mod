@@ -4,7 +4,7 @@ go 1.13
 
 //example on how to use replace to point to fork or local path
 //replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils master
-//replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => ./utils
+replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => ./utils
 
 require (
 	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191204211610-3716e7ac1e5f // indirect
