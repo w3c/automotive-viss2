@@ -57,15 +57,14 @@ URL: Vehicle/Cabin/Door/Row1/Right?$specEQ0
 //  AGTserver POST input:
 <Gen2 server IP address>
 agtserver
-{"userid":"XXX","vin":"YYY"}
+{"vin":"GEO001", "context":"Independent+OEM+Cloud", "proof":"ABC", "key":"DEF"}  // "key" may be omitted
 
 
 //  ATserver POST input:
 <Gen2 server IP address>
 atserver
-{"scope":"AAA","token":"BBB"}
+{"token":"ag-token", "purpose":"fuel-status", "pop":"GHI"}  // pop included only if a key was present in AGT request, token value must be replaced by the AG token, purpose must be on the Purpose list
 
-AAA = ["VehicleRead", "VehicleControl"]
-BBB = AG Token
+
 
 

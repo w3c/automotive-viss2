@@ -13,12 +13,22 @@ import (
     "encoding/json"
     "encoding/base64"
     "io/ioutil"
+    "os/exec"
+    "time"
+    "strconv"
+    "strings"
 
     "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
 const theAgtSecret = "averysecretkeyvalue1"  // shared with at-server
 
+type Payload struct {
+	Vin string     `json:"vin"`
+	Context string `json:"context"`
+	Proof string   `json:"proof"`
+	Key string     `json:"key"`
+}
 
 func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -55,19 +65,78 @@ func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
 	utils.Error.Fatal(http.ListenAndServe(":7500", muxServer))
 }
 
-func generateAgt(input string) string {
-	type Payload struct {
-		UserId string
-		Vin string
-	}
+func generateResponse(input string) string {
 	var payload Payload
 	err := json.Unmarshal([]byte(input), &payload)
 	if err != nil {
-            utils.Error.Printf("generateAgt:error input=%s", input)
-            return ""
+            utils.Error.Printf("generateResponse:error input=%s", input)
+            return `{"error": "Client request malformed"}`
 	}
-        jwtHeader := `{"alg":"HS256","typ":"JWT","iss":"oem.com/gen2/backend","sigurl":"oem.com/gen2/backend/pub","iat":1577847600,"exp":1593561599,"jti":"4667e93f-40f9-5f39-893e-cc0da890db3f"}`
-        jwtPayload := `{"uid":"` + payload.UserId + `","aud":"` + payload.Vin + `"}`
+	if (authenticateClient(payload) == true) {
+	    return generateAgt(payload)
+	}
+	return `{"error": "Client authentication failed"}`
+}
+
+func checkUserRole(userRole string) bool {
+    if (userRole != "OEM" && userRole != "Dealer" && userRole != "Independent" && userRole != "Owner" && userRole != "Driver" && userRole != "Passenger") {
+        return false
+    }
+    return true
+}
+
+func checkAppRole(appRole string) bool {
+    if (appRole != "OEM" && appRole != "Third party") {
+        return false
+    }
+    return true
+}
+
+func checkDeviceRole(deviceRole string) bool {
+    if (deviceRole != "Vehicle" && deviceRole != "Nomadic" && deviceRole != "Cloud") {
+        return false
+    }
+    return true
+}
+
+func checkRoles(context string) bool {
+    if (strings.Count(context, "+") != 2) {
+        return false
+    }
+    delimiter1 := strings.Index(context, "+")
+    delimiter2 := strings.Index(context[delimiter1+1:], "+")
+    if (checkUserRole(context[:delimiter1]) == false || checkAppRole(context[delimiter1+1:delimiter1+1+delimiter2]) == false || checkDeviceRole(context[delimiter1+1+delimiter2+1:]) == false) {
+        return false
+    }
+    return true
+    
+}
+
+func authenticateClient(payload Payload) bool {
+    if (checkRoles(payload.Context) == true && payload.Proof == "ABC") { // a bit too simple validation...
+        return true
+    }
+    return false
+}
+
+func generateAgt(payload Payload) string{
+	uuid, err := exec.Command("uuidgen").Output()
+        if err != nil {
+            utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
+            return `{"error": "Internal error"}`
+        }
+        uuid = uuid[:len(uuid)-1]  // remove '\n' char
+        iat := int(time.Now().Unix())
+        exp := iat + 4*60*60  // 4 hours
+        if (len(payload.Key) != 0) {
+            exp = iat + 7*24*60*60  // 1 week
+        }
+        jwtHeader := `{"alg":"ES256","typ":"JWT"}`
+        jwtPayload := `{"vin":"` + payload.Vin + `", "iat":` + strconv.Itoa(iat) + `, "exp":` + strconv.Itoa(exp) + `, "clx":"` + payload.Context + `"`
+        if (len(payload.Key) != 0) {
+            jwtPayload += `, "pub": "` + payload.Key + `"`
+        }
+        jwtPayload += `, "aud": "w3.org/gen2", "jti":"` + string(uuid) + `"}`
 	utils.Info.Printf("generateAgt:jwtHeader=%s", jwtHeader)
 	utils.Info.Printf("generateAgt:jwtPayload=%s", jwtPayload)
         encodedJwtHeader := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
@@ -75,7 +144,7 @@ func generateAgt(input string) string {
 	utils.Info.Printf("generateAgt:encodedJwtHeader=%s", encodedJwtHeader)
         jwtSignature := utils.GenerateHmac(encodedJwtHeader + "." + encodedJwtPayload, theAgtSecret)
         encodedJwtSignature := base64.RawURLEncoding.EncodeToString([]byte(jwtSignature))
-        return encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature
+        return `{"token":"` + encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature + `"}`
 }
 
 func main() {
@@ -89,10 +158,9 @@ func main() {
 	for {
 		select {
 		case request := <-serverChan:
-	utils.Info.Printf("main loop:request received")
-			response:= generateAgt(request)
+			response:= generateResponse(request)
 			utils.Info.Printf("agtServer response=%s", response)
-                        serverChan <- `{"token":"` + response + `"}`
+                       serverChan <- response
 		}
 	}
 }
