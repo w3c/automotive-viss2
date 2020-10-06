@@ -42,18 +42,18 @@ type AgToken struct {
 }
 
 var purposeList map[string]interface{}
-/*
-var purposeList []PurposeElement
+
+var pList []PurposeElement
 
 type PurposeElement struct {
-    Short string             `json:"short"`
-    Long string              `json:"long"`
-    Context []ContextElement `json:"contexts"`
-    Access []AccessElement   `json:"signal_access"`
+    Short string
+    Long string
+    Context []ContextElement
+    Access []AccessElement
 }
 
 type ContextElement struct {
-    Actor []RoleElement
+    Actor [3]RoleElement   // User, App, Device
 }
 
 type RoleElement struct {
@@ -61,10 +61,10 @@ type RoleElement struct {
 }
 
 type AccessElement struct {
-    Path string   `json:"path"`
-    Mode string   `json:"access_mode"`
+    Path string
+    Mode string
 }
-*/
+
 
 func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -131,26 +131,26 @@ func validateTokenTimestamps(iat int, exp int) bool {
 }
 
 func validatePurpose(purpose string, context string) bool { // TODO: learn how to code to parse the purpose list, then use it to validate the purpose
-    valid := true
-/*    for i := 0 ; i < len(purposeList) ; i++ {
-utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, purposeList[i].Short)
-        if (purposeList[i].Short == purpose) {
-utils.Info.Printf("validatePurpose:purpose match=%s", purposeList[i].Short)
+    valid := false
+    for i := 0 ; i < len(pList) ; i++ {
+utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, pList[i].Short)
+        if (pList[i].Short == purpose) {
+utils.Info.Printf("validatePurpose:purpose match=%s", pList[i].Short)
             valid = checkAuthorization(i, context)
         }
-    }*/
+    }
     return valid
 }
-/*
+
 func checkAuthorization(index int, context string) bool {
-    for i := 0 ; i < len(purposeList[index].Context) ; i++ {
+    for i := 0 ; i < len(pList[index].Context) ; i++ {
         actorValid := [3]bool{false, false, false}
-        for j := 0 ; j < len(purposeList[index].Context[i].Actor) ; j++ {
+        for j := 0 ; j < len(pList[index].Context[i].Actor) ; j++ {
             if (j > 2) {
                 return false  // only three subactors supported
             }
-            for k := 0 ; k < len(purposeList[index].Context[i].Actor[j].Role) ; k++ {
-                if (getActorRole(j, context) == purposeList[index].Context[i].Actor[j].Role[k]) {
+            for k := 0 ; k < len(pList[index].Context[i].Actor[j].Role) ; k++ {
+                if (getActorRole(j, context) == pList[index].Context[i].Actor[j].Role[k]) {
                     actorValid[j] = true
                 }
             }
@@ -160,7 +160,7 @@ func checkAuthorization(index int, context string) bool {
         }
     }
     return false
-}*/
+}
 
 func getActorRole(actorIndex int, context string) string {
     delimiter1 := strings.Index(context, "+")
@@ -255,6 +255,154 @@ func initPurposelist() {
             utils.Error.Printf("initPurposelist:error data=%s, err=%s", data, err)
 	    os.Exit(-1)
 	}
+	extractPurposeElementsLevel1(purposeList)
+}
+
+func extractPurposeElementsLevel1(purposeList map[string]interface{}) {
+    for k, v := range purposeList {
+        switch vv := v.(type) {
+          case []interface{}:
+            utils.Info.Println(k, "is an array:")
+  	    extractPurposeElementsLevel2(vv)
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractPurposeElementsLevel3(vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractPurposeElementsLevel2(purposeListElem []interface{}) {
+    for k, v := range purposeListElem {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractPurposeElementsLevel3(vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractPurposeElementsLevel3(purposeElem map[string]interface{}) {
+    i := 0
+    pList = make([]PurposeElement, len(purposeElem))
+    for k, v := range purposeElem {
+        switch vv := v.(type) {
+          case string:
+            utils.Info.Println(k, "is string", vv)
+            if (k == "short") {
+                pList[i].Short = vv
+            } else {
+                pList[i].Long = vv
+            }
+          case []interface{}:
+            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
+            if (k == "contexts") {
+                pList[i].Context = make([]ContextElement, len(vv))
+                extractPurposeElementsL4ContextL1(i, vv)
+            } else {
+                pList[i].Access = make([]AccessElement, len(vv))
+                extractPurposeElementsL4SignalAccessL1(i, vv)
+            }
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            if (k == "contexts") {
+                pList[i].Context = make([]ContextElement, 1)
+                extractPurposeElementsL4ContextL2(0, i, vv)
+            } else {
+                pList[i].Access = make([]AccessElement, 1)
+                extractPurposeElementsL4SignalAccessL2(0, i, vv)
+            }
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+        i++
+    }
+}
+
+func extractPurposeElementsL4ContextL1(index int, contextElem []interface{}) {
+    for k, v := range contextElem {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractPurposeElementsL4ContextL2(k, index, vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractPurposeElementsL4ContextL2(k int, index int, contextElem map[string]interface{}) {
+    for i, u := range contextElem {
+        utils.Info.Println(i, u)
+        switch vvv := u.(type) {
+          case string:
+            if (i == "user") {
+                pList[index].Context[k].Actor[0].Role = make([]string, 1)
+                pList[index].Context[k].Actor[0].Role[0] = u.(string)
+            } else if (i == "app") {
+                pList[index].Context[k].Actor[1].Role = make([]string, 1)
+                pList[index].Context[k].Actor[1].Role[0] = u.(string)
+            } else {
+                pList[index].Context[k].Actor[2].Role = make([]string, 1)
+                pList[index].Context[k].Actor[2].Role[0] = u.(string)
+            }
+          case []interface{}:
+            m := 0
+            for l, t := range vvv {
+              utils.Info.Println(l, t)
+              switch t.(type) {
+                case string:
+                  if (i == "user") {
+                      if (m == 0) {
+                          pList[index].Context[k].Actor[0].Role = make([]string, len(vvv))
+                      }
+                      pList[index].Context[k].Actor[0].Role[m] = t.(string)
+                  } else if (i == "app") {
+                      if (m == 0) {
+                          pList[index].Context[k].Actor[1].Role = make([]string, len(vvv))
+                      }
+                      pList[index].Context[k].Actor[1].Role[m] = t.(string)
+                  } else {
+                      if (m == 0) {
+                          pList[index].Context[k].Actor[2].Role = make([]string, len(vvv))
+                      }
+                      pList[index].Context[k].Actor[2].Role[m] = t.(string)
+                  }
+                default:
+                  utils.Info.Println(k, "is of an unknown type")
+              }
+              m++
+            }
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractPurposeElementsL4SignalAccessL1(index int, accessElem []interface{}) {
+    for k, v := range accessElem {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractPurposeElementsL4SignalAccessL2(k, index, vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[string]interface{}) {
+    for i, u := range accessElem {
+        utils.Info.Println(i, u)
+        if (i == "path") {
+            pList[index].Access[k].Path = u.(string)
+        } else {
+            pList[index].Access[k].Mode = u.(string)
+        }
+    }
 }
 
 func main() {
