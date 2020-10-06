@@ -133,23 +133,29 @@ func validateTokenTimestamps(iat int, exp int) bool {
 func validatePurpose(purpose string, context string) bool { // TODO: learn how to code to parse the purpose list, then use it to validate the purpose
     valid := false
     for i := 0 ; i < len(pList) ; i++ {
-utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, pList[i].Short)
+//utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, pList[i].Short)
         if (pList[i].Short == purpose) {
-utils.Info.Printf("validatePurpose:purpose match=%s", pList[i].Short)
+//utils.Info.Printf("validatePurpose:purpose match=%s", pList[i].Short)
             valid = checkAuthorization(i, context)
+            if (valid == true) {
+                break
+            }
         }
     }
     return valid
 }
 
 func checkAuthorization(index int, context string) bool {
+//utils.Info.Printf("checkAuthorization:context=%s, len(pList[index].Context)=%d", context, len(pList[index].Context))
     for i := 0 ; i < len(pList[index].Context) ; i++ {
         actorValid := [3]bool{false, false, false}
+//utils.Info.Printf("checkAuthorization:len(pList[index].Context[%d].Actor)=%d", i, len(pList[index].Context[i].Actor))
         for j := 0 ; j < len(pList[index].Context[i].Actor) ; j++ {
             if (j > 2) {
                 return false  // only three subactors supported
             }
             for k := 0 ; k < len(pList[index].Context[i].Actor[j].Role) ; k++ {
+//utils.Info.Printf("checkAuthorization:getActorRole(%d, context)=%s vs pList[index].Context[%d].Actor[%d].Role[%d])=%s", j, getActorRole(j, context), i, j, k, pList[index].Context[i].Actor[j].Role[k])
                 if (getActorRole(j, context) == pList[index].Context[i].Actor[j].Role[k]) {
                     actorValid[j] = true
                 }
@@ -179,7 +185,7 @@ func decodeTokenPayload(token string) string {
     delim2 := delim1 + 1 +strings.Index(token[delim1+1:], ".")
     pload := token[delim1+1:delim1+1+delim2]
     payload, _ := base64.RawURLEncoding.DecodeString(pload)
-utils.Info.Printf("decodeTokenPayload:payload=%s", string(payload))
+//utils.Info.Printf("decodeTokenPayload:payload=%s", string(payload))
     return string(payload)
 }
 
@@ -262,63 +268,63 @@ func extractPurposeElementsLevel1(purposeList map[string]interface{}) {
     for k, v := range purposeList {
         switch vv := v.(type) {
           case []interface{}:
-            utils.Info.Println(k, "is an array:")
+            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
   	    extractPurposeElementsLevel2(vv)
           case map[string]interface{}:
             utils.Info.Println(k, "is a map:")
-            extractPurposeElementsLevel3(vv)
+            extractPurposeElementsLevel3(0, vv)
           default:
             utils.Info.Println(k, "is of an unknown type")
         }
     }
 }
 
-func extractPurposeElementsLevel2(purposeListElem []interface{}) {
-    for k, v := range purposeListElem {
+func extractPurposeElementsLevel2(purposeList []interface{}) {
+    pList = make([]PurposeElement, len(purposeList))
+    i := 0
+    for k, v := range purposeList {
         switch vv := v.(type) {
           case map[string]interface{}:
             utils.Info.Println(k, "is a map:")
-            extractPurposeElementsLevel3(vv)
+            extractPurposeElementsLevel3(i, vv)
           default:
             utils.Info.Println(k, "is of an unknown type")
         }
+        i++
     }
 }
 
-func extractPurposeElementsLevel3(purposeElem map[string]interface{}) {
-    i := 0
-    pList = make([]PurposeElement, len(purposeElem))
+func extractPurposeElementsLevel3(index int, purposeElem map[string]interface{}) {
     for k, v := range purposeElem {
         switch vv := v.(type) {
           case string:
             utils.Info.Println(k, "is string", vv)
             if (k == "short") {
-                pList[i].Short = vv
+                pList[index].Short = vv
             } else {
-                pList[i].Long = vv
+                pList[index].Long = vv
             }
           case []interface{}:
             utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
             if (k == "contexts") {
-                pList[i].Context = make([]ContextElement, len(vv))
-                extractPurposeElementsL4ContextL1(i, vv)
+                pList[index].Context = make([]ContextElement, len(vv))
+                extractPurposeElementsL4ContextL1(index, vv)
             } else {
-                pList[i].Access = make([]AccessElement, len(vv))
-                extractPurposeElementsL4SignalAccessL1(i, vv)
+                pList[index].Access = make([]AccessElement, len(vv))
+                extractPurposeElementsL4SignalAccessL1(index, vv)
             }
           case map[string]interface{}:
             utils.Info.Println(k, "is a map:")
             if (k == "contexts") {
-                pList[i].Context = make([]ContextElement, 1)
-                extractPurposeElementsL4ContextL2(0, i, vv)
+                pList[index].Context = make([]ContextElement, 1)
+                extractPurposeElementsL4ContextL2(0, index, vv)
             } else {
-                pList[i].Access = make([]AccessElement, 1)
-                extractPurposeElementsL4SignalAccessL2(0, i, vv)
+                pList[index].Access = make([]AccessElement, 1)
+                extractPurposeElementsL4SignalAccessL2(0, index, vv)
             }
           default:
             utils.Info.Println(k, "is of an unknown type")
         }
-        i++
     }
 }
 
