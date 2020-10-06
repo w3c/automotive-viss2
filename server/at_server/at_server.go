@@ -158,6 +158,7 @@ func checkAuthorization(index int, context string) bool {
 //utils.Info.Printf("checkAuthorization:getActorRole(%d, context)=%s vs pList[index].Context[%d].Actor[%d].Role[%d])=%s", j, getActorRole(j, context), i, j, k, pList[index].Context[i].Actor[j].Role[k])
                 if (getActorRole(j, context) == pList[index].Context[i].Actor[j].Role[k]) {
                     actorValid[j] = true
+                    break
                 }
             }
         }
@@ -247,7 +248,7 @@ func generateAt(payload Payload, context string) string{
 	utils.Info.Printf("generateAt:encodedJwtHeader=%s", encodedJwtHeader)
         jwtSignature := utils.GenerateHmac(encodedJwtHeader + "." + encodedJwtPayload, theAtSecret)
         encodedJwtSignature := base64.RawURLEncoding.EncodeToString([]byte(jwtSignature))
-        return encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature
+        return `{"token":"` + encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature + `"}`
 }
 
 func initPurposelist() {
