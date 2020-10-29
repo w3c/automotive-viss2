@@ -25,6 +25,10 @@ typedef struct searchData_t {
     long foundNodeHandles;
 } searchData_t;
 
+typedef struct noScopeList_t {
+    path_t path;
+} noScopeList_t;
+
 long VSSReadTree(char* filePath);
 void VSSWriteTree(char* filePath, int rootHandle);
 
@@ -42,7 +46,8 @@ char* getEnumElement(long nodeHandle, int index);
 char* getUnit(long nodeHandle);
 char* getFunction(long nodeHandle);
 
-int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
+//int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
+int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth,  bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
 int VSSGetLeafNodesList(long rootNode, char* listFname);
 int VSSGetUuidList(long rootNode, char* listFname);
 
