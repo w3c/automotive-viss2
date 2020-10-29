@@ -39,6 +39,8 @@ import (
 import "C"
 
 var VSSTreeRoot C.long
+// set to MAXFOUNDNODES in vssparserutilities.h
+const MAXFOUNDNODES = 1500
 
 type searchData_t struct { // searchData_t defined in vssparserutilities.h
 	responsePath    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
@@ -49,6 +51,10 @@ type filterDef_t struct {
 	name     string
 	operator string
 	value    string
+}
+
+type noScopeList_t struct { // noScopeList_t defined in vssparserutilities.h
+	path    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
 }
 
 var transportRegChan chan int
@@ -408,12 +414,13 @@ func initVssFile() bool {
 	return true
 }
 
-func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, validation *C.int) int {
+func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, listSize int, noScopeList *noScopeList_t, validation *C.int) int {
 	utils.Info.Printf("searchTree(): path=%s, anyDepth=%t, leafNodesOnly=%t", path, anyDepth, leafNodesOnly)
 	if len(path) > 0 {
-		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
+// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth,  bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
 		cpath := C.CString(path)
-		var matches C.int = C.VSSSearchNodes(cpath, rootNode, 150, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly, (*C.int)(unsafe.Pointer(validation)))
+		var matches C.int = C.VSSSearchNodes(cpath, rootNode, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly, 
+		                                     (C.int)(listSize), (*C.struct_noScopeList_t)(unsafe.Pointer(noScopeList)), (*C.int)(unsafe.Pointer(validation)))
 		C.free(unsafe.Pointer(cpath))
 		return int(matches)
 	} else {
@@ -463,30 +470,51 @@ func aggregateValue(iterator int, path string, response string, aggregatedValue 
 	}
 }
 
-func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
-	switch errorCode {
+func getTokenErrorMessage(index int) string {
+        switch (index) {
+        case 0:
+          return "Token missing. "
 	case 1:
-		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Token missing.", "")
+	  return "Invalid token signature. "
 	case 2:
-		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Invalid token signature.", "")
+	  return "Invalid purpose scope. "
 	case 3:
-		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Insufficient token permission.", "")
+	  return "Insufficient access mode permission. "
 	case 4:
-		utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Token expired.", "")
+	  return "Invalid issued at time. "
+	case 5:
+	  return "Token expired. "
+	case 6:
+	  return ""
+	case 7:
+	  return "Internal error. "
 	}
+        return "Unknown error. "
 }
 
-func verifyTokenSignature(token string) bool {
+func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
+        errMsg := ""
+        bitValid := 1
+        for i := 0 ; i < 8 ; i++ {
+            if (errorCode & bitValid == bitValid) {
+                errMsg += getTokenErrorMessage(i)
+            }
+            bitValid = bitValid << 1
+        }
+	utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", errMsg)
+}
+
+func accessTokenServerValidation(token string, paths string, action string, validation int) int {
 	hostIp := utils.GetServerIP()
 	url := "http://" + hostIp + ":8600/atserver"
 	utils.Info.Printf("verifyTokenSignature::url = %s", url)
 
-	data := []byte(`{"token": "` + token + `"}`)
+	data := []byte(`{"token":"` + token + `"paths":"` + paths + `", "action":"` + action + `"validation":"` + strconv.Itoa(validation) + `"}`)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		utils.Error.Print("verifyTokenSignature: Error reading request. ", err)
-		return false
+		return -128
 	}
 
 	// Set headers
@@ -501,40 +529,49 @@ func verifyTokenSignature(token string) bool {
 	resp, err := client.Do(req)
 	if err != nil {
 		utils.Error.Print("verifyTokenSignature: Error reading response. ", err)
-		return false
+		return -128
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Print("Error reading response. ", err)
-		return false
+		return -128
 	}
 
-	if strings.Contains(string(body), "true") {
-		return true
+        bdy := string(body)
+	frontIndex := strings.Index(bdy, "validation") + 13  // point to first char of int-string
+	endIndex := nextQuoteMark(bdy[frontIndex:]) + frontIndex
+	atsValidation, err := strconv.Atoi(bdy[frontIndex:endIndex])
+	if err != nil {
+		utils.Error.Print("Error reading validation. ", err)
+		return -128
 	}
-	return false
+	return atsValidation
 }
 
-func verifyToken(token string, validation int) int { // TODO verify expiry and other time stamps
-	if verifyTokenSignature(token) == false {
-		utils.Warning.Printf("verifyToken:invalid signature=%s", token)
-		return 2
+func verifyToken(token string, action string, paths string, validation int) int {
+	validateResult := accessTokenServerValidation(token, paths, action, validation)
+	iatStr := utils.ExtractFromToken(token, "iat")
+	iat, err := strconv.Atoi(iatStr)
+	if err != nil {
+		utils.Error.Print("Error reading iat. ", err)
+		return -128
 	}
-	scope := utils.ExtractFromToken(token, "scp")
-	if validation == 1 {
-		if strings.Contains(scope, "Read") == false && strings.Contains(scope, "Control") == false {
-			utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
-			return 3
-		}
-	} else {
-		if strings.Contains(scope, "Control") == false {
-			utils.Warning.Printf("verifyToken:Invalid scope=%s", token)
-			return 3
-		}
+        now := time.Now()
+        if (now.Before(time.Unix(int64(iat), 0)) == true) {
+            validateResult -= 16
+        }
+	expStr := utils.ExtractFromToken(token, "exp")
+	exp, err := strconv.Atoi(expStr)
+	if err != nil {
+		utils.Error.Print("Error reading exp. ", err)
+		return -128
 	}
-	return 0
+        if (now.After(time.Unix(int64(exp), 0)) == true) {
+            validateResult -= 32
+        }
+	return validateResult
 }
 
 func isDataMatch(queryData string, response string) bool {
@@ -547,7 +584,7 @@ func isDataMatch(queryData string, response string) bool {
 	return false
 }
 
-func nextQuoteMark(message string) int {
+func nextQuoteMark(message string) int {  // strings.Index() seems to have a problem with finding a quote char
     for i := 0 ; i < len(message) ; i++ {
         if (message[i] == '"') {
             return i
@@ -571,14 +608,14 @@ utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
 }
 
 func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
-	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
+	searchData := [MAXFOUNDNODES]searchData_t{} 
 	var anyDepth C.bool = false
 	path := removeQuery(requestMap["path"].(string))
 	if path[len(path)-1] == '*' {
 		anyDepth = true
 	}
 	var validation C.int = -1
-	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, &validation)
+	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, 0, nil, &validation)
 	utils.Info.Printf("Max validation from search=%d", int(validation))
 	if matches == 0 {
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
@@ -592,13 +629,13 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 		case 2:
 			errorCode := 0
 			if requestMap["authorization"] == nil {
-				errorCode = 1
+				errorCode = -1
 			} else {
 				if requestMap["action"] != "get" || int(validation) != 1 { // no validation for read requests when validation is 1 (write-only)
-					errorCode = verifyToken(requestMap["authorization"].(string), int(validation))
+					errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), int(validation))
 				}
 			}
-			if errorCode > 0 {
+			if errorCode < 0 {
 				setTokenErrorResponse(requestMap, errorCode)
 				transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
@@ -756,10 +793,96 @@ func countPathSegments(path string) int {
 	return strings.Count(path, ".") + 1
 }
 
-func synthesizeJsonTree(path string, depth string) string {
+func getNoScopeList(tokenContext string) ([]noScopeList_t, int) {
+// call ATS to get list
+	hostIp := utils.GetServerIP()
+	url := "http://" + hostIp + ":8600/atserver"
+
+	data := []byte(`{"context":"` + tokenContext + `"}`)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
+	if err != nil {
+		utils.Error.Print("getNoScopeList: Error reading request. ", err)
+		return nil, 0
+	}
+
+	// Set headers
+	req.Header.Set("Access-Control-Allow-Origin", "*")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Host", hostIp+":8600")
+
+	// Set client timeout
+	client := &http.Client{Timeout: time.Second * 10}
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		utils.Error.Print("getNoScopeList: Error sending request. ", err)
+		return nil, 0
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		utils.Error.Print("getNoScopeList:Error reading response. ", err)
+		return nil, 0
+	}
+        var noScopeMap map[string]interface{}
+	err = json.Unmarshal(body, &noScopeMap)
+	if err != nil {
+            utils.Error.Printf("initPurposelist:error data=%s, err=%s", data, err)
+	    return nil, 0
+	}
+	return extractNoScopeElementsLevel1(noScopeMap)
+}
+
+func extractNoScopeElementsLevel1(noScopeMap map[string]interface{}) ([]noScopeList_t, int) {
+    for k, v := range noScopeMap {
+        switch vv := v.(type) {
+          case string:
+            utils.Info.Println(k, "is string", vv)
+            noScopeList := make([]noScopeList_t, 1)
+            for i := 0 ; i < len(vv) ; i++ {
+                noScopeList[0].path[i] = byte(vv[i])
+            }
+            noScopeList[0].path[len(vv)] = 0
+            return noScopeList, 1
+          case []interface{}:
+            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
+  	    return extractNoScopeElementsLevel2(vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+    return nil, 0
+}
+
+func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, int) {
+    noScopeList := make([]noScopeList_t, len(noScopeMap))
+    i := 0
+    for k, v := range noScopeMap {
+        switch vv := v.(type) {
+          case string:
+            utils.Info.Println(k, "is string", vv)
+            for j := 0 ; j < len(vv) ; j++ {
+                noScopeList[i].path[j] = byte(vv[j])
+            }
+            noScopeList[i].path[len(vv)] = 0
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+        i++
+    }
+    return noScopeList, i
+}
+
+func synthesizeJsonTree(path string, depth string, tokenContext string) string {
 	var jsonBuffer string
-	searchData := [150]searchData_t{} // vssparserutilities.h: #define MAXFOUNDNODES 150
-	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, nil)
+	searchData := [MAXFOUNDNODES]searchData_t{}
+//	noScopeList := []noScopeList_t{}
+	noScopeList, numOfListElem := getNoScopeList(tokenContext)
+utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
+	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, numOfListElem, &noScopeList[0], nil)
 	if matches < countPathSegments(path) {
 		return ""
 	}
@@ -863,6 +986,13 @@ func getListValue(filterList []filterDef_t, name string) string {
 	return ""
 }
 
+func getTokenContext(reqMap map[string]interface{}) string {
+	if reqMap["authorization"] != nil {
+	    return utils.ExtractFromToken(reqMap["authorization"].(string), "clx")
+	}
+	return ""
+}
+
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
@@ -873,9 +1003,13 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	switch requestMap["action"] {
 	case "get":
 		if listContainsName(filterList, "$spec") == true {
-			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec")) //TODO restrict tree to depth (handle error case)
+		        tokenContext := getTokenContext(requestMap)
+		        if (len(tokenContext) == 0) {
+		            tokenContext = "Undefined+Undefined+Undefined"
+		        }
+			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec"), tokenContext)
 			delete(requestMap, "path")
-			requestMap["timestamp"] = 1234
+			requestMap["timestamp"] = utils.GetRfcTime()
 			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
 		} else {
 			if listContainsName(filterList, "$path") == true {

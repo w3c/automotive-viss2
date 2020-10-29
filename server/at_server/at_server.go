@@ -18,14 +18,41 @@ import (
     "os/exec"
     "strconv"
     "strings"
+	"unsafe"
 
     "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
+// #include <stdlib.h>
+// #include <stdio.h>
+// #include <stdbool.h>
+// #include "vssparserutilities.h"
+import "C"
+
+var VSSTreeRoot C.long
+// set to MAXFOUNDNODES in vssparserutilities.h
+const MAXFOUNDNODES = 1500
+
+type searchData_t struct { // searchData_t defined in vssparserutilities.h
+	path    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+	foundNodeHandle int64     // defined as long in vssparserutilities.h
+}
+
 const theAgtSecret = "averysecretkeyvalue1" //shared with agt-server
 const theAtSecret = "averysecretkeyvalue2"  //not shared
 
-type Payload struct {
+type NoScopePayload struct {
+    Context string `json:"context"`
+}
+
+type AtValidatePayload struct {
+    Token string      `json:"token"`
+    Paths string      `json:"paths"`
+    Action string     `json:"action"`
+    Validation string `json:"validation"`
+}
+
+type AtGenPayload struct {
     Token string    `json:"token"`
     Purpose string  `json:"purpose"`
     Pop string      `json:"pop"`
@@ -65,6 +92,28 @@ type AccessElement struct {
     Mode string
 }
 
+var scopeList map[string]interface{}
+
+var sList []ScopeElement
+
+type ScopeElement struct {
+    Context []ContextElement
+    NoAccess []string
+}
+
+func initVssFile() bool {
+	filePath := "vss_gen2.cnative"
+	cfilePath := C.CString(filePath)
+	VSSTreeRoot = C.VSSReadTree(cfilePath)
+	C.free(unsafe.Pointer(cfilePath))
+
+	if VSSTreeRoot == 0 {
+		utils.Error.Println("Tree file not found")
+		return false
+	}
+
+	return true
+}
 
 func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
@@ -102,10 +151,163 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 }
 
 func generateResponse(input string) string {
-	var payload Payload
+    if (strings.Contains(input, "action") == true) {
+        return accessTokenResponse(input)
+    } else if (strings.Contains(input, "context") == true) {
+        return noScopeResponse(input)
+    } else {
+        return tokenValidationResponse(input)
+    }
+}
+
+func getPathLen(path string) int {
+	for i := 0; i < len(path); i++ {
+		if path[i] == 0x00 { // the path buffer defined in searchData_t is initiated with all zeros
+			return i
+		}
+	}
+	return len(path)
+}
+
+func validateRequestAccess(scope string, action string, paths string) int {
+    numOfPaths := 1
+    type stringArray []string 
+    var pathList stringArray
+    if (strings.Contains(paths, "[") == true) {
+	err := json.Unmarshal([]byte(paths), &pathList)
+        if err != nil {
+            utils.Error.Printf("validateScopeAndAccessMode:Unmarshal error=%s", err)
+            return -128
+        }
+        numOfPaths = len(pathList)
+    } else {
+        pathList = make([]string, 1)
+        pathList[0] = paths
+    }
+    var pathSubList []string
+    for i := 0 ; i < numOfPaths ; i++ {
+        numOfWildcardPaths := 1
+        if (strings.Contains(paths, "*") == true) {
+   	    searchData := [MAXFOUNDNODES]searchData_t{} 
+	    // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
+	    cpath := C.CString(pathList[i])
+	    numOfWildcardPaths := int(C.VSSSearchNodes(cpath, VSSTreeRoot, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(&searchData)), true, 
+	    true, nil))
+	    C.free(unsafe.Pointer(cpath))
+            pathSubList = make([]string, numOfWildcardPaths)
+            for j := 0 ; j < numOfWildcardPaths ; j++ {
+		pathLen := getPathLen(string(searchData[j].path[:]))
+                pathSubList[j] = string(searchData[j].path[:pathLen])
+            }
+        } else {
+            pathSubList = make([]string, 1)
+            pathSubList[0] = pathList[i]
+        }
+        for j := 0 ; j < numOfWildcardPaths ; j++ {
+            status := validateScopeAndAccessMode(scope, action, pathSubList[j])
+            if (status != 0) {
+                return status
+            }
+        }
+    }
+    return 0
+}
+
+func validateScopeAndAccessMode(scope string, action string, path string) int {
+    for i := 0 ; i < len(pList) ; i++ {
+        if (pList[i].Short == scope) {
+            for j := 0 ; j < len(pList[i].Access) ; j++ {
+                if (pList[i].Access[j].Path == path) {
+                    if (action == "set" && pList[i].Access[j].Mode == "read-only") {
+                        return -16
+                    } else {
+                        return 0
+                    }
+                }
+            }
+        }
+    }
+    return -8
+}
+
+func matchingContext(index int, context string) bool { // identical to checkAuthorization(), using sList instead of pList
+    for i := 0 ; i < len(sList[index].Context) ; i++ {
+        actorValid := [3]bool{false, false, false}
+        for j := 0 ; j < len(sList[index].Context[i].Actor) ; j++ {
+            if (j > 2) {
+                return false  // only three subactors supported
+            }
+            for k := 0 ; k < len(sList[index].Context[i].Actor[j].Role) ; k++ {
+                if (getActorRole(j, context) == sList[index].Context[i].Actor[j].Role[k]) {
+                    actorValid[j] = true
+                    break
+                }
+            }
+        }
+        if (actorValid[0] == true && actorValid[1] == true && actorValid[2] == true) {
+            return true
+        }
+    }
+    return false
+}
+
+func synthesizeNoScope(index int) string {
+    if (len(sList[index].NoAccess) == 1) {
+        return `"` + sList[index].NoAccess[0] + `"`
+    }
+    noScope := "["
+    for i := 0 ; i < len(sList[index].NoAccess) ; i++ {
+        noScope += `"` + sList[index].NoAccess[i] + `", `
+    }
+    return noScope[:len(noScope)-2] + "]"
+}
+
+func getNoAccessScope(context string) string {
+    for i := 0 ; i < len(sList) ; i++ {
+        if (matchingContext(i, context) == true) {
+            return synthesizeNoScope(i)
+        }
+    }
+    return `""`
+}
+
+func noScopeResponse(input string) string {
+	var payload NoScopePayload
 	err := json.Unmarshal([]byte(input), &payload)
 	if err != nil {
-            utils.Error.Printf("generateResponse:error input=%s", input)
+            utils.Error.Printf("noScopeResponse:error input=%s", input)
+            return `{"no_access":""}`
+	}
+	res := getNoAccessScope(payload.Context)
+        utils.Info.Printf("getNoAccessScope result=%s", res)
+        return `{"no_access":` + res + `}`
+}
+
+func tokenValidationResponse(input string) string {
+	var payload AtValidatePayload
+	err := json.Unmarshal([]byte(input), &payload)
+	if err != nil {
+            utils.Error.Printf("tokenValidationResponse:error input=%s", input)
+            return `{"validation":"-128"}`
+	}
+        if (utils.VerifyTokenSignature(payload.Token, theAtSecret) == false) {
+            utils.Info.Printf("tokenValidationResponse:invalid signature=%s", payload.Token)
+	    return `{"validation":"-2"}`
+        }
+	scope := utils.ExtractFromToken(payload.Token, "scp")
+	res := validateRequestAccess(scope, payload.Action, payload.Paths)
+        if (res != 0) {
+            utils.Info.Printf("validateRequestAccess fails with result=%d", res)
+	    return `{"validation":"` + strconv.Itoa(res) + `"}`
+        }
+	return `{"validation":"0"}`
+}
+
+func accessTokenResponse(input string) string {
+	var payload AtGenPayload
+	err := json.Unmarshal([]byte(input), &payload)
+	if err != nil {
+            utils.Error.Printf("accessTokenResponse:error input=%s", input)
             return `{"error": "Client request malformed"}`
 	}
         agToken, errResp := extractTokenPayload(payload.Token)
@@ -158,6 +360,7 @@ func checkAuthorization(index int, context string) bool {
 //utils.Info.Printf("checkAuthorization:getActorRole(%d, context)=%s vs pList[index].Context[%d].Actor[%d].Role[%d])=%s", j, getActorRole(j, context), i, j, k, pList[index].Context[i].Actor[j].Role[k])
                 if (getActorRole(j, context) == pList[index].Context[i].Actor[j].Role[k]) {
                     actorValid[j] = true
+                    break
                 }
             }
         }
@@ -204,7 +407,7 @@ func checkVin(vin string) bool {
     return true    // should be checked with VIN in tree
 }
 
-func validateRequest(payload Payload, agToken AgToken) (bool, string) {
+func validateRequest(payload AtGenPayload, agToken AgToken) (bool, string) {
         if (checkVin(agToken.Vin) == false) {
             utils.Info.Printf("validateRequest:incorrect VIN=%s", agToken.Vin)
 	    return false, `{"error": "Incorrect vehicle identifiction"}`
@@ -228,7 +431,7 @@ func validateRequest(payload Payload, agToken AgToken) (bool, string) {
         return true, ""
 }
 
-func generateAt(payload Payload, context string) string{
+func generateAt(payload AtGenPayload, context string) string{
 	uuid, err := exec.Command("uuidgen").Output()
         if err != nil {
             utils.Error.Printf("generateAt:Error generating uuid, err=%s", err)
@@ -247,7 +450,7 @@ func generateAt(payload Payload, context string) string{
 	utils.Info.Printf("generateAt:encodedJwtHeader=%s", encodedJwtHeader)
         jwtSignature := utils.GenerateHmac(encodedJwtHeader + "." + encodedJwtPayload, theAtSecret)
         encodedJwtSignature := base64.RawURLEncoding.EncodeToString([]byte(jwtSignature))
-        return encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature
+        return `{"token":"` + encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature + `"}`
 }
 
 func initPurposelist() {
@@ -411,6 +614,147 @@ func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[str
     }
 }
 
+func initScopeList() {
+	data, err := ioutil.ReadFile("scopelist.json")
+	if err != nil {
+		utils.Info.Printf("scopelist.json not found")
+		return
+	}
+	err = json.Unmarshal([]byte(data), &scopeList)
+	if err != nil {
+            utils.Error.Printf("initScopeList:error data=%s, err=%s", data, err)
+	    os.Exit(-1)
+	}
+	extractScopeElementsLevel1(scopeList)
+}
+
+func extractScopeElementsLevel1(scopeList map[string]interface{}) {
+    for k, v := range scopeList {
+        switch vv := v.(type) {
+          case []interface{}:
+            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
+  	    extractScopeElementsLevel2(vv)
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractScopeElementsLevel3(0, vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractScopeElementsLevel2(scopeList []interface{}) {
+    sList = make([]ScopeElement, len(scopeList))
+    i := 0
+    for k, v := range scopeList {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractScopeElementsLevel3(i, vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+        i++
+    }
+}
+
+func extractScopeElementsLevel3(index int, scopeElem map[string]interface{}) {
+    for k, v := range scopeElem {
+        switch vv := v.(type) {
+          case string:
+                sList[index].NoAccess = make([]string, 1)
+                sList[index].NoAccess[0] = vv
+          case []interface{}:
+            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
+            if (k == "contexts") {
+                sList[index].Context = make([]ContextElement, len(vv))
+                extractScopeElementsL4ContextL1(index, vv)
+            } else {
+                sList[index].NoAccess = make([]string, len(vv))
+                extractScopeElementsL4NoAccessL1(index, vv)
+            }
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            sList[index].Context = make([]ContextElement, 1)
+            extractScopeElementsL4ContextL2(0, index, vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractScopeElementsL4ContextL1(index int, contextElem []interface{}) {
+    for k, v := range contextElem {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            extractScopeElementsL4ContextL2(k, index, vv)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractScopeElementsL4ContextL2(k int, index int, contextElem map[string]interface{}) {
+    for i, u := range contextElem {
+        utils.Info.Println(i, u)
+        switch vvv := u.(type) {
+          case string:
+            if (i == "user") {
+                sList[index].Context[k].Actor[0].Role = make([]string, 1)
+                sList[index].Context[k].Actor[0].Role[0] = u.(string)
+            } else if (i == "app") {
+                sList[index].Context[k].Actor[1].Role = make([]string, 1)
+                sList[index].Context[k].Actor[1].Role[0] = u.(string)
+            } else {
+                sList[index].Context[k].Actor[2].Role = make([]string, 1)
+                sList[index].Context[k].Actor[2].Role[0] = u.(string)
+            }
+          case []interface{}:
+            m := 0
+            for l, t := range vvv {
+              utils.Info.Println(l, t)
+              switch t.(type) {
+                case string:
+                  if (i == "user") {
+                      if (m == 0) {
+                          sList[index].Context[k].Actor[0].Role = make([]string, len(vvv))
+                      }
+                      sList[index].Context[k].Actor[0].Role[m] = t.(string)
+                  } else if (i == "app") {
+                      if (m == 0) {
+                          sList[index].Context[k].Actor[1].Role = make([]string, len(vvv))
+                      }
+                      sList[index].Context[k].Actor[1].Role[m] = t.(string)
+                  } else {
+                      if (m == 0) {
+                          sList[index].Context[k].Actor[2].Role = make([]string, len(vvv))
+                      }
+                      sList[index].Context[k].Actor[2].Role[m] = t.(string)
+                  }
+                default:
+                  utils.Info.Println(k, "is of an unknown type")
+              }
+              m++
+            }
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
+    for k, v := range noAccessElem {
+        switch vv := v.(type) {
+          case string:
+            utils.Info.Println(vv)
+            sList[index].NoAccess[k] = vv
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
 func main() {
 
 	serverChan := make(chan string)
@@ -418,6 +762,8 @@ func main() {
 
 	utils.InitLog("atserver-log.txt", "./logs")
 	initPurposelist()
+	initScopeList()
+	initVssFile()
 
         go initAtServer(serverChan, muxServer)
 
