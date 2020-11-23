@@ -197,11 +197,11 @@ The encoding uses both a lookup table to replace known data (paths, and other fi
 The mechanism of using the sub-protocol parameter to invoke encoding scheme can easily be extended to use other compression schemes.
 For more information about the reference encoding, see README in the utils directory.
 
-## Access security
-The access security model in the W3C VISS v2 specification is supported, with the exception of the authentication step. 
+## Access control
+The access control model in the W3C VISS v2 specification is supported, with the exception of the authentication step. 
 The implementation would not pass a security check, for eample the shared key for token signature verification is hardcoded with a redable text as value. 
 The access control model architecture is shown below.
 ![Access control architecture](pics/W3C_VISS_v2_access_control_model.png?raw=true)
-The README in the client/client-1.0/Javascript directory describes the requests a client must issue first to the Access Grant server, 
+The README in the client/client-1.0/Javascript directory describes the requests a client must issue first to the Access Grant Token server, 
 and then to the Access Token server in order to obtain an Access token.<br>
 HTML client implementations for respective access can also be found in the directory.
