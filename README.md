@@ -4,7 +4,7 @@
 All files and artifacts in this repository are licensed under the provisions of the license provided by the LICENSE file in this repository.
 
 # W3C_VehicleSignalInterfaceImpl
-This project implements the Gen2 specification under development at <a href="https://github.com/w3c/automotive">W3C Automotive Working Group</a>.<br>
+This project implements the W3C VISS v2 specification under development at <a href="https://github.com/w3c/automotive">W3C Automotive Working Group</a>.<br>
 
 
 # Starting and building the server
@@ -108,7 +108,7 @@ $ docker volume inspect w3c_vehiclesignalinterfaceimpl_logdata
 
 # 1. server
 
-The server directories contain an implementation of a server acording to the W3C Gen2 spec, and should align with the project common software architecture, see below. 
+The server directories contain an implementation of a server acording to the W3C W3C VISS v2 spec, and should align with the project common software architecture, see below. 
 Significant deviations should be documented in the README.md file.
 
 # 2. client
@@ -140,7 +140,7 @@ The design tries to meet the following requirements:
 - Support both the case of a singleton server through which all access goes, and the option of distributed servers that a client can access directly, after the initial service discovery.
 The following describes the components shown in Figure 1. 
 ## Transport managers and interface.
-The transport manager is responsible for that the Gen2 client-server communication is carried out according to the transport protocol the manager implements. The payload being communicated shall have the format specified in the GEN2 TRANSPORT document. A transport manager acts as a proxy between a client and the Server core, see Figure 2. The payload communicated over the Transport interface shall be identical regardless of which Transport manager the Core server communicates with. This payload shall therefore follow the format for the Websocket transport as specified in GEN2 TRANSPORT. This means that all transport managers except the Websocket transport manager must reformat the payload communicated over their respective transport protocol. The transport interface is divided into two components, a registration interface, and a data channel interface. The registration interface is used by a transport manager to register itself with the Server core. The data channel interface is used for exchanging the requests, responses, and notifications between the communication end points. The data channel must support bidirectional asynchronous communication, and should support both local and remote transport manager deployment. 
+The transport manager is responsible for that the W3C VISS v2 client-server communication is carried out according to the transport protocol the manager implements. The payload being communicated shall have the format specified in the W3C VISS v2 TRANSPORT document. A transport manager acts as a proxy between a client and the Server core, see Figure 2. The payload communicated over the Transport interface shall be identical regardless of which Transport manager the Core server communicates with. This payload shall therefore follow the format for the Websocket transport as specified in W3C VISS v2 TRANSPORT. This means that all transport managers except the Websocket transport manager must reformat the payload communicated over their respective transport protocol. The transport interface is divided into two components, a registration interface, and a data channel interface. The registration interface is used by a transport manager to register itself with the Server core. The data channel interface is used for exchanging the requests, responses, and notifications between the communication end points. The data channel must support bidirectional asynchronous communication, and should support both local and remote transport manager deployment. 
 At the registration with the core server the transport manager receives a transport manager Id. It must then include this in all payloads forwarded to the core server, for the core server to use in its payload routing. The transport manager must also include a client Id in the payload, to enable its own routing to different app-clients. These Ids must not be part of the payload returned to the app-clients. 
 ![Transport closeup](pics/transport_closeup.png?raw=true)<br>
 *Fig 2. Transport SwA closeup
@@ -153,7 +153,7 @@ The tree manager abstracts the details of the tree, e. g. its format, which thro
 The service manager internal design is not part of this project scope, as it is anticipated that this may substantially differ between OEMs. Therefore only the service manager interface is described here, and some service manager behaviour related to this interface. A service manager must first register with the Server core, in which it provides the path from tree root to the node that is the root node of the branches owned by this service manager. This means that the existing tree must already be populated with the branches of this service manager. A possible later extension is to allow the service manager to provide new branches to be added to the tree. Another extension could be for the service manager to also provide information whether it supports direct client access (distributed server solution), or not. But this is not supported in this first version. The service manager acts as the server in the data channel communication with the server core, so it shall provide the server core with port number and URL path at the registration. 
 The service interface payload shall follow the same format as the transport protocol. However, client requests related to authorize and service discovery actions terminate at the Server core, and should not be issued at this interface, i. e. only requests related to get/set/subscribe/unsubscribe should be communicated here. App-client requests may lead to requests on multiple data points, which shall be resolved by the server core, and over this interface lead to multiple requests, one per data point.
 The service interface is divided into two components, a registration interface, and a data channel interface. The registration interface is used by a service manager to register itself with the Server core. The data channel interface is used for exchanging the requests, responses, and notifications between the communication end points. The data channel must support bidirectional asynchronous communication, and should support both local and remote service manager deployment. 
-It is the responsibility of the service manager to map the VSS path expressions to whatever internal addressing scheme that is required to execute the requested data access. It is also the responsibility of the service manager to interpret the filter instructions in a subscription request, and make sure these are followed in subsequent notifications to the client. Further, the provided requestId must be included in responses and notifications as described in the GEN2 specification. 
+It is the responsibility of the service manager to map the VSS path expressions to whatever internal addressing scheme that is required to execute the requested data access. It is also the responsibility of the service manager to interpret the filter instructions in a subscription request, and make sure these are followed in subsequent notifications to the client. Further, the provided requestId must be included in responses and notifications as described in the W3C VISS v2 specification. 
 ![Service closeup](pics/service_closeup.png?raw=true)<br>
 *Fig 4. Service SwA closeup
 ## Server core
@@ -178,21 +178,30 @@ The response of a service discovery client request shall contain a JSON formatte
 # Server configurations
 
 ## VSS tree
-The vehicle signals that the Gen2 server manages are defined in the "vss_gen2.cnative" file in the server_core directory. New cnative files containing the latest verision on the VSS repo can be generated by cloning the <a href="https://github.com/GENIVI/vehicle_signal_specification">Vehicle Signal Specification</a> repo, and then issuing a "make cnative" command, see <a href="https://genivi.github.io/vehicle_signal_specification/tools/usage/">Tools usage</a>.<br>
+The vehicle signals that the W3C VISS v2 server manages are defined in the "vss_W3C VISS v2.cnative" file in the server_core directory. New cnative files containing the latest verision on the VSS repo can be generated by cloning the <a href="https://github.com/GENIVI/vehicle_signal_specification">Vehicle Signal Specification</a> repo, and then issuing a "make cnative" command, see <a href="https://genivi.github.io/vehicle_signal_specification/tools/usage/">Tools usage</a>.<br>
 To use other formats. e. g. JSON, the vssparserutilities.c found in the c_native directory at the <a href="https://github.com/GENIVI/vss-tools">VSS Tools</a> repo would have to implemented for that format (instead of the cnative format that it currently implements). The major parts to be reimplemented are the file read/write methods, and the "atomic" data access methods. Other methods, like the search method use these atomic methods for actual data access. This file would then have to replace the current vssparserutilities.c in the server_core directory. 
 
 ## VSS data sources
 The service manager implementation tries to open the file "statestorage.db" in the service_mgr directory. If this file exists, the service manager will then try to read the signals being addressed by the paths in client requests from this file. The file is an SQL database containing a table with a column for VSS paths, and a column for the data associated with the path. If there is no match, or if the database file was not found at server startup, then the service manager will instead generate a dummy value to be returned in the response. Dummy values are always an integer in the range from 0 to 999, from a counter that is incremented every 37 msec.<br>
-New statestorage.db files can be generated by cloning the <a href="https://github.com/GENIVI/ccs-w3c-client">CCS-W3C-Client</a> repo, and then run the statestorage manager, see the statestorage directory. It is then important that the "vsspathlist.json" file being read by the statestorage manager is copied from the server directoy of this repo, where it becomes generated by the Gen2 server at startup (from the data in the "vss_gen2.cnative" file, and that the new statestorage database is populated with actual data, either in real time when running the Gen2 server, or preloaded with static data. The statestorage architecture allows one or more "feeders" to write data into the database, and also provides a translation table that can be preloaded for translating from a "non-VSS" address space to the VSS addres space (=VSS paths).
+New statestorage.db files can be generated by cloning the <a href="https://github.com/GENIVI/ccs-w3c-client">CCS-W3C-Client</a> repo, and then run the statestorage manager, see the statestorage directory. It is then important that the "vsspathlist.json" file being read by the statestorage manager is copied from the server directoy of this repo, where it becomes generated by the W3C VISS v2 server at startup (from the data in the "vss_W3C VISS v2.cnative" file, and that the new statestorage database is populated with actual data, either in real time when running the W3C VISS v2 server, or preloaded with static data. The statestorage architecture allows one or more "feeders" to write data into the database, and also provides a translation table that can be preloaded for translating from a "non-VSS" address space to the VSS addres space (=VSS paths).
 
 ## Payload encoding
-A reference payload encoding is implemented that compresses the Gen2 transport payloads with a ratio of around 450% to 700%.<br>
+A reference payload encoding is implemented that compresses the W3C VISS v2 transport payloads with a ratio of around 450% to 700%.<br>
 The encoding is currently only possible to activate over the WebSocket transport protocol, but it would also be possible to invoke over the HTTP protocol. 
-To invoke it a client must set the sub-protocol to "gen2c", in JS something like<br>
+To invoke it a client must set the sub-protocol to "W3C VISS v2c", in JS something like<br>
 ```
- socket = new WebSocket("ws://url-to-server:8080", "gen2c");
+ socket = new WebSocket("ws://url-to-server:8080", "W3C VISS v2c");
 ```
-For unencoded WebSocket sessions, the sub-protocol shall be set to "gen2", or left out completely.<br>
+For unencoded WebSocket sessions, the sub-protocol shall be set to "W3C VISS v2", or left out completely.<br>
 The encoding uses both a lookup table to replace known data (paths, and other fixed key-values), removal of rule-based JSON reserved characters, and binary compression of actual data.<br>
 The mechanism of using the sub-protocol parameter to invoke encoding scheme can easily be extended to use other compression schemes.
-For more information about the reference encoding, see README in the utils directory. 
+For more information about the reference encoding, see README in the utils directory.
+
+## Access security
+The access security model in the W3C VISS v2 specification is supported, with the exception of the authentication step. 
+The implementation would not pass a security check, for eample the shared key for token signature verification is hardcoded with a redable text as value. 
+The access control model architecture is shown below.
+![Access control architecture](pics/W3C_VISS_v2_access_control_model.png?raw=true)
+The README in the client/client-1.0/Javascript directory describes the requests a client must issue first to the Access Grant server, 
+and then to the Access Token server in order to obtain an Access token.<br>
+HTML client implementations for respective access can also be found in the directory.
