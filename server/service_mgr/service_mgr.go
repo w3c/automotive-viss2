@@ -42,9 +42,8 @@ type filterDef_t struct {
 
 type SubscriptionState struct {
 	subscriptionId int
-	mgrId          int
-	clientId       int
-	requestId      string
+	routerId       string
+//	requestId      string
 	path           string
 	filterList     []filterDef_t
 	latestValue    string
@@ -54,8 +53,7 @@ type SubscriptionState struct {
 var hostIp string
 
 var errorResponseMap = map[string]interface{}{
-	"MgrId":     0,
-	"ClientId":  0,
+	"RouterId":  "0?0",
 	"action":    "unknown",
 	"requestId": "XX",
 	"error":     `{"number":AA, "reason": "BB", "message": "CC"}`,
@@ -251,9 +249,8 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 	case subscriptionId := <-subscriptionChannel: // $interval triggered
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-		subscriptionMap["MgrId"] = subscriptionState.mgrId
-		subscriptionMap["ClientId"] = subscriptionState.clientId
-		subscriptionMap["requestId"] = subscriptionState.requestId
+		subscriptionMap["RouterId"] = subscriptionState.routerId
+//		subscriptionMap["requestId"] = subscriptionState.requestId
 		subscriptionMap["value"], subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
  	                       backendChannel <- utils.FinalizeMessage(subscriptionMap)
 	default:
@@ -264,9 +261,8 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-				subscriptionMap["MgrId"] = subscriptionState.mgrId
-				subscriptionMap["ClientId"] = subscriptionState.clientId
-				subscriptionMap["requestId"] = subscriptionState.requestId
+				subscriptionMap["RouterId"] = subscriptionState.routerId
+//				subscriptionMap["requestId"] = subscriptionState.requestId
 				subscriptionMap["value"] = currentValue
 				subscriptionMap["timestamp"]  = timeStamp
   			        subscriptionList[i].latestValue = subscriptionMap["value"].(string)
@@ -425,8 +421,7 @@ func main() {
 			var requestMap = make(map[string]interface{})
 			var responseMap = make(map[string]interface{})
 			utils.ExtractPayload(request, &requestMap)
-			responseMap["MgrId"] = requestMap["MgrId"]
-			responseMap["ClientId"] = requestMap["ClientId"]
+			responseMap["RouterId"] = requestMap["RouterId"]
 			responseMap["action"] = requestMap["action"]
 			responseMap["requestId"] = requestMap["requestId"]
 			switch requestMap["action"] {
@@ -434,7 +429,6 @@ func main() {
 		            var pathArray []string
 		            paths := requestMap["path"].(string)
 		            if (strings.Contains(paths, "[") == true) {
-utils.Info.Printf("requestMap[\"path\"] is an array\n")
                                err := json.Unmarshal([]byte(paths), &pathArray)
                                if (err != nil) {
 				    utils.Error.Printf("Unmarshal path array failed.")
@@ -458,9 +452,8 @@ responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["pat
 			case "subscribe":
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
-				subscriptionState.mgrId = int(requestMap["MgrId"].(float64))
-				subscriptionState.clientId = int(requestMap["ClientId"].(float64))
-				subscriptionState.requestId = requestMap["requestId"].(string)
+				subscriptionState.routerId = requestMap["RouterId"].(string)
+//				subscriptionState.requestId = requestMap["requestId"].(string)
 				subscriptionState.path = requestMap["path"].(string)
 				subscriptionState.filterList = []filterDef_t{}
 					utils.Info.Printf("filter=%s", requestMap["filter"])

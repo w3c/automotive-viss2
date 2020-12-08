@@ -121,8 +121,7 @@ type RouterTable_t struct {
 var routerTable []RouterTable_t
 
 var errorResponseMap = map[string]interface{}{
-	"MgrId":     0,
-	"ClientId":  0,
+	"RouterId":     0,
 	"action":    "unknown",
 	"requestId": "XXX",
 	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
@@ -148,28 +147,21 @@ func routerTableAdd(mgrId int, mgrIndex int) {
 	routerTable = append(routerTable, tableElement)
 }
 
-func routerTableSearchForMgrIndex(mgrId int) int {
+func extractMgrId(routerId string) int { // "RouterId" : "mgrId?clientId"
+    delim := strings.Index(routerId, "?")
+    mgrId, _ := strconv.Atoi(routerId[:delim])
+    return mgrId
+}
+
+func routerTableSearchForMgrIndex(routerId string) int {
+        mgrId := extractMgrId(routerId)
 	for _, element := range routerTable {
 		if element.mgrId == mgrId {
-			utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d", element.mgrIndex)
+//			utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d", element.mgrIndex)
 			return element.mgrIndex
 		}
 	}
 	return -1
-}
-
-func getPayloadMgrId(request string) int {
-	type Payload struct {
-		MgrId int
-	}
-	decoder := json.NewDecoder(strings.NewReader(request))
-	var payload Payload
-	err := decoder.Decode(&payload)
-	if err != nil {
-		utils.Error.Printf("Server core-getPayloadMgrId: JSON decode failed for request:%s\n", request)
-		return -1
-	}
-	return payload.MgrId
 }
 
 /*
@@ -246,12 +238,8 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 		} else {
 			utils.ExtractPayload(string(response), &responseMap)
 		}
-//		if responseMap["action"] == "subscription" {
-			mgrIndex := routerTableSearchForMgrIndex(int(responseMap["MgrId"].(float64)))
-			backendChannel[mgrIndex] <- string(response)
-/*		} else {
-			serviceDataChan[serviceIndex] <- string(response) // response to request
-		}*/
+		mgrIndex := routerTableSearchForMgrIndex(responseMap["RouterId"].(string))
+		backendChannel[mgrIndex] <- string(response)
 	}
 }
 
@@ -645,15 +633,6 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return
 		}
-//		var response string
-//		var aggregatedValue string
-//		var foundMatch int = 0
-//		var dataQuery bool = false
-//		var queryData string
-/*		if listContainsName(filterList, "$data") == true {
-			dataQuery = true
-			queryData = getListValue(filterList, "$data")
-		}*/
 		paths := ""
 		if (matches > 1) {
 		    paths += "["
@@ -661,37 +640,13 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 		for i := 0; i < matches; i++ {
 			pathLen := getPathLen(string(searchData[i].responsePath[:]))
 			paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
-//			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-
-/*			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
-				if matches > 1 {
-				    aggregateValue(foundMatch, requestMap["path"].(string), response, &aggregatedValue)
-				}
-				foundMatch++
-			}*/
-
 		}
 		paths = paths[:len(paths)-2]
 		if (matches > 1) {
 		    paths += "]"
 		}
 		requestMap["path"] = paths
-utils.Info.Printf("paths=%s", paths)
-			serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
-//			response = <-serviceDataChan[sDChanIndex]  !!! skicks direkt till backend av servicemgr !!!
-		/*if foundMatch == 0 {
-			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Data not matching query.", "")
-			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-		} else {
-			if matches == 1 {*/
-//				transportDataChan[tDChanIndex] <- response    !!!!ta bort i transport front end också !!!
-/*			} else {
-utils.Info.Printf("aggregatedValue=%s", aggregatedValue)
-	                       response = modifyResponse(response, aggregatedValue)
-utils.Info.Printf("aggregatedResponse=%s", response)
-				transportDataChan[tDChanIndex] <- response
-			}
-		}*/
+		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 	}
 }
 
@@ -711,8 +666,23 @@ func addQuery(path string) string {
 	return ""
 }
 
-// vssparserutilities.h: nodeTypes_t; 0-9 -> the data types, 10-16 -> the node types. Should be separated in the C code declarations...
+// nativeCnodeDef.h: nodeTypes_t; 
 func nodeTypesToString(nodeType int) string {
+	switch nodeType {
+	case 0:
+		return "sensor"
+	case 1:
+		return "actuator"
+	case 2:
+		return "attribute"
+	case 3:
+		return "branch"
+	default:
+		return ""
+	}
+}
+// nativeCnodeDef.h: nodeDatatypes_t
+func nodeDataTypesToString(nodeType int) string {
 	switch nodeType {
 	case 0:
 		return "int8"
@@ -734,16 +704,6 @@ func nodeTypesToString(nodeType int) string {
 		return "boolean"
 	case 9:
 		return "string"
-	case 10:
-		return "sensor"
-	case 11:
-		return "actuator"
-	case 12:
-		return "stream"
-	case 13:
-		return "attribute"
-	case 14:
-		return "branch"
 	default:
 		return ""
 	}
@@ -772,7 +732,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 	case 13: // attribute
 		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := int(C.VSSgetDatatype(nodeHandle))
-		newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
+		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(nodeDatatype) + `",`
 	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
 		return ""
 

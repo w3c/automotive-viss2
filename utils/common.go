@@ -136,11 +136,8 @@ func ExtractFromToken(token string, claim string) string { // TODO remove white 
 }
 
 func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
-	if reqMap["MgrId"] != nil {
-		errRespMap["MgrId"] = reqMap["MgrId"]
-	}
-	if reqMap["ClientId"] != nil {
-		errRespMap["ClientId"] = reqMap["ClientId"]
+	if reqMap["RouterId"] != nil {
+		errRespMap["RouterId"] = reqMap["RouterId"]
 	}
 	if reqMap["action"] != nil {
 		errRespMap["action"] = reqMap["action"]
@@ -180,7 +177,7 @@ func FileExists(filename string) bool {
 
 /**************** Compression reference implementation ***********************/
 
-func nextQuoteMark(message []byte, offset int) int {
+func NextQuoteMark(message []byte, offset int) int {
     for i := offset ; i < len(message) ; i++ {
         if (message[i] == '"') {
             return i
@@ -418,8 +415,7 @@ func DecompressMessage(message []byte) []byte {
 func readUncompressedMessage(message []byte, offset int) []byte {
     var token []byte
     if (message[offset] == '"') {
-        offset2 := nextQuoteMark(message, offset+1)
-//        offset2 := strings.Index(string(message[offset+1:]), "\"")
+        offset2 := NextQuoteMark(message, offset+1)
         token = message[offset:offset2+1]
     } else {
         token = []byte(string(message[offset]))

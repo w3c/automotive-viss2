@@ -297,17 +297,13 @@ func finalizeResponse(responseMap map[string]interface{}) string {
 	return string(response)
 }
 
-func removeInternalData(response string) (string, int) {
-    actionIndex := strings.Index(response, "\"action\"")
-    clientidIndexFront := strings.Index(response, "\"clientId\"") + 13
-    clientidIndexEnd := strings.Index(response[clientidIndexFront:], ",")
-//Info.Printf("ClientId=%s, Front=%d, End=%d", response[clientidIndexFront:clientidIndexFront+clientidIndexEnd], clientidIndexFront, clientidIndexEnd)
-    clientId, err := strconv.Atoi(response[clientidIndexFront:clientidIndexFront+clientidIndexEnd])
-    if err != nil {
-	Error.Println("removeInternalData() error:" + err.Error())
-	return "", -1
-    }
-    trimmedResponse := "{" + response[actionIndex:]
+func removeInternalData(response string) (string, int) {  // "RouterId" : "mgrId?clientId", 
+    routerIdStart := strings.Index(response, "RouterId") - 1
+    clientIdStart := strings.Index(response[routerIdStart:], "?") + 1 + routerIdStart
+    clientIdStop := NextQuoteMark([]byte(response), clientIdStart)
+    clientId, _ := strconv.Atoi(response[clientIdStart:clientIdStop])
+    routerIdStop := strings.Index(response[clientIdStop:], ",") + 1 + clientIdStop
+    trimmedResponse := response[:routerIdStart] + response[routerIdStop:]
     return trimmedResponse, clientId
 }
 
@@ -333,7 +329,7 @@ func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *w
 		}
 		Info.Printf("Server hub: WS response from server core:%s\n", string(response))
 		trimmedResponse, clientId := removeInternalData(string(response))
-		if strings.Contains(trimmedResponse, "subscription") {
+		if strings.Contains(trimmedResponse, "\"subscription\"") {
 			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
 		} else {
 			appClientChannel[clientId] <- trimmedResponse
