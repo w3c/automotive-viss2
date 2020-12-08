@@ -246,12 +246,12 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 		} else {
 			utils.ExtractPayload(string(response), &responseMap)
 		}
-		if responseMap["action"] == "subscription" {
+//		if responseMap["action"] == "subscription" {
 			mgrIndex := routerTableSearchForMgrIndex(int(responseMap["MgrId"].(float64)))
 			backendChannel[mgrIndex] <- string(response)
-		} else {
+/*		} else {
 			serviceDataChan[serviceIndex] <- string(response) // response to request
-		}
+		}*/
 	}
 }
 
@@ -341,9 +341,9 @@ func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan strin
 
 		utils.Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
 		transportDataChannel <- string(msg) // send request to server hub
-		response := <-transportDataChannel  // wait for response from server hub
+//		response := <-transportDataChannel  // wait for response from server hub   !!! ta bort i samband med ny routning
 
-		backendChannel <- response
+//		backendChannel <- response
 	}
 }
 
@@ -645,42 +645,53 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return
 		}
-		var response string
-		var aggregatedValue string
-		var foundMatch int = 0
-		var dataQuery bool = false
-		var queryData string
-		if listContainsName(filterList, "$data") == true {
+//		var response string
+//		var aggregatedValue string
+//		var foundMatch int = 0
+//		var dataQuery bool = false
+//		var queryData string
+/*		if listContainsName(filterList, "$data") == true {
 			dataQuery = true
 			queryData = getListValue(filterList, "$data")
+		}*/
+		paths := ""
+		if (matches > 1) {
+		    paths += "["
 		}
 		for i := 0; i < matches; i++ {
 			pathLen := getPathLen(string(searchData[i].responsePath[:]))
-			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
+			paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
+//			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
 
-			serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
-			response = <-serviceDataChan[sDChanIndex]
-			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
+/*			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
 				if matches > 1 {
 				    aggregateValue(foundMatch, requestMap["path"].(string), response, &aggregatedValue)
 				}
 				foundMatch++
-			}
+			}*/
 
 		}
-		if foundMatch == 0 {
+		paths = paths[:len(paths)-2]
+		if (matches > 1) {
+		    paths += "]"
+		}
+		requestMap["path"] = paths
+utils.Info.Printf("paths=%s", paths)
+			serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
+//			response = <-serviceDataChan[sDChanIndex]  !!! skicks direkt till backend av servicemgr !!!
+		/*if foundMatch == 0 {
 			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Data not matching query.", "")
 			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		} else {
-			if matches == 1 {
-				transportDataChan[tDChanIndex] <- response
-			} else {
+			if matches == 1 {*/
+//				transportDataChan[tDChanIndex] <- response    !!!!ta bort i transport front end också !!!
+/*			} else {
 utils.Info.Printf("aggregatedValue=%s", aggregatedValue)
 	                       response = modifyResponse(response, aggregatedValue)
 utils.Info.Printf("aggregatedResponse=%s", response)
 				transportDataChan[tDChanIndex] <- response
 			}
-		}
+		}*/
 	}
 }
 

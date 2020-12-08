@@ -431,8 +431,27 @@ func main() {
 			responseMap["requestId"] = requestMap["requestId"]
 			switch requestMap["action"] {
 			case "get":
-		               responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
- 		               dataChan <- utils.FinalizeMessage(responseMap)
+		            var pathArray []string
+		            paths := requestMap["path"].(string)
+		            if (strings.Contains(paths, "[") == true) {
+utils.Info.Printf("requestMap[\"path\"] is an array\n")
+                               err := json.Unmarshal([]byte(paths), &pathArray)
+                               if (err != nil) {
+				    utils.Error.Printf("Unmarshal path array failed.")
+		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
+	                           dataChan <- utils.FinalizeMessage(responseMap)
+	                           break
+                               }
+	                   } else {
+	                       pathArray = make([]string, 1)
+	                       pathArray[0] = paths
+	                   }
+                           for i := 0 ; i < len(pathArray) ; i++ {
+utils.Info.Printf("paths[%d]=%s", i, pathArray[i])
+//		                responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
+		           }
+responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
+	                   dataChan <- utils.FinalizeMessage(responseMap)
 			case "set":
 				// TODO: interact with underlying subsystem to set the value
 			        dataChan <- utils.FinalizeMessage(responseMap)
