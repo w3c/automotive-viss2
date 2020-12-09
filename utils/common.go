@@ -652,7 +652,6 @@ func CompressMessage(message []byte) []byte {
 //Info.Printf("Token=%s, len=%d", string(token), len(token))
         offset += len(token)
         if (len(token) == 1) {
-//            if (token[0] != ' ') {  // remove space
             if (token[0] != ' ' && token[0] != ',') {  // remove space and comma
                 if ((token[0] == '{' && offset == 1) || (token[0] == '}' && offset == len(message)) || (token[0] == ':')) { //remove leading/trailing curly braces, and colon
                     continue

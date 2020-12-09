@@ -204,9 +204,6 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string,
 	for {
 		message := <-clientBackendChannel
 
-                message = strings.Replace(message, "\"[", "[", -1)  // service manager must create arrays as strings to get it through server core routing analysis...
-                message = strings.Replace(message, "]\"", "]", -1)
-                message = strings.Replace(message, "\\", "", -1)
 		Info.Printf("backendWSAppSession(): Message received=%s\n", message)
 		// Write message back to app client
 		response := []byte(message)

@@ -157,11 +157,22 @@ func routerTableSearchForMgrIndex(routerId string) int {
         mgrId := extractMgrId(routerId)
 	for _, element := range routerTable {
 		if element.mgrId == mgrId {
-//			utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d", element.mgrIndex)
 			return element.mgrIndex
 		}
 	}
 	return -1
+}
+
+func getRouterId(response string) string {  // "RouterId" : "mgrId?clientId", 
+    afterRouterIdKey := strings.Index(response, "RouterId")
+    if (afterRouterIdKey == -1) {
+        return ""
+    }
+    afterRouterIdKey += 8 + 1  // points to after quote
+    routerIdValStart := utils.NextQuoteMark([]byte(response), afterRouterIdKey) + 1
+    routerIdValStop := utils.NextQuoteMark([]byte(response), routerIdValStart)
+utils.Info.Printf("getRouterId: %s", response[routerIdValStart:routerIdValStop])
+    return response[routerIdValStart:routerIdValStop]
 }
 
 /*
@@ -231,14 +242,11 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 	for {
 		_, response, err := dataConn.ReadMessage()
 		utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
-		var responseMap = make(map[string]interface{})
 		if err != nil {
 			utils.Error.Println("Service datachannel read error:", err)
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
-		} else {
-			utils.ExtractPayload(string(response), &responseMap)
 		}
-		mgrIndex := routerTableSearchForMgrIndex(responseMap["RouterId"].(string))
+		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
@@ -329,9 +337,6 @@ func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan strin
 
 		utils.Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
 		transportDataChannel <- string(msg) // send request to server hub
-//		response := <-transportDataChannel  // wait for response from server hub   !!! ta bort i samband med ny routning
-
-//		backendChannel <- response
 	}
 }
 
@@ -423,39 +428,6 @@ func getPathLen(path string) int {
 		}
 	}
 	return len(path)
-}
-
-func synthesizeValueObject(path string, value string) string {
-	return `{"path":"` + path + `", "value":"` + value + `"}`
-}
-
-/**
-* aggregateValue synthezises the "value" value when multiple matches may occur. The non-search response pattern for the value, "value": "123",
-* is not sufficient as the response does not contain the corresponding path. So the following pattern is then used:
-* For single match search result:
-* {"path": "path-to-match", "value": "123"}
-* For multiple match search result:
-* "[{"path": "path-to-match1", "value": "123"}, {"path": "path-to-match2", "value": "456"}, ..]
-**/
-func aggregateValue(iterator int, path string, response string, aggregatedValue *string) {
-
-	var responseMap map[string]interface{}
-	utils.ExtractPayload(response, &responseMap)
-	value := responseMap["value"].(string)
-
-	switch responseMap["action"] {
-	case "get":
-		switch iterator {
-		case 0:
-			*aggregatedValue += synthesizeValueObject(path, value)
-		case 1:
-			*aggregatedValue = "[" + *aggregatedValue + ", " + synthesizeValueObject(path, value) + "]"
-		default:
-			*aggregatedValue = (*aggregatedValue)[:len(*aggregatedValue)-1] + ", " + synthesizeValueObject(path, value) + "]"
-		}
-	default: // set, subscribe: shall multiple matches be allowed??
-
-	}
 }
 
 func getTokenErrorMessage(index int) string {
@@ -562,7 +534,7 @@ func verifyToken(token string, action string, paths string, validation int) int 
 	return validateResult
 }
 
-func isDataMatch(queryData string, response string) bool {
+func isDataMatch(queryData string, response string) bool {  // deprecated when new query syntax is introduced, range=x may be supported by service-mgr, but in a different way
 	var responsetMap = make(map[string]interface{})
 	utils.ExtractPayload(response, &responsetMap)
 	utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
@@ -850,7 +822,6 @@ func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, in
 func synthesizeJsonTree(path string, depth string, tokenContext string) string {
 	var jsonBuffer string
 	searchData := [MAXFOUNDNODES]searchData_t{}
-//	noScopeList := []noScopeList_t{}
 	noScopeList, numOfListElem := getNoScopeList(tokenContext)
 utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, numOfListElem, &noScopeList[0], nil)

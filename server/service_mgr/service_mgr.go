@@ -43,7 +43,6 @@ type filterDef_t struct {
 type SubscriptionState struct {
 	subscriptionId int
 	routerId       string
-//	requestId      string
 	path           string
 	filterList     []filterDef_t
 	latestValue    string
@@ -242,6 +241,14 @@ func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool 
 	return false
 }
 
+func addDataPackage(incompleteMessage string, value string) string { // TODO: Update when syntax for complex datapackages known.
+    if (strings.Contains(value, "[") == false) {
+        return incompleteMessage[:len(incompleteMessage)-1] + ", \"value\":\"" + value + "\"" + "}"
+    } else {
+        return incompleteMessage[:len(incompleteMessage)-1] + ", \"value\":" + value + "}"
+    }
+}
+
 func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState) {
 	var subscriptionMap = make(map[string]interface{})
 	subscriptionMap["action"] = "subscription"
@@ -250,9 +257,9 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
-//		subscriptionMap["requestId"] = subscriptionState.requestId
-		subscriptionMap["value"], subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
- 	                       backendChannel <- utils.FinalizeMessage(subscriptionMap)
+		var currentValue string
+		currentValue, subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
+ 	                       backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), currentValue)
 	default:
 		// check $range, $change trigger points
 		for i := range subscriptionList {
@@ -262,11 +269,9 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.routerId
-//				subscriptionMap["requestId"] = subscriptionState.requestId
-				subscriptionMap["value"] = currentValue
 				subscriptionMap["timestamp"]  = timeStamp
   			        subscriptionList[i].latestValue = subscriptionMap["value"].(string)
-				backendChannel <- utils.FinalizeMessage(subscriptionMap)
+				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), currentValue)
 			}
 		}
 	}
@@ -453,7 +458,6 @@ responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["pat
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
 				subscriptionState.routerId = requestMap["RouterId"].(string)
-//				subscriptionState.requestId = requestMap["requestId"].(string)
 				subscriptionState.path = requestMap["path"].(string)
 				subscriptionState.filterList = []filterDef_t{}
 					utils.Info.Printf("filter=%s", requestMap["filter"])
