@@ -121,8 +121,7 @@ type RouterTable_t struct {
 var routerTable []RouterTable_t
 
 var errorResponseMap = map[string]interface{}{
-	"MgrId":     0,
-	"ClientId":  0,
+	"RouterId":     0,
 	"action":    "unknown",
 	"requestId": "XXX",
 	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
@@ -148,28 +147,32 @@ func routerTableAdd(mgrId int, mgrIndex int) {
 	routerTable = append(routerTable, tableElement)
 }
 
-func routerTableSearchForMgrIndex(mgrId int) int {
+func extractMgrId(routerId string) int { // "RouterId" : "mgrId?clientId"
+    delim := strings.Index(routerId, "?")
+    mgrId, _ := strconv.Atoi(routerId[:delim])
+    return mgrId
+}
+
+func routerTableSearchForMgrIndex(routerId string) int {
+        mgrId := extractMgrId(routerId)
 	for _, element := range routerTable {
 		if element.mgrId == mgrId {
-			utils.Info.Printf("routerTableSearchForMgrIndex: Found index=%d", element.mgrIndex)
 			return element.mgrIndex
 		}
 	}
 	return -1
 }
 
-func getPayloadMgrId(request string) int {
-	type Payload struct {
-		MgrId int
-	}
-	decoder := json.NewDecoder(strings.NewReader(request))
-	var payload Payload
-	err := decoder.Decode(&payload)
-	if err != nil {
-		utils.Error.Printf("Server core-getPayloadMgrId: JSON decode failed for request:%s\n", request)
-		return -1
-	}
-	return payload.MgrId
+func getRouterId(response string) string {  // "RouterId" : "mgrId?clientId", 
+    afterRouterIdKey := strings.Index(response, "RouterId")
+    if (afterRouterIdKey == -1) {
+        return ""
+    }
+    afterRouterIdKey += 8 + 1  // points to after quote
+    routerIdValStart := utils.NextQuoteMark([]byte(response), afterRouterIdKey) + 1
+    routerIdValStop := utils.NextQuoteMark([]byte(response), routerIdValStart)
+utils.Info.Printf("getRouterId: %s", response[routerIdValStart:routerIdValStop])
+    return response[routerIdValStart:routerIdValStop]
 }
 
 /*
@@ -239,19 +242,12 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 	for {
 		_, response, err := dataConn.ReadMessage()
 		utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
-		var responseMap = make(map[string]interface{})
 		if err != nil {
 			utils.Error.Println("Service datachannel read error:", err)
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
-		} else {
-			utils.ExtractPayload(string(response), &responseMap)
 		}
-		if responseMap["action"] == "subscription" {
-			mgrIndex := routerTableSearchForMgrIndex(int(responseMap["MgrId"].(float64)))
-			backendChannel[mgrIndex] <- string(response)
-		} else {
-			serviceDataChan[serviceIndex] <- string(response) // response to request
-		}
+		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
+		backendChannel[mgrIndex] <- string(response)
 	}
 }
 
@@ -341,9 +337,6 @@ func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan strin
 
 		utils.Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
 		transportDataChannel <- string(msg) // send request to server hub
-		response := <-transportDataChannel  // wait for response from server hub
-
-		backendChannel <- response
 	}
 }
 
@@ -435,39 +428,6 @@ func getPathLen(path string) int {
 		}
 	}
 	return len(path)
-}
-
-func synthesizeValueObject(path string, value string) string {
-	return `{"path":"` + path + `", "value":"` + value + `"}`
-}
-
-/**
-* aggregateValue synthezises the "value" value when multiple matches may occur. The non-search response pattern for the value, "value": "123",
-* is not sufficient as the response does not contain the corresponding path. So the following pattern is then used:
-* For single match search result:
-* {"path": "path-to-match", "value": "123"}
-* For multiple match search result:
-* "[{"path": "path-to-match1", "value": "123"}, {"path": "path-to-match2", "value": "456"}, ..]
-**/
-func aggregateValue(iterator int, path string, response string, aggregatedValue *string) {
-
-	var responseMap map[string]interface{}
-	utils.ExtractPayload(response, &responseMap)
-	value := responseMap["value"].(string)
-
-	switch responseMap["action"] {
-	case "get":
-		switch iterator {
-		case 0:
-			*aggregatedValue += synthesizeValueObject(path, value)
-		case 1:
-			*aggregatedValue = "[" + *aggregatedValue + ", " + synthesizeValueObject(path, value) + "]"
-		default:
-			*aggregatedValue = (*aggregatedValue)[:len(*aggregatedValue)-1] + ", " + synthesizeValueObject(path, value) + "]"
-		}
-	default: // set, subscribe: shall multiple matches be allowed??
-
-	}
 }
 
 func getTokenErrorMessage(index int) string {
@@ -574,7 +534,7 @@ func verifyToken(token string, action string, paths string, validation int) int 
 	return validateResult
 }
 
-func isDataMatch(queryData string, response string) bool {
+func isDataMatch(queryData string, response string) bool {  // deprecated when new query syntax is introduced, range=x may be supported by service-mgr, but in a different way
 	var responsetMap = make(map[string]interface{})
 	utils.ExtractPayload(response, &responsetMap)
 	utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
@@ -616,10 +576,10 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 	}
 	var validation C.int = -1
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, 0, nil, &validation)
-	utils.Info.Printf("Max validation from search=%d", int(validation))
+	utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
 	if matches == 0 {
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
-		transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	} else {
 		switch int(validation) {
@@ -637,50 +597,28 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			}
 			if errorCode < 0 {
 				setTokenErrorResponse(requestMap, errorCode)
-				transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
 		default: // should not be possible...
 			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
-			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+			backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return
 		}
-		var response string
-		var aggregatedValue string
-		var foundMatch int = 0
-		var dataQuery bool = false
-		var queryData string
-		if listContainsName(filterList, "$data") == true {
-			dataQuery = true
-			queryData = getListValue(filterList, "$data")
+		paths := ""
+		if (matches > 1) {
+		    paths += "["
 		}
 		for i := 0; i < matches; i++ {
 			pathLen := getPathLen(string(searchData[i].responsePath[:]))
-			requestMap["path"] = string(searchData[i].responsePath[:pathLen]) + addQuery(requestMap["path"].(string))
-
-			serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
-			response = <-serviceDataChan[sDChanIndex]
-			if dataQuery == false || (dataQuery == true && isDataMatch(queryData, response) == true) {
-				if matches > 1 {
-				    aggregateValue(foundMatch, requestMap["path"].(string), response, &aggregatedValue)
-				}
-				foundMatch++
-			}
-
+			paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
 		}
-		if foundMatch == 0 {
-			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Data not matching query.", "")
-			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-		} else {
-			if matches == 1 {
-				transportDataChan[tDChanIndex] <- response
-			} else {
-utils.Info.Printf("aggregatedValue=%s", aggregatedValue)
-	                       response = modifyResponse(response, aggregatedValue)
-utils.Info.Printf("aggregatedResponse=%s", response)
-				transportDataChan[tDChanIndex] <- response
-			}
+		paths = paths[:len(paths)-2]
+		if (matches > 1) {
+		    paths += "]"
 		}
+		requestMap["path"] = paths
+		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 	}
 }
 
@@ -700,8 +638,23 @@ func addQuery(path string) string {
 	return ""
 }
 
-// vssparserutilities.h: nodeTypes_t; 0-9 -> the data types, 10-16 -> the node types. Should be separated in the C code declarations...
+// nativeCnodeDef.h: nodeTypes_t; 
 func nodeTypesToString(nodeType int) string {
+	switch nodeType {
+	case 0:
+		return "sensor"
+	case 1:
+		return "actuator"
+	case 2:
+		return "attribute"
+	case 3:
+		return "branch"
+	default:
+		return ""
+	}
+}
+// nativeCnodeDef.h: nodeDatatypes_t
+func nodeDataTypesToString(nodeType int) string {
 	switch nodeType {
 	case 0:
 		return "int8"
@@ -723,16 +676,6 @@ func nodeTypesToString(nodeType int) string {
 		return "boolean"
 	case 9:
 		return "string"
-	case 10:
-		return "sensor"
-	case 11:
-		return "actuator"
-	case 12:
-		return "stream"
-	case 13:
-		return "attribute"
-	case 14:
-		return "branch"
 	default:
 		return ""
 	}
@@ -761,7 +704,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 	case 13: // attribute
 		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := int(C.VSSgetDatatype(nodeHandle))
-		newJsonBuffer += `"datatype:"` + `"` + nodeTypesToString(nodeDatatype) + `",`
+		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(nodeDatatype) + `",`
 	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
 		return ""
 
@@ -879,7 +822,6 @@ func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, in
 func synthesizeJsonTree(path string, depth string, tokenContext string) string {
 	var jsonBuffer string
 	searchData := [MAXFOUNDNODES]searchData_t{}
-//	noScopeList := []noScopeList_t{}
 	noScopeList, numOfListElem := getNoScopeList(tokenContext)
 utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, numOfListElem, &noScopeList[0], nil)
@@ -1010,7 +952,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec"), tokenContext)
 			delete(requestMap, "path")
 			requestMap["timestamp"] = utils.GetRfcTime()
-			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
+			backendChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
 		} else {
 			if listContainsName(filterList, "$path") == true {
 				requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") //When/if VSS changes to slash delimiter, update here
@@ -1028,12 +970,12 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	case "unsubscribe":
 		utils.Info.Printf("unsubscribe:request=%s", request)
 		serviceDataChan[sDChanIndex] <- request
-		response := <-serviceDataChan[sDChanIndex]
-		transportDataChan[tDChanIndex] <- response
+//		response := <-serviceDataChan[sDChanIndex]
+//		transportDataChan[tDChanIndex] <- response
 	default:
 		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
-		transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 	}
 }
 

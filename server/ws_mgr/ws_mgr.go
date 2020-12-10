@@ -48,9 +48,8 @@ const isClientLocal = false
 // add mgrId + clientId to message, forward to server core
 func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn *websocket.Conn, clientId int) {
 	utils.Info.Printf("Transport server hub: Request from client %d:%s", clientId, reqMessage)
-	newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : " + strconv.Itoa(clientId) + " , "
+	newPrefix := "{ \"RouterId\":\"" + strconv.Itoa(regData.Mgrid) + "?" + strconv.Itoa(clientId) + "\", "
 	request := strings.Replace(reqMessage, "{", newPrefix, 1)
-	//  utils.Info.Println("WS mgr message to core server:" + request)
 	err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 	if err != nil {
 		utils.Error.Printf("Datachannel write error: %s", err)

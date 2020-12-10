@@ -44,7 +44,7 @@ func main() {
 		case reqMessage := <-utils.AppClientChan[0]:
 			utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
 			// add mgrId + clientId=0 to message, forward to server core
-			newPrefix := "{ \"MgrId\" : " + strconv.Itoa(regData.Mgrid) + " , \"ClientId\" : 0 , "
+			newPrefix := "{ \"RouterId\":\"" + strconv.Itoa(regData.Mgrid) + "?0\", "
 			request := strings.Replace(reqMessage, "{", newPrefix, 1)
 			//utils.Info.Println("HTTP mgr message to core server:" + request)
 			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
@@ -52,9 +52,5 @@ func main() {
 				utils.Warning.Println("Datachannel write error:" + err.Error())
 			}
 		}
-		// loopIter++
-		// if loopIter%1000 == 0 {
-		// 	//utils.TrimLogFile(utils.Logfile)
-		// }
 	}
 }

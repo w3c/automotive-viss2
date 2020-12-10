@@ -42,9 +42,7 @@ type filterDef_t struct {
 
 type SubscriptionState struct {
 	subscriptionId int
-	mgrId          int
-	clientId       int
-	requestId      string
+	routerId       string
 	path           string
 	filterList     []filterDef_t
 	latestValue    string
@@ -54,8 +52,7 @@ type SubscriptionState struct {
 var hostIp string
 
 var errorResponseMap = map[string]interface{}{
-	"MgrId":     0,
-	"ClientId":  0,
+	"RouterId":  "0?0",
 	"action":    "unknown",
 	"requestId": "XX",
 	"error":     `{"number":AA, "reason": "BB", "message": "CC"}`,
@@ -244,6 +241,14 @@ func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool 
 	return false
 }
 
+func addDataPackage(incompleteMessage string, value string) string { // TODO: Update when syntax for complex datapackages known.
+    if (strings.Contains(value, "[") == false) {
+        return incompleteMessage[:len(incompleteMessage)-1] + ", \"value\":\"" + value + "\"" + "}"
+    } else {
+        return incompleteMessage[:len(incompleteMessage)-1] + ", \"value\":" + value + "}"
+    }
+}
+
 func checkSubscription(subscriptionChannel chan int, backendChannel chan string, subscriptionList []SubscriptionState) {
 	var subscriptionMap = make(map[string]interface{})
 	subscriptionMap["action"] = "subscription"
@@ -251,11 +256,10 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 	case subscriptionId := <-subscriptionChannel: // $interval triggered
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-		subscriptionMap["MgrId"] = subscriptionState.mgrId
-		subscriptionMap["ClientId"] = subscriptionState.clientId
-		subscriptionMap["requestId"] = subscriptionState.requestId
-		subscriptionMap["value"], subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
- 	                       backendChannel <- utils.FinalizeMessage(subscriptionMap)
+		subscriptionMap["RouterId"] = subscriptionState.routerId
+		var currentValue string
+		currentValue, subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
+ 	                       backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), currentValue)
 	default:
 		// check $range, $change trigger points
 		for i := range subscriptionList {
@@ -264,13 +268,10 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-				subscriptionMap["MgrId"] = subscriptionState.mgrId
-				subscriptionMap["ClientId"] = subscriptionState.clientId
-				subscriptionMap["requestId"] = subscriptionState.requestId
-				subscriptionMap["value"] = currentValue
+				subscriptionMap["RouterId"] = subscriptionState.routerId
 				subscriptionMap["timestamp"]  = timeStamp
   			        subscriptionList[i].latestValue = subscriptionMap["value"].(string)
-				backendChannel <- utils.FinalizeMessage(subscriptionMap)
+				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), currentValue)
 			}
 		}
 	}
@@ -386,6 +387,26 @@ func getVehicleData(path string) (string, string) {
     }
 }
 
+func setVehicleData(path string, value string) string {
+    if (isStateStorage == true) {
+	stmt, err := db.Prepare("UPDATE VSS_MAP SET value=?, timestamp=? WHERE `path`=?")
+	if err != nil {
+                utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
+		return ""
+	}
+
+       ts := utils.GetRfcTime()
+	_, err = stmt.Exec(value, ts, path[1:len(path)-1])  // remove quotes surrounding path
+	if err != nil {
+                utils.Error.Printf("Could not update statestorage, err = %s", err)
+		return ""
+	}
+	stmt.Close()
+	return ts
+    }
+    return ""
+}
+
 func main() {
 	utils.InitLog("service-mgr-log.txt", "./logs")
 	dbFile := "statestorage.db"
@@ -395,10 +416,10 @@ func main() {
         if (utils.FileExists(dbFile) == true) {
  	    db, dbErr = sql.Open("sqlite3", dbFile)
 	    if dbErr != nil {
-                utils.Error.Printf("Could not open DB file = %s, err = %s\n", os.Args[1], dbErr)
+                utils.Error.Printf("Could not open DB file = %s, err = %s", os.Args[1], dbErr)
                 os.Exit(1)
             }
-            defer db.Close()
+//            defer db.Close()
             isStateStorage = true
         }
 
@@ -425,30 +446,57 @@ func main() {
 			var requestMap = make(map[string]interface{})
 			var responseMap = make(map[string]interface{})
 			utils.ExtractPayload(request, &requestMap)
-			responseMap["MgrId"] = requestMap["MgrId"]
-			responseMap["ClientId"] = requestMap["ClientId"]
+			responseMap["RouterId"] = requestMap["RouterId"]
 			responseMap["action"] = requestMap["action"]
 			responseMap["requestId"] = requestMap["requestId"]
 			switch requestMap["action"] {
 			case "get":
-		               responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
- 		               dataChan <- utils.FinalizeMessage(responseMap)
+		            var pathArray []string
+		            paths := requestMap["path"].(string)
+		            if (strings.Contains(paths, "[") == true) {
+                               err := json.Unmarshal([]byte(paths), &pathArray)
+                               if (err != nil) {
+				    utils.Error.Printf("Unmarshal path array failed.")
+		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
+	                           dataChan <- utils.FinalizeMessage(responseMap)
+	                           break
+                               }
+	                   } else {
+	                       pathArray = make([]string, 1)
+	                       pathArray[0] = paths
+	                   }
+var currentValue string
+                           for i := 0 ; i < len(pathArray) ; i++ {
+utils.Info.Printf("paths[%d]=%s", i, pathArray[i])
+//		                currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[i])
+		           }
+currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[0])
+	                   dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), currentValue)
 			case "set":
-				// TODO: interact with underlying subsystem to set the value
+                                if (strings.Contains(requestMap["path"].(string), "[") == true) {
+		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Forbidden request", "Set request must only address a single end point.")
+			                dataChan <- utils.FinalizeMessage(errorResponseMap)
+                                       break
+                                }
+				ts := setVehicleData(requestMap["path"].(string), requestMap["value"].(string))
+				if (len(ts) == 0) {
+		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error", "Underlying system failed to update.")
+			                dataChan <- utils.FinalizeMessage(errorResponseMap)
+                                       break
+				}
+				responseMap["timestamp"] = ts
 			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "subscribe":
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
-				subscriptionState.mgrId = int(requestMap["MgrId"].(float64))
-				subscriptionState.clientId = int(requestMap["ClientId"].(float64))
-				subscriptionState.requestId = requestMap["requestId"].(string)
+				subscriptionState.routerId = requestMap["RouterId"].(string)
 				subscriptionState.path = requestMap["path"].(string)
 				subscriptionState.filterList = []filterDef_t{}
 					utils.Info.Printf("filter=%s", requestMap["filter"])
                                 if (requestMap["filter"] == nil || requestMap["filter"] == "") {
 		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
 			                dataChan <- utils.FinalizeMessage(errorResponseMap)
-                                        break
+                                       break
                                 }
 				filters := processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
                                 if (filters == 0) {
