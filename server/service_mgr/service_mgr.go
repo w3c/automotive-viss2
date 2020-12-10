@@ -387,6 +387,26 @@ func getVehicleData(path string) (string, string) {
     }
 }
 
+func setVehicleData(path string, value string) string {
+    if (isStateStorage == true) {
+	stmt, err := db.Prepare("UPDATE VSS_MAP SET value=?, timestamp=? WHERE `path`=?")
+	if err != nil {
+                utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
+		return ""
+	}
+
+       ts := utils.GetRfcTime()
+	_, err = stmt.Exec(value, ts, path[1:len(path)-1])  // remove quotes surrounding path
+	if err != nil {
+                utils.Error.Printf("Could not update statestorage, err = %s", err)
+		return ""
+	}
+	stmt.Close()
+	return ts
+    }
+    return ""
+}
+
 func main() {
 	utils.InitLog("service-mgr-log.txt", "./logs")
 	dbFile := "statestorage.db"
@@ -396,10 +416,10 @@ func main() {
         if (utils.FileExists(dbFile) == true) {
  	    db, dbErr = sql.Open("sqlite3", dbFile)
 	    if dbErr != nil {
-                utils.Error.Printf("Could not open DB file = %s, err = %s\n", os.Args[1], dbErr)
+                utils.Error.Printf("Could not open DB file = %s, err = %s", os.Args[1], dbErr)
                 os.Exit(1)
             }
-            defer db.Close()
+//            defer db.Close()
             isStateStorage = true
         }
 
@@ -445,14 +465,26 @@ func main() {
 	                       pathArray = make([]string, 1)
 	                       pathArray[0] = paths
 	                   }
+var currentValue string
                            for i := 0 ; i < len(pathArray) ; i++ {
 utils.Info.Printf("paths[%d]=%s", i, pathArray[i])
-//		                responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
+//		                currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[i])
 		           }
-responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["path"].(string))
-	                   dataChan <- utils.FinalizeMessage(responseMap)
+currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[0])
+	                   dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), currentValue)
 			case "set":
-				// TODO: interact with underlying subsystem to set the value
+                                if (strings.Contains(requestMap["path"].(string), "[") == true) {
+		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Forbidden request", "Set request must only address a single end point.")
+			                dataChan <- utils.FinalizeMessage(errorResponseMap)
+                                       break
+                                }
+				ts := setVehicleData(requestMap["path"].(string), requestMap["value"].(string))
+				if (len(ts) == 0) {
+		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error", "Underlying system failed to update.")
+			                dataChan <- utils.FinalizeMessage(errorResponseMap)
+                                       break
+				}
+				responseMap["timestamp"] = ts
 			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "subscribe":
 				var subscriptionState SubscriptionState
@@ -464,7 +496,7 @@ responseMap["value"], responseMap["timestamp"]  = getVehicleData(requestMap["pat
                                 if (requestMap["filter"] == nil || requestMap["filter"] == "") {
 		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
 			                dataChan <- utils.FinalizeMessage(errorResponseMap)
-                                        break
+                                       break
                                 }
 				filters := processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
                                 if (filters == 0) {

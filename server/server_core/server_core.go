@@ -576,10 +576,10 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 	}
 	var validation C.int = -1
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, 0, nil, &validation)
-	utils.Info.Printf("Max validation from search=%d", int(validation))
+	utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
 	if matches == 0 {
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
-		transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	} else {
 		switch int(validation) {
@@ -597,12 +597,12 @@ func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int,
 			}
 			if errorCode < 0 {
 				setTokenErrorResponse(requestMap, errorCode)
-				transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
 		default: // should not be possible...
 			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
-			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+			backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return
 		}
 		paths := ""
@@ -952,7 +952,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec"), tokenContext)
 			delete(requestMap, "path")
 			requestMap["timestamp"] = utils.GetRfcTime()
-			transportDataChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
+			backendChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
 		} else {
 			if listContainsName(filterList, "$path") == true {
 				requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") //When/if VSS changes to slash delimiter, update here
@@ -970,12 +970,12 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	case "unsubscribe":
 		utils.Info.Printf("unsubscribe:request=%s", request)
 		serviceDataChan[sDChanIndex] <- request
-		response := <-serviceDataChan[sDChanIndex]
-		transportDataChan[tDChanIndex] <- response
+//		response := <-serviceDataChan[sDChanIndex]
+//		transportDataChan[tDChanIndex] <- response
 	default:
 		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
-		transportDataChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 	}
 }
 
