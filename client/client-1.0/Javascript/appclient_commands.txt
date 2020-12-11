@@ -8,6 +8,8 @@ Get request:
 Get request with search:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}
 {"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}
+{"action":"get", "path":"Vehicle/ADAS/ABS", "filter":{"op-type":"paths", "op-value":"*"}, "requestId":"235"}
+{"action":"get", "path":"Vehicle/ADAS", "filter":{"op-type":"paths", "op-value":["ABS/*", "Vehicle/ADAS/CruiseControl/Error"]}, "requestId":"235"}
 
 Get request with search and $data query:
 {"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpenAND$dataEQ1", "requestId":"242"}

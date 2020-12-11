@@ -129,7 +129,7 @@ We will follow a simple process where work packages are create as issues labeled
 
 # Project common software architecture
 The server functionality has a complexity level that warrants some thoughts on how a good software architecture could look like. 
-The figure below is the current proposal on this.
+Figure 1 is the current proposal on this.<br>
 ![Software architecture](pics/common_server_swa.png?raw=true)<br>
 *Fig 1. Software architecture overview
 
