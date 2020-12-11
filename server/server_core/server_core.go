@@ -47,12 +47,6 @@ type searchData_t struct { // searchData_t defined in vssparserutilities.h
 	foundNodeHandle int64     // defined as long in vssparserutilities.h
 }
 
-type filterDef_t struct {
-	name     string
-	operator string
-	value    string
-}
-
 type noScopeList_t struct { // noScopeList_t defined in vssparserutilities.h
 	path    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
 }
@@ -567,63 +561,8 @@ utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
     return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
 }
 
-func retrieveServiceResponse(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int, filterList []filterDef_t) {
-	searchData := [MAXFOUNDNODES]searchData_t{} 
-	var anyDepth C.bool = false
-	path := removeQuery(requestMap["path"].(string))
-	if path[len(path)-1] == '*' {
-		anyDepth = true
-	}
-	var validation C.int = -1
-	matches := searchTree(VSSTreeRoot, path, &searchData[0], anyDepth, true, 0, nil, &validation)
-	utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
-	if matches == 0 {
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
-		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-		return
-	} else {
-		switch int(validation) {
-		case 0: // validation not required
-		case 1:
-			fallthrough
-		case 2:
-			errorCode := 0
-			if requestMap["authorization"] == nil {
-				errorCode = -1
-			} else {
-				if requestMap["action"] != "get" || int(validation) != 1 { // no validation for read requests when validation is 1 (write-only)
-					errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), int(validation))
-				}
-			}
-			if errorCode < 0 {
-				setTokenErrorResponse(requestMap, errorCode)
-				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-				return
-			}
-		default: // should not be possible...
-			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
-			backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-			return
-		}
-		paths := ""
-		if (matches > 1) {
-		    paths += "["
-		}
-		for i := 0; i < matches; i++ {
-			pathLen := getPathLen(string(searchData[i].responsePath[:]))
-			paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
-		}
-		paths = paths[:len(paths)-2]
-		if (matches > 1) {
-		    paths += "]"
-		}
-		requestMap["path"] = paths
-		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
-	}
-}
-
-func removeQuery(path string) string {
-	pathEnd := strings.Index(path, "?")
+func removePathFragment(path string) string {
+	pathEnd := strings.Index(path, "#")
 	if pathEnd != -1 {
 		return path[:pathEnd]
 	}
@@ -819,113 +758,22 @@ func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, in
     return noScopeList, i
 }
 
-func synthesizeJsonTree(path string, depth string, tokenContext string) string {
+func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 	var jsonBuffer string
 	searchData := [MAXFOUNDNODES]searchData_t{}
 	noScopeList, numOfListElem := getNoScopeList(tokenContext)
-utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
+//utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, numOfListElem, &noScopeList[0], nil)
 	if matches < countPathSegments(path) {
 		return ""
 	}
 	subTreeRoot := C.long(searchData[matches-1].foundNodeHandle)
 	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.getName(subTreeRoot)))
-	var maxDepth int
-	if depth == "0" {
-		maxDepth = 100
-	} else {
-		maxDepth, _ = strconv.Atoi(depth)
+	if depth == 0 {
+		depth = 100
 	}
-	jsonBuffer = jsonifyTreeNode(subTreeRoot, jsonBuffer, 0, maxDepth)
+	jsonBuffer = jsonifyTreeNode(subTreeRoot, jsonBuffer, 0, depth)
 	return "{" + jsonBuffer + "}"
-}
-
-func processOneFilter(filter string, filterList *[]filterDef_t) string {
-	filterDef := filterDef_t{}
-	filterRemoved := false
-	if strings.Contains(filter, "$spec") == true {
-		filterDef.name = "$spec"
-		filterRemoved = true
-	} else if strings.Contains(filter, "$path") == true {
-		filterDef.name = "$path"
-		filterRemoved = true
-	} else if strings.Contains(filter, "$data") == true {
-		filterDef.name = "$data"
-		filterRemoved = true
-	}
-	if filterRemoved == true {
-		valueStart := strings.Index(filter, "EQ")
-		if valueStart != -1 {
-			filterDef.operator = "eq"
-		} else {
-			valueStart = strings.Index(filter, "GT")
-			if valueStart != -1 {
-				filterDef.operator = "gt"
-			} else {
-				valueStart = strings.Index(filter, "LT")
-				if valueStart != -1 {
-					filterDef.operator = "lt"
-				}
-			}
-		}
-		filterDef.value = filter[valueStart+2:]
-		*filterList = append(*filterList, filterDef)
-		utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s", filterDef.name, filterDef.operator, filterDef.value)
-		return ""
-	}
-	return filter
-}
-
-/**
-* Remove the filters $spec, $path, $data from the query component of the path, and add a list component for each removed filter.
-* The logic behind this is that filters $interval, $range, $change are passed on to service mgr, while the removed ones are handled by the servercore.
-**/
-func processFilters(path string, filterList *[]filterDef_t) string {
-	queryDelim := strings.Index(path, "?")
-	query := path[queryDelim+1:]
-	if queryDelim == -1 {
-		return path
-	}
-	numOfFilters := strings.Count(query, "AND") + 1 // 0=>1, 1=> 2, 2=>3, 3=>4
-	utils.Info.Printf("processFilters():#filter=%d", numOfFilters)
-	var processedQuery string = ""
-	filterStart := 0
-	for i := 0; i < numOfFilters; i++ {
-		filterEnd := strings.Index(query[filterStart:], "AND")
-		if filterEnd == -1 {
-			filterEnd = len(query)
-		}
-		filter := query[filterStart:filterEnd]
-		if len(processedQuery) == 0 {
-			processedQuery = processOneFilter(filter, filterList)
-		} else {
-			processedQuery += "AND" + processOneFilter(filter, filterList)
-		}
-		filterStart = filterEnd + 3 //len(AND)=3
-	}
-	if len(processedQuery) > 0 {
-		processedQuery = "?" + processedQuery
-	}
-	utils.Info.Printf("processFilters():processed path=%s", path[0:queryDelim]+processedQuery)
-	return path[0:queryDelim] + processedQuery
-}
-
-func listContainsName(filterList []filterDef_t, name string) bool {
-	for i := 0; i < len(filterList); i++ {
-		if filterList[i].name == name {
-			return true
-		}
-	}
-	return false
-}
-
-func getListValue(filterList []filterDef_t, name string) string {
-	for i := 0; i < len(filterList); i++ {
-		if filterList[i].name == name {
-			return filterList[i].value
-		}
-	}
-	return ""
 }
 
 func getTokenContext(reqMap map[string]interface{}) string {
@@ -935,47 +783,203 @@ func getTokenContext(reqMap map[string]interface{}) string {
 	return ""
 }
 
+func validAction(action string) bool {
+    if (action == "get" || action == "set" || action == "subscribe" || action == "unsubscribe") {
+        return true
+    }
+    return false
+}
+
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
-	filterList := []filterDef_t{}
-	if _, ok := requestMap["path"]; ok {
-		requestMap["path"] = processFilters(requestMap["path"].(string), &filterList)
-	}
-	switch requestMap["action"] {
-	case "get":
-		if listContainsName(filterList, "$spec") == true {
-		        tokenContext := getTokenContext(requestMap)
-		        if (len(tokenContext) == 0) {
-		            tokenContext = "Undefined+Undefined+Undefined"
-		        }
-			requestMap["metadata"] = synthesizeJsonTree(removeQuery(requestMap["path"].(string)), getListValue(filterList, "$spec"), tokenContext)
-			delete(requestMap, "path")
-			requestMap["timestamp"] = utils.GetRfcTime()
-			backendChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
-		} else {
-			if listContainsName(filterList, "$path") == true {
-				requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") //When/if VSS changes to slash delimiter, update here
-			}
-			retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
-		}
-	case "set":
-		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, nil) // filters currently not used here
-	case "subscribe":
-		if listContainsName(filterList, "$path") == true {
-			requestMap["path"] = removeQuery(requestMap["path"].(string)) + "." + getListValue(filterList, "$path") + addQuery(requestMap["path"].(string)) //When/if VSS changes to slash delimiter, update here
-		}
-		retrieveServiceResponse(requestMap, tDChanIndex, sDChanIndex, filterList)
-
-	case "unsubscribe":
-		utils.Info.Printf("unsubscribe:request=%s", request)
-		serviceDataChan[sDChanIndex] <- request
-//		response := <-serviceDataChan[sDChanIndex]
-//		transportDataChan[tDChanIndex] <- response
-	default:
-		utils.Warning.Printf("serveRequest():not implemented/unknown action=%s\n", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "unknown action", "See Gen2 spec for valid request actions.")
+	if (validAction(requestMap["action"].(string)) == false) {
+		utils.Error.Printf("serveRequest():invalid action=%s", requestMap["action"])
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid action", "See VISSv2 spec for valid request actions.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
+	}
+	if (strings.Contains(requestMap["path"].(string), "*") == true) {
+		utils.Error.Printf("serveRequest():path contained wildcard=%s", requestMap["path"])
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "Wildcard must be in filter expression.")
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
+	}
+	if (requestMap["action"] == "set" && requestMap["filter"] != nil) {
+		utils.Error.Printf("serveRequest():Set request combined with filtering.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request", "Set request must not contain filtering.")
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
+	}
+	if (requestMap["action"] == "unsubscribe") {
+		serviceDataChan[sDChanIndex] <- request
+		return
+	}
+	if (requestMap["action"] == "get" && strings.Contains(requestMap["path"].(string), "#static-metadata") == true) {
+		tokenContext := getTokenContext(requestMap)
+		if (len(tokenContext) == 0) {
+		    tokenContext = "Undefined+Undefined+Undefined"
+		}
+		requestMap["metadata"] = synthesizeJsonTree(removePathFragment(requestMap["path"].(string)), 0, tokenContext)  // TODO: depth setting via filtering?
+		delete(requestMap, "path")
+		requestMap["timestamp"] = utils.GetRfcTime()
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
+		return
+	}
+	issueServiceRequest(requestMap, tDChanIndex, sDChanIndex)
+}
+
+type FilterObject struct {
+    OpType string
+    OpValue string
+    OpExtra string
+}
+
+func unpackFilter(filter interface{}, fList *[]FilterObject) {  // See VISSv CORE, Filtering chapter for filter structure
+    switch vv := filter.(type) {
+      case []interface{}:
+        utils.Info.Println(filter, "is an array:, len=",strconv.Itoa(len(vv)))
+        *fList = make([]FilterObject, len(vv))
+  	unpackFilterLevel1(vv, fList)
+      case map[string]interface{}:
+        utils.Info.Println(filter, "is a map:")
+        *fList = make([]FilterObject, 1)
+        unpackFilterLevel2(0, vv, fList)
+      default:
+        utils.Info.Println(filter, "is of an unknown type")
+    }
+}
+
+func unpackFilterLevel1(filterArray []interface{}, fList *[]FilterObject) {
+    i := 0
+    for k, v := range filterArray {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            unpackFilterLevel2(i, vv, fList)
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+        i++
+    }
+}
+
+func unpackFilterLevel2(index int, purposeElem map[string]interface{}, fList *[]FilterObject) {
+    for k, v := range purposeElem {
+        switch vv := v.(type) {
+          case string:
+            utils.Info.Println(k, "is string", vv)
+            if (k == "op-type") {
+                (*fList)[index].OpType = vv
+            } else if (k == "op-value") {
+                (*fList)[index].OpValue = vv
+            }
+          case []interface{}:
+            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
+            opVal, err := json.Marshal(vv)
+            if err != nil {
+		utils.Error.Print("UnpackFilter(): JSON array encode failed. ", err)
+	    } else {
+	        (*fList)[index].OpValue = string(opVal)
+	    }
+          case map[string]interface{}:
+            utils.Info.Println(k, "is a map:")
+            opExtra, err := json.Marshal(vv)
+            if err != nil {
+		utils.Error.Print("UnpackFilter(): JSON map encode failed. ", err)
+	    } else {
+	        (*fList)[index].OpExtra = string(opExtra)
+	    }
+          default:
+            utils.Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
+func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
+	rootPath := removePathFragment(requestMap["path"].(string))
+        var searchPath []string
+	if (requestMap["filter"] != nil) {
+	    var filterList []FilterObject
+	    unpackFilter(requestMap["filter"], &filterList)
+  	    for i := 0 ; i < len(filterList) ; i++ {
+//utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
+  	        if (filterList[i].OpType == "paths") {
+  	            if (strings.Contains(filterList[i].OpValue, "[") == true) {
+                        err := json.Unmarshal([]byte(filterList[i].OpValue), &searchPath)
+                        if (err != nil) {
+			    utils.Error.Printf("Unmarshal filter path array failed.")
+		            utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
+	                    backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+	                    return
+	                }
+                       for i := 0 ; i < len(searchPath) ; i++ {
+  	                  searchPath[i] = rootPath + "." + searchPath[i]
+  	               }
+  	            } else {
+                       searchPath = make([]string, 1)
+  	               searchPath[0] = rootPath + "." + filterList[i].OpValue
+  	            }
+  	        }
+                break  // only one paths object is allowed
+	    }
+	} else {
+           searchPath = make([]string, 1)
+           searchPath[0] = rootPath
+	}
+	searchData := [MAXFOUNDNODES]searchData_t{}
+	totalMatches := 0
+	paths := ""
+	maxValidation := -1
+        for i := 0 ; i < len(searchPath) ; i++ {
+ 	    var anyDepth C.bool = true
+	    var validation C.int = -1
+	    matches := searchTree(VSSTreeRoot, searchPath[i], &searchData[0], anyDepth, true, 0, nil, &validation)
+//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
+	    utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
+	    for i := 0; i < matches; i++ {
+		pathLen := getPathLen(string(searchData[i].responsePath[:]))
+		paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
+	    }
+	    totalMatches += matches
+	    if (int(validation) > maxValidation) {
+	        maxValidation = int(validation)
+	    }
+  	}
+	if totalMatches == 0 {
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
+	} else {
+		paths = paths[:len(paths)-2]
+	        if (totalMatches > 1) {
+	            paths = "[" + paths + "]"
+	        }
+		switch maxValidation {
+		case 0: // validation not required
+		case 1:
+			fallthrough
+		case 2:
+			errorCode := 0
+			if requestMap["authorization"] == nil {
+				errorCode = -1
+			} else {
+				if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
+					errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), maxValidation)
+				}
+			}
+			if errorCode < 0 {
+				setTokenErrorResponse(requestMap, errorCode)
+				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+				return
+			}
+		default: // should not be possible...
+			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+			backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+			return
+		}
+		requestMap["path"] = paths
+		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 	}
 }
 

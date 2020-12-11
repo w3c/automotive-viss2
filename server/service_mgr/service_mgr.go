@@ -458,7 +458,7 @@ func main() {
                                if (err != nil) {
 				    utils.Error.Printf("Unmarshal path array failed.")
 		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
-	                           dataChan <- utils.FinalizeMessage(responseMap)
+	                           dataChan <- utils.FinalizeMessage(errorResponseMap)
 	                           break
                                }
 	                   } else {
