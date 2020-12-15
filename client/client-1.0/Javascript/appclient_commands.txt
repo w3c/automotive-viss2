@@ -6,31 +6,23 @@ Get request:
 {"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "requestId":"233"}
 
 Get request with search:
-{"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpen", "requestId":"235"}
-{"action":"get", "path":"Vehicle/ADAS/ABS?$pathEQ*", "requestId":"235"}
 {"action":"get", "path":"Vehicle/ADAS/ABS", "filter":{"op-type":"paths", "op-value":"*"}, "requestId":"235"}
 {"action":"get", "path":"Vehicle/ADAS", "filter":{"op-type":"paths", "op-value":["ABS/*", "CruiseControl/Error"]}, "requestId":"235"}
-
-Get request with search and $data query:
-{"action":"get", "path":"Vehicle/Cabin/Door?$pathEQ*/*/IsOpenAND$dataEQ1", "requestId":"242"}
 
 Get request with AT token (XXX must be replaced with actual token):
 {"action":"get", "path":"Vehicle/ADAS/CruiseControl/Error", "authorization":"XXX", "requestId":"241"}
 {"action":"get", "path":"Vehicle/Body/BodyType", "authorization":"XXX", "requestId":"243"}
 
 Service discovery request:
-{"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right?$specEQ0", "requestId":"236"}
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right#static-metadata", "requestId":"236"}
 
 Set request:
 {"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"237"}
 
 Subscribe request:
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "filter":"$intervalEQ3", "requestId":"238"}
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position", "filter":"$rangeGT100AND$rangeLT110", "requestId":"239"}
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/Row1/Right/Shade/Position", "filter":"$rangeGT500AND$changeGT50", "requestId":"244"}
-{"action":"subscribe", "path":"Vehicle/Cabin/Door/IsOpen", "filter":"$intervalEQ3", "requestId":"238"}
-
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/IsOpen", "filter":{"op-type":"capture", "op-value":"change", "op-extra":{"logic-op":"gt", "diff":"10"}}, "requestId":"235"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/IsOpen", "filter":{"op-type":"capture", "op-value":"range", "op-extra":{"logic-op":"gt", "boundary":"500"}}, "requestId":"235"}
+{"action":"subscribe", "path":"Vehicle/Cabin/Door/IsOpen", "filter":{"op-type":"capture", "op-value":"range", "op-extra":[{"logic-op":"gt", "boundary":"500"}, {"logic-op":"lt", "boundary":"510"}]}, "requestId":"235"}
 
 Unsubscribe request:
 {"action":"unsubscribe", "subscriptionId":"1", "requestId":"240"}
@@ -45,7 +37,8 @@ URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
 
 Get request with search:
 HTTP GET 
-URL: Vehicle/Cabin/Door?$pathEQ*/*/IsOpen
+URL: Vehicle/Cabin?filter={"op-type":"paths", "op-value":["Door/*/*/IsOpen", "Convertible/Status"]}
+pathEQ*/*/IsOpen
 
 Set request:
 HTTP POST 
@@ -54,7 +47,7 @@ Payload: 999
 
 Service discovery request:
 HTTP GET 
-URL: Vehicle/Cabin/Door/Row1/Right?$specEQ0
+URL: Vehicle/Cabin/Door/Row1/Right#static-metadata
 
 
 //  AGTserver POST input:

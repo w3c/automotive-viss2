@@ -829,81 +829,14 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	issueServiceRequest(requestMap, tDChanIndex, sDChanIndex)
 }
 
-type FilterObject struct {
-    OpType string
-    OpValue string
-    OpExtra string
-}
-
-func unpackFilter(filter interface{}, fList *[]FilterObject) {  // See VISSv CORE, Filtering chapter for filter structure
-    switch vv := filter.(type) {
-      case []interface{}:
-        utils.Info.Println(filter, "is an array:, len=",strconv.Itoa(len(vv)))
-        *fList = make([]FilterObject, len(vv))
-  	unpackFilterLevel1(vv, fList)
-      case map[string]interface{}:
-        utils.Info.Println(filter, "is a map:")
-        *fList = make([]FilterObject, 1)
-        unpackFilterLevel2(0, vv, fList)
-      default:
-        utils.Info.Println(filter, "is of an unknown type")
-    }
-}
-
-func unpackFilterLevel1(filterArray []interface{}, fList *[]FilterObject) {
-    i := 0
-    for k, v := range filterArray {
-        switch vv := v.(type) {
-          case map[string]interface{}:
-            utils.Info.Println(k, "is a map:")
-            unpackFilterLevel2(i, vv, fList)
-          default:
-            utils.Info.Println(k, "is of an unknown type")
-        }
-        i++
-    }
-}
-
-func unpackFilterLevel2(index int, purposeElem map[string]interface{}, fList *[]FilterObject) {
-    for k, v := range purposeElem {
-        switch vv := v.(type) {
-          case string:
-            utils.Info.Println(k, "is string", vv)
-            if (k == "op-type") {
-                (*fList)[index].OpType = vv
-            } else if (k == "op-value") {
-                (*fList)[index].OpValue = vv
-            }
-          case []interface{}:
-            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
-            opVal, err := json.Marshal(vv)
-            if err != nil {
-		utils.Error.Print("UnpackFilter(): JSON array encode failed. ", err)
-	    } else {
-	        (*fList)[index].OpValue = string(opVal)
-	    }
-          case map[string]interface{}:
-            utils.Info.Println(k, "is a map:")
-            opExtra, err := json.Marshal(vv)
-            if err != nil {
-		utils.Error.Print("UnpackFilter(): JSON map encode failed. ", err)
-	    } else {
-	        (*fList)[index].OpExtra = string(opExtra)
-	    }
-          default:
-            utils.Info.Println(k, "is of an unknown type")
-        }
-    }
-}
-
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
 	rootPath := removePathFragment(requestMap["path"].(string))
         var searchPath []string
 	if (requestMap["filter"] != nil) {
-	    var filterList []FilterObject
-	    unpackFilter(requestMap["filter"], &filterList)
+	    var filterList []utils.FilterObject
+	    utils.UnpackFilter(requestMap["filter"], &filterList)
   	    for i := 0 ; i < len(filterList) ; i++ {
-//utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
+utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
   	        if (filterList[i].OpType == "paths") {
   	            if (strings.Contains(filterList[i].OpValue, "[") == true) {
                         err := json.Unmarshal([]byte(filterList[i].OpValue), &searchPath)
@@ -920,10 +853,11 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
                        searchPath = make([]string, 1)
   	               searchPath[0] = rootPath + "." + filterList[i].OpValue
   	            }
+                    break  // only one paths object is allowed
   	        }
-                break  // only one paths object is allowed
 	    }
-	} else {
+	} 
+	if (requestMap["filter"] == nil || len(searchPath) == 0) {
            searchPath = make([]string, 1)
            searchPath[0] = rootPath
 	}

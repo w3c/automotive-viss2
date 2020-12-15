@@ -175,6 +175,75 @@ func FileExists(filename string) bool {
 	return !info.IsDir()
 }
 
+type FilterObject struct {
+    OpType string
+    OpValue string
+    OpExtra string
+}
+
+func UnpackFilter(filter interface{}, fList *[]FilterObject) {  // See VISSv CORE, Filtering chapter for filter structure
+    switch vv := filter.(type) {
+      case []interface{}:
+        Info.Println(filter, "is an array:, len=",strconv.Itoa(len(vv)))
+        *fList = make([]FilterObject, len(vv))
+  	unpackFilterLevel1(vv, fList)
+      case map[string]interface{}:
+        Info.Println(filter, "is a map:")
+        *fList = make([]FilterObject, 1)
+        unpackFilterLevel2(0, vv, fList)
+      default:
+        Info.Println(filter, "is of an unknown type")
+    }
+}
+
+func unpackFilterLevel1(filterArray []interface{}, fList *[]FilterObject) {
+    i := 0
+    for k, v := range filterArray {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            Info.Println(k, "is a map:")
+            unpackFilterLevel2(i, vv, fList)
+          default:
+            Info.Println(k, "is of an unknown type")
+        }
+        i++
+    }
+}
+
+func unpackFilterLevel2(index int, purposeElem map[string]interface{}, fList *[]FilterObject) {
+    for k, v := range purposeElem {
+        switch vv := v.(type) {
+          case string:
+            Info.Println(k, "is string", vv)
+            if (k == "op-type") {
+                (*fList)[index].OpType = vv
+            } else if (k == "op-value") {
+                (*fList)[index].OpValue = vv
+            }
+          case []interface{}:
+            Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
+            arrayVal, err := json.Marshal(vv)
+            if err != nil {
+		Error.Print("UnpackFilter(): JSON array encode failed. ", err)
+	    } else if (k == "op-value") {
+	        (*fList)[index].OpValue = string(arrayVal)
+	    } else {
+	        (*fList)[index].OpExtra = string(arrayVal)
+	    }
+          case map[string]interface{}:
+            Info.Println(k, "is a map:")
+            opExtra, err := json.Marshal(vv)
+            if err != nil {
+		Error.Print("UnpackFilter(): JSON map encode failed. ", err)
+	    } else {
+	        (*fList)[index].OpExtra = string(opExtra)
+	    }
+          default:
+            Info.Println(k, "is of an unknown type")
+        }
+    }
+}
+
 /**************** Compression reference implementation ***********************/
 
 func NextQuoteMark(message []byte, offset int) int {
@@ -594,15 +663,15 @@ func isFloatType(value string) bool {
     return true
 }
 
-func analyzeValueType(value []byte) int {
-    _, err := strconv.Atoi(string(value[1:len(value)-1]))
+func AnalyzeValueType(value string) int {
+    _, err := strconv.Atoi(value)
     if (err == nil) {
         return 1  //int type
     }
-    if (string(value[1:len(value)-1]) == "true" || string(value[1:len(value)-1]) == "false") {
+    if (value == "true" || value == "false") {
         return 2 // bool type
     }
-    if (isFloatType(string(value[1:len(value)-1])) == true) {
+    if (isFloatType(value) == true) {
         return 3 // float type
     }
     return 0
@@ -611,7 +680,7 @@ func analyzeValueType(value []byte) int {
 func compressValue(value []byte) []byte {
     var compressedValue []byte
 
-    switch analyzeValueType(value) {
+    switch AnalyzeValueType(string(value[1:len(value)-1])) {
       case 1: // int type
         compressedValue = append(compressedValue, compressIntValue(value)...)
       case 2: // bool type
@@ -621,7 +690,7 @@ func compressValue(value []byte) []byte {
       case 0: // any other type
         compressedValue = append(compressedValue, compressOtherValue(value)...)
     }
-//Info.Printf("analyzeValueType()=%d, value=%s", analyzeValueType(value), string(value))
+//Info.Printf("analyzeValueType()=%d, value=%s", analyzeValueType(string(value[1:len(value)-1])), string(value))
     return compressedValue
 }
 

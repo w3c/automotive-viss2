@@ -34,17 +34,12 @@ type RegResponse struct {
 	Urlpath string
 }
 
-type filterDef_t struct {
-	name     string
-	operator string
-	value    string
-}
-
 type SubscriptionState struct {
 	subscriptionId int
 	routerId       string
 	path           string
-	filterList     []filterDef_t
+	triggerPath    string
+	filterList     []utils.FilterObject
 	latestValue    string
 	timestamp      string
 }
@@ -184,61 +179,127 @@ func getSubcriptionStateIndex(subscriptionId int, subscriptionList []Subscriptio
 	return -1
 }
 
-func checkRangeChangeFilter(filterList []filterDef_t, latestVal string, currentVal string) bool {
-        latestValue, _ := strconv.Atoi(latestVal)
-        currentValue, _ := strconv.Atoi(currentVal)
-	for i := range filterList {
-		result := evaluateFilter(filterList[i], latestValue, currentValue)
-		if result == false {
-			return false
-		}
-	}
-	return true
+func checkRangeChangeFilter(filterList []utils.FilterObject, latestVal string, currentVal string) bool {
+    for i := 0 ; i < len(filterList) ; i++ {
+        if (filterList[i].OpType == "paths" || filterList[i].OpValue == "time-based" || filterList[i].OpValue == "curve-logic") {
+            continue
+        }
+        if (filterList[i].OpValue == "range") {
+            return evaluateRangeFilter(filterList[i].OpExtra, currentVal)
+        }
+        if (filterList[i].OpValue == "change") {
+            return evaluateChangeFilter(filterList[i].OpExtra, latestVal, currentVal)
+        }
+    }
+    return false
 }
 
-func evaluateFilter(filter filterDef_t, latestValue int, currentValue int) bool {
-	if filter.name == "$range" {
-		if filter.operator == "gt" {
-			filterValue, _ := strconv.Atoi(filter.value)
-			if currentValue > filterValue {
-				return true
-			}
-			return false
-		} else { // "lt"
-			filterValue, _ := strconv.Atoi(filter.value)
-			if currentValue < filterValue {
-				return true
-			}
-			return false
-		}
-	}
-	if filter.name == "$change" {
-		if filter.operator == "gt" { // abs(current-latest) > filter
-			filterValue, _ := strconv.Atoi(filter.value)
-			if currentValue > latestValue+filterValue {
-				return true
-                        }
-			if currentValue < latestValue-filterValue {
-				return true
-			}
-			return false
-		} else if filter.operator == "lt" {  // abs(current-latest) < filter
-			filterValue, _ := strconv.Atoi(filter.value)
-			if currentValue < latestValue+filterValue {
-				return true
-			}
-			if currentValue > latestValue-filterValue {
-				return true
-			}
-			return false
-		} else { // "neq"
-			if currentValue != latestValue {
-				return true
-			}
-			return false
-		}
-	}
-	return false
+func evaluateRangeFilter(opExtra string, currentValue string) bool {
+//utils.Info.Printf("evaluateRangeFilter: opExtra=%s", opExtra)
+    type ChangeFilter struct {
+        LogicOp  string  `json:"logic-op"`
+        Boundary string  `json:"boundary"`
+    }
+    var changeFilter []ChangeFilter
+    var err error
+    if (strings.Contains(opExtra, "[") == false) {
+        changeFilter = make([]ChangeFilter, 1)
+        err = json.Unmarshal([]byte(opExtra), &(changeFilter[0]))
+    } else {
+        err = json.Unmarshal([]byte(opExtra), &changeFilter)
+    }
+    if (err != nil) {
+        utils.Error.Printf("evaluateChangeFilter: Unmarshal error=%s", err)
+        return false
+    }
+    evaluation := true
+    for i := 0 ; i < len(changeFilter) ; i++ {
+        evaluation = evaluation && compareValues(changeFilter[i].LogicOp, changeFilter[i].Boundary, currentValue, "0")  // currVal - 0 logic-op boundary
+    }
+    return evaluation
+}
+
+func evaluateChangeFilter(opExtra string, latestValue string, currentValue string) bool {
+//utils.Info.Printf("evaluateChangeFilter: opExtra=%s", opExtra)
+    type ChangeFilter struct {
+        LogicOp string  `json:"logic-op"`
+        Diff    string  `json:"diff"`
+    }
+    var changeFilter ChangeFilter
+    err := json.Unmarshal([]byte(opExtra), &changeFilter)
+    if (err != nil) {
+        utils.Error.Printf("evaluateChangeFilter: Unmarshal error=%s", err)
+        return false
+    }
+    return compareValues(changeFilter.LogicOp, latestValue, currentValue, changeFilter.Diff)
+}
+
+func compareValues(logicOp string, latestValue string, currentValue string, diff string) bool {
+    if (utils.AnalyzeValueType(latestValue) != utils.AnalyzeValueType(currentValue)) {
+        utils.Error.Printf("compareValues: Incompatible types, latVal=%s, curVal=%s", latestValue, currentValue)
+        return false
+    }
+    switch utils.AnalyzeValueType(latestValue) {
+        case 0: fallthrough  // string
+        case 2: // bool
+//utils.Info.Printf("compareValues: value type=bool OR string")
+          switch logicOp {
+            case "eq": return currentValue == latestValue
+            case "ne": return currentValue != latestValue
+          }
+          return false
+        case 1:  // int
+//utils.Info.Printf("compareValues: value type=integer, cv=%s, lv=%s, diff=%s", currentValue, latestValue, diff)
+          curVal, err := strconv.Atoi(currentValue)
+          if (err != nil) {
+              return false
+          }
+          latVal, err := strconv.Atoi(latestValue)
+          if (err != nil) {
+              return false
+          }
+          diffVal, err := strconv.Atoi(diff)
+          if (err != nil) {
+              return false
+          }
+//utils.Info.Printf("compareValues: value type=integer, cv=%d, lv=%d, diff=%d, logicOp=%s", curVal, latVal, diffVal, logicOp)
+         switch logicOp {
+            case "eq": return curVal-diffVal == latVal
+            case "ne": return curVal-diffVal != latVal
+            case "gt": return curVal-diffVal > latVal
+            case "gte": return curVal-diffVal >= latVal
+            case "lt": return curVal-diffVal < latVal
+            case "lte": return curVal-diffVal <= latVal
+          }
+          return false
+        case 3: // float
+//utils.Info.Printf("compareValues: value type=float")
+          f64Val, err := strconv.ParseFloat(currentValue, 32)
+          if (err != nil) {
+              return false
+          }
+          curVal := float32(f64Val)
+          f64Val, err = strconv.ParseFloat(latestValue, 32)
+          if (err != nil) {
+              return false
+          }
+          latVal := float32(f64Val)
+          f64Val, err = strconv.ParseFloat(diff, 32)
+          if (err != nil) {
+              return false
+          }
+          diffVal := float32(f64Val)
+          switch logicOp {
+            case "eq": return curVal-diffVal == latVal
+            case "ne": return curVal-diffVal != latVal
+            case "gt": return curVal-diffVal > latVal
+            case "gte": return curVal-diffVal >= latVal
+            case "lt": return curVal-diffVal < latVal
+            case "lte": return curVal-diffVal <= latVal
+          }
+          return false
+    }
+    return false
 }
 
 func addDataPackage(incompleteMessage string, value string) string { // TODO: Update when syntax for complex datapackages known.
@@ -257,82 +318,24 @@ func checkSubscription(subscriptionChannel chan int, backendChannel chan string,
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
-		var currentValue string
-		currentValue, subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
- 	                       backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), currentValue)
+		var dataPack string
+		dataPack, subscriptionMap["timestamp"]  = getVehicleData(subscriptionState.path)
+ 	                       backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), dataPack)
 	default:
 		// check $range, $change trigger points
 		for i := range subscriptionList {
-	               currentValue, timeStamp := getVehicleData(subscriptionList[i].path)
-			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestValue, currentValue)
+	               triggerVal, timeStamp := getVehicleData(subscriptionList[i].triggerPath)
+			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestValue, triggerVal)
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.routerId
 				subscriptionMap["timestamp"]  = timeStamp
-  			        subscriptionList[i].latestValue = subscriptionMap["value"].(string)
-				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), currentValue)
+  			        subscriptionList[i].latestValue = triggerVal
+				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), triggerVal)  //dataPack
 			}
 		}
 	}
-}
-
-func updateState(path string, subscriptionState *SubscriptionState) {
-
-}
-
-func processOneFilter(filter string, filterList *[]filterDef_t) int {
-	filterDef := filterDef_t{}
-	if strings.Contains(filter, "$interval") == true {
-		filterDef.name = "$interval"
-	} else if strings.Contains(filter, "$range") == true {
-		filterDef.name = "$range"
-	} else if strings.Contains(filter, "$change") == true {
-		filterDef.name = "$change"
-	} else {
-		return 0
-	}
-	valueStart := strings.Index(filter, "EQ")
-	if valueStart != -1 {
-		filterDef.operator = "eq"
-	} else {
-		valueStart = strings.Index(filter, "GT")
-		if valueStart != -1 {
-			filterDef.operator = "gt"
-		} else {
-			valueStart = strings.Index(filter, "LT")
-			if valueStart != -1 {
-				filterDef.operator = "lt"
-			}
-		}
-	}
-	filterDef.value = filter[valueStart+2:]
-	*filterList = append(*filterList, filterDef)
-	utils.Info.Printf("processOneFilter():filter.name=%s, filter.operator=%s, filter.value=%s\n", filterDef.name, filterDef.operator, filterDef.value)
-        return 1
-}
-
-func processFilters(path string, filterList *[]filterDef_t) int {
-	utils.Info.Printf("Service-mgr: Entering processFilters().Filter=%s", path)
-	queryDelim := strings.Index(path, "?")
-	query := path[queryDelim+1:]
-	if queryDelim == -1 {
-		return 0
-	}
-	numOfFilters := strings.Count(query, "AND") + 1
-	utils.Info.Printf("processFilters():#filter=%d\n", numOfFilters)
-	filterStart := 0
-        processedFilters := 0
-	for i := 0; i < numOfFilters; i++ {
-		filterEnd := strings.Index(query[filterStart:], "AND")
-		if filterEnd == -1 {
-			filterEnd = len(query)
-		}
-		filter := query[filterStart:filterEnd]
-		processedFilters += processOneFilter(filter, filterList)
-		filterStart = filterEnd + 3 //len(AND)=3
-	}
-        return processedFilters
 }
 
 func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId string) (int, []SubscriptionState) {
@@ -349,13 +352,19 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
         return 1, subscriptionList
 }
 
-func getIndexForInterval(filterList []filterDef_t) int {
+func getIntervalPeriod(opExtra string) int {
+    return 0
+}
+
+func activateIfInterval(filterList []utils.FilterObject, subscriptionChan chan int, subscriptionId int) {
 	for i := 0; i < len(filterList); i++ {
-		if filterList[i].name == "$interval" {
-			return i
+		if filterList[i].OpValue == "time-based" {
+			interval := getIntervalPeriod(filterList[i].OpExtra)
+			utils.Info.Printf("interval activated, period=%d", interval)
+			activateInterval(subscriptionChan, subscriptionId, interval)
+			break
 		}
 	}
-	return -1
 }
 
 func getVehicleData(path string) (string, string) {
@@ -407,6 +416,33 @@ func setVehicleData(path string, value string) string {
     return ""
 }
 
+func unpackPaths(paths string) []string {
+    var pathArray []string
+    if (strings.Contains(paths, "[") == true) {
+        err := json.Unmarshal([]byte(paths), &pathArray)
+        if (err != nil) {
+            return nil
+        }
+    } else {
+        pathArray = make([]string, 1)
+	pathArray[0] = paths
+   }
+   return pathArray
+}
+
+func getTriggerPath(paths string) string { // if array, the first element
+    var pathArray []string
+    if (strings.Contains(paths, "[") == true) {
+        err := json.Unmarshal([]byte(paths), &pathArray)
+        if (err != nil) {
+	    utils.Error.Printf("Unmarshal filter path array failed.")
+	    return ""
+	}
+	return pathArray[0]
+    }
+    return paths
+}
+
 func main() {
 	utils.InitLog("service-mgr-log.txt", "./logs")
 	dbFile := "statestorage.db"
@@ -450,28 +486,6 @@ func main() {
 			responseMap["action"] = requestMap["action"]
 			responseMap["requestId"] = requestMap["requestId"]
 			switch requestMap["action"] {
-			case "get":
-		            var pathArray []string
-		            paths := requestMap["path"].(string)
-		            if (strings.Contains(paths, "[") == true) {
-                               err := json.Unmarshal([]byte(paths), &pathArray)
-                               if (err != nil) {
-				    utils.Error.Printf("Unmarshal path array failed.")
-		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
-	                           dataChan <- utils.FinalizeMessage(errorResponseMap)
-	                           break
-                               }
-	                   } else {
-	                       pathArray = make([]string, 1)
-	                       pathArray[0] = paths
-	                   }
-var currentValue string
-                           for i := 0 ; i < len(pathArray) ; i++ {
-utils.Info.Printf("paths[%d]=%s", i, pathArray[i])
-//		                currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[i])
-		           }
-currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[0])
-	                   dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), currentValue)
 			case "set":
                                 if (strings.Contains(requestMap["path"].(string), "[") == true) {
 		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Forbidden request", "Set request must only address a single end point.")
@@ -486,35 +500,41 @@ currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[0])
 				}
 				responseMap["timestamp"] = ts
 			        dataChan <- utils.FinalizeMessage(responseMap)
+			case "get":
+		            pathArray := unpackPaths(requestMap["path"].(string))
+                           if (pathArray == nil) {
+				    utils.Error.Printf("Unmarshal of path array failed.")
+		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshal failed on array of paths.")
+	                           dataChan <- utils.FinalizeMessage(errorResponseMap)
+	                           break
+                           }
+var dataPack string
+                           for i := 0 ; i < len(pathArray) ; i++ {
+utils.Info.Printf("paths[%d]=%s", i, pathArray[i])
+//		                dataPack, responseMap["timestamp"]  = getVehicleData(pathArray[i])
+		           }
+dataPack, responseMap["timestamp"]  = getVehicleData(pathArray[0])
+	                   dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), dataPack)
 			case "subscribe":
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
 				subscriptionState.routerId = requestMap["RouterId"].(string)
 				subscriptionState.path = requestMap["path"].(string)
-				subscriptionState.filterList = []filterDef_t{}
-					utils.Info.Printf("filter=%s", requestMap["filter"])
-                                if (requestMap["filter"] == nil || requestMap["filter"] == "") {
+				subscriptionState.triggerPath = getTriggerPath(subscriptionState.path)
+                               if (requestMap["filter"] == nil || requestMap["filter"] == "") {
 		                        utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
 			                dataChan <- utils.FinalizeMessage(errorResponseMap)
                                        break
-                                }
-				filters := processFilters("?"+requestMap["filter"].(string), &(subscriptionState.filterList))
-                                if (filters == 0) {
-		                    utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsupported filter.", "See Gen2 Core documentation.")
+                               }
+				utils.UnpackFilter(requestMap["filter"], &(subscriptionState.filterList))
+                               if (len(subscriptionState.filterList) == 0) {
+		                    utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
 			            dataChan <- utils.FinalizeMessage(errorResponseMap)
-                                }
+                               }
 				subscriptionState.latestValue, subscriptionState.timestamp = getVehicleData(subscriptionState.path)
 				subscriptionList = append(subscriptionList, subscriptionState)
 				responseMap["subscriptionId"] = strconv.Itoa(subscriptionId)
-				filterIndex := getIndexForInterval(subscriptionState.filterList)
-				utils.Info.Printf("filterIndex=%d", filterIndex)
-				if filterIndex != -1 {
-					interval, err := strconv.Atoi(subscriptionState.filterList[filterIndex].value)
-					utils.Info.Printf("interval=%d", interval)
-					if err == nil {
-						activateInterval(subscriptionChan, subscriptionId, interval)
-					}
-				}
+				activateIfInterval(subscriptionState.filterList, subscriptionChan, subscriptionId)
 				subscriptionId++
 			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "unsubscribe":
@@ -543,7 +563,7 @@ currentValue, responseMap["timestamp"]  = getVehicleData(pathArray[0])
 			}
 		default:
 			checkSubscription(subscriptionChan, backendChan, subscriptionList)
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 		} // select
 	} // for
 }
