@@ -18,8 +18,9 @@ import (
 var requestTag int
 
 var MuxServer = []*http.ServeMux{
-	http.NewServeMux(), // for app client HTTP sessions on port number 8888
+	http.NewServeMux(), // for app client HTTP sessions
 	http.NewServeMux(), // for data session with core server on port number provided at registration
+	http.NewServeMux(), // for history control HTTP sessions
 }
 
 // the number of channel array elements sets the limit for max number of parallel WS app clients

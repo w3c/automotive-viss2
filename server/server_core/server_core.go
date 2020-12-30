@@ -799,7 +799,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
-	if (strings.Contains(requestMap["path"].(string), "*") == true) {
+	if (requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "*") == true) {
 		utils.Error.Printf("serveRequest():path contained wildcard=%s", requestMap["path"])
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "Wildcard must be in filter expression.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
@@ -815,7 +815,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		serviceDataChan[sDChanIndex] <- request
 		return
 	}
-	if (requestMap["action"] == "get" && strings.Contains(requestMap["path"].(string), "#static-metadata") == true) {
+	if (requestMap["action"] == "get" && requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "#static-metadata") == true) {
 		tokenContext := getTokenContext(requestMap)
 		if (len(tokenContext) == 0) {
 		    tokenContext = "Undefined+Undefined+Undefined"
