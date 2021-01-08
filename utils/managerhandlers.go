@@ -84,14 +84,33 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 	}
 }
 
+func splitPathAndQuery(path string) (string, string) {
+	delim := strings.Index(path, "?")
+	if delim != -1 {
+		return path[:delim], path[delim+8:]   // path?filter=json-exp
+	}
+	return path, ""
+}
+
+func addFilter(incompleteMessage string, filter string) string {  // to avoid Marshal() to reformat using \" 
+    return incompleteMessage[:len(incompleteMessage)-1] + ", \"filter\":" + filter + "}"
+}
+
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
 	path := UrlToPath(req.RequestURI)
         if (len(path) ==  0) {
             path = "empty-path"   // will generate error as not found in VSS tree
         }
-	Info.Printf("HTTP method:%s, path: %s", req.Method, path)
+        path = strings.ReplaceAll(path, "%22", "\"")
+        path = strings.ReplaceAll(path, "%20", "")
 	var requestMap = make(map[string]interface{})
-	requestMap["path"] = path
+	var filterStr string
+//        if (strings.Contains(path, "?") == true) {
+            requestMap["path"], filterStr = splitPathAndQuery(path)
+/*        } else {
+            requestMap["path"] = path
+        }*/
+	Info.Printf("HTTP method:%s, path: %s", req.Method, path)
         token := req.Header.Get("Authorization")
 	Info.Printf("HTTP token:%s", token)
         if (len(token) > 0) {
@@ -111,10 +130,10 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	default:
 //		http.Error(w, "400 Unsupported method", http.StatusBadRequest)
 		Warning.Printf("Only GET and POST methods are supported.")
- 	        backendHttpAppSession(`{"error": "Unrecognized HTTP method."}`, &w) // ???
+ 	        backendHttpAppSession(`{"error": "400", "reason": "Bad request", "message":"Unsupported HTTP method"}`, &w)
 		return
 	}
-	clientChannel <- finalizeResponse(requestMap) // forward to mgr hub,
+	clientChannel <- addFilter(finalizeResponse(requestMap), filterStr) // forward to mgr hub,
 	response := <-clientChannel                   //  and wait for response
 
 	backendHttpAppSession(response, &w)
