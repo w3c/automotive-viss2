@@ -60,3 +60,6 @@ The data communication with the core server uses the Websocket protocol, as well
 The HTTP manager has the same architecture as the WS manager. It converts the request data from the HTTP call into the Websocket format before sending it to the core server, and it converts the Websocket response from the core server into the HTTP response before sending it back to the app-client.<br>
 The HTTP manager supports the same functional set of requests as the Websocket manager, except for subscription.<br>
 
+## History control client
+The VISS version 2 specification supports that a client may request "historic" data, i. e. data that for some reason has been recorded by the server. What data to record ,and when is controlled by the vehicle system ,using the history control interface. The "hist_ctrl_client.go" is a client implementation using this interface. For more info, see the README in the service manager directory.
+

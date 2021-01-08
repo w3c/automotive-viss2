@@ -4,10 +4,12 @@ Get request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
 {"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}
 {"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "requestId":"233"}
+{"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "filter":{"op-type":"history", "op-value":"P2DT12H"}, "requestId":"235"}
 
 Get request with search:
 {"action":"get", "path":"Vehicle/ADAS/ABS", "filter":{"op-type":"paths", "op-value":"*"}, "requestId":"235"}
 {"action":"get", "path":"Vehicle/ADAS", "filter":{"op-type":"paths", "op-value":["ABS/*", "CruiseControl/Error"]}, "requestId":"235"}
+
 
 Get request with AT token (XXX must be replaced with actual token):
 {"action":"get", "path":"Vehicle/ADAS/CruiseControl/Error", "authorization":"XXX", "requestId":"241"}

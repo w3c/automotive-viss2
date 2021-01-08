@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -51,6 +52,18 @@ type CLPack struct {
     DataPack string
     SubscriptionId int
 }
+
+type HistoryList struct {
+    Path string
+    Frequency int
+    BufSize int
+    Status int
+    BufIndex int // points to next empty buffer element
+    Buffer []string
+}
+
+var historyList []HistoryList
+var historyAccessChannel chan string
 
 var hostIp string
 
@@ -141,8 +154,10 @@ func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendCh
 	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
-var subscriptionTicker [100]*time.Ticker
-var tickerIndexList [100]int // implicitly initialized with zeroes
+const MAXTICKERS = 255 // total number of active subscription and history tickers
+var subscriptionTicker [MAXTICKERS]*time.Ticker
+var historyTicker [MAXTICKERS]*time.Ticker
+var tickerIndexList [MAXTICKERS]int
 
 func allocateTicker(subscriptionId int) int {
 	for i := 0; i < len(tickerIndexList); i++ {
@@ -166,6 +181,10 @@ func deallocateTicker(subscriptionId int) int {
 
 func activateInterval(subscriptionChannel chan int, subscriptionId int, interval int) {
 	index := allocateTicker(subscriptionId)
+	if (index == -1) {
+            utils.Error.Printf("activateInterval: No available ticker.")
+            return
+	}
 	subscriptionTicker[index] = time.NewTicker(time.Duration(interval) * 1000 * time.Millisecond) // interval in seconds
 	go func() {
 		for range subscriptionTicker[index].C {
@@ -176,6 +195,24 @@ func activateInterval(subscriptionChannel chan int, subscriptionId int, interval
 
 func deactivateInterval(subscriptionId int) {
 	subscriptionTicker[deallocateTicker(subscriptionId)].Stop()
+}
+
+func activateHistory(historyChannel chan int, signalId int, frequency int) {
+	index := allocateTicker(signalId)
+	if (index == -1) {
+            utils.Error.Printf("activateHistory: No available ticker.")
+            return
+	}
+	historyTicker[index] = time.NewTicker(time.Duration((3600*1000)/frequency) * time.Millisecond) // freq in cycles per hour
+	go func() {
+		for range historyTicker[index].C {
+			historyChannel <- signalId
+		}
+	}()
+}
+
+func deactivateHistory(signalId int) {
+	historyTicker[deallocateTicker(signalId)].Stop()
 }
 
 func getSubcriptionStateIndex(subscriptionId int, subscriptionList []SubscriptionState) int {
@@ -203,7 +240,17 @@ func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint str
     return false
 }
 
-func getDPValue(dp string) string { // {“value”:”Y”, “ts”:”Z”}
+func getDPValue(dp string) string {
+    value,_ := unpackDataPoint(dp)
+    return value
+}
+
+func getDPTs(dp string) string {
+    _, ts := unpackDataPoint(dp)
+    return ts
+}
+
+func unpackDataPoint(dp string) (string, string) { // {"value":"Y", "ts":"Z"}
     type DataPoint struct {
         Value string  `json:"value"`
         Ts string     `json:"ts"`
@@ -211,10 +258,10 @@ func getDPValue(dp string) string { // {“value”:”Y”, “ts”:”Z”}
     var dataPoint DataPoint
     err := json.Unmarshal([]byte(dp), &dataPoint)
     if (err != nil) {
-        utils.Error.Printf("getDPValue: Unmarshal error=%s", err)
-        return ""
+        utils.Error.Printf("unpackDataPoint: Unmarshal failed for dp=%s, error=%s", dp, err)
+        return "", ""
     }
-    return dataPoint.Value
+    return dataPoint.Value, dataPoint.Ts
 }
 
 func evaluateRangeFilter(opExtra string, currentValue string) bool {
@@ -341,7 +388,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
- 	        backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, ""))
+ 	        backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
  	case clPack := <-CLChan: // curve logic notification
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
@@ -350,14 +397,14 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 	default:
 		// check if range or change notification triggered
 		for i := range subscriptionList {
-	               triggerDataPoint := getVehicleData(subscriptionList[i].path[0], "")
+	               triggerDataPoint := getVehicleData(subscriptionList[i].path[0])
 			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestDataPoint, triggerDataPoint)
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.routerId
   			        subscriptionList[i].latestDataPoint = triggerDataPoint
-				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionList[i].path, ""))
+				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionList[i].path, nil))
 			}
 		}
 	}
@@ -441,7 +488,7 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 		if filterList[i].OpValue == "time-based" {
 			interval := getIntervalPeriod(filterList[i].OpExtra)
 			utils.Info.Printf("interval activated, period=%d", interval)
-			if (interval >0) {
+			if (interval > 0) {
 			    activateInterval(subscriptionChan, subscriptionId, interval)
 			}
 			break
@@ -456,7 +503,7 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 func curveLogicServer(CLChan chan CLPack, subscriptionId int, opExtra string, paths []string, m *sync.Mutex) {
     maxError, bufSize := getCurveLogicParams(opExtra)
     type DataPoint struct {
-        Value int //TODO: set data type according to VSS data type
+        Value string
         Ts    string
     }
     clBuf := make([]DataPoint, bufSize)
@@ -464,7 +511,7 @@ func curveLogicServer(CLChan chan CLPack, subscriptionId int, opExtra string, pa
     utils.Info.Printf("Curve logic activated with max error=%d, buffer size=%d", maxError, bufSize)
     for {
         // TODO: load buffer with new dp from statestorage
-        clBuf[bufIndex].Value = 0
+        clBuf[bufIndex].Value = "0"
         clBuf[bufIndex].Ts = ""
         bufIndex++
         m.Lock()
@@ -484,7 +531,7 @@ func curveLogicServer(CLChan chan CLPack, subscriptionId int, opExtra string, pa
 }
 
 func simulateClResults(paths []string, subscriptionId int, CLChan chan CLPack) {  //TODO: replace with real CL impl
-    dp := `[{“value”:”1”, “ts”:”2020-12-31T23:59:40Z”}, {“value”:”2”, “ts”:”2020-12-31T23:59:56Z”}, {“value”:”3”, “ts”:”2020-12-31T23:59:59Z”}]`
+    dp := `[{"value":"1", "ts":"2020-12-31T23:59:40Z"}, {"value":"2", "ts":"2020-12-31T23:59:56Z"}, {"value":"3", "ts":"2020-12-31T23:59:59Z"}]`
     data := ""
     if (len(paths) > 1) {
         data = "["
@@ -504,13 +551,11 @@ func simulateClResults(paths []string, subscriptionId int, CLChan chan CLPack) {
     CLChan <- clPack
 }
 
-func getVehicleData(path string, filter string) string { // returns {“value”:”Y”, “ts”:”Z”}
-    if (len(filter) > 0) {
-    }
+func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
     if (isStateStorage == true) {
 	rows, err := db.Query("SELECT `value`, `timestamp` FROM VSS_MAP WHERE `path`=?", path)
 	if err != nil {
-            return `{“value”:”` + strconv.Itoa(dummyValue) + `”, “ts”:”` + utils.GetRfcTime() + `”}`
+            return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 	}
 	value := ""
 	timestamp := ""
@@ -518,12 +563,12 @@ func getVehicleData(path string, filter string) string { // returns {“value”
 	rows.Next()
 	err = rows.Scan(&value, &timestamp)
 	if err != nil {
-            return `{“value”:”` + strconv.Itoa(dummyValue) + `”, “ts”:”` + utils.GetRfcTime() + `”}`
+            return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 	}
 	rows.Close()
-        return `{“value”:”` + value + `”, “ts”:”` + timestamp + `”}`
+        return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
     } else {
-            return `{“value”:”` + strconv.Itoa(dummyValue) + `”, “ts”:”` + utils.GetRfcTime() + `”}`
+            return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
     }
 }
 
@@ -561,76 +606,247 @@ func unpackPaths(paths string) []string {
    return pathArray
 }
 
-func historyServer(muxServer *http.ServeMux, historyChan chan string) {
+func createHistoryList(fname string) {
+	type PathList struct {
+		LeafPaths []string
+	}
+
+	var pathList PathList
+
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		utils.Error.Printf("Error reading %s: %s\n", fname, err)
+		return
+	}
+	err = json.Unmarshal([]byte(data), &pathList)
+	if err != nil {
+		utils.Error.Printf("Error unmarshal json=%s, err=%s\n", data, err)
+		return
+	}
+	historyList = make([]HistoryList, len(pathList.LeafPaths))
+	for i := 0 ; i < len(pathList.LeafPaths) ; i++ {
+	    historyList[i].Path = pathList.LeafPaths[i]
+	    historyList[i].Frequency = 0
+	    historyList[i].BufSize = 0
+	    historyList[i].Status = 0
+	    historyList[i].BufIndex = 0
+	    historyList[i].Buffer = nil
+	}
+}
+
+func historyServer(historyAccessChan chan string) {
+    createHistoryList("../vsspathlist.json")  // file is created by core-server at startup
     histCtrlChannel := make(chan string)
-    go initHistoryControlServer(histCtrlChannel, muxServer)
+    go initHistoryControlServer(histCtrlChannel)
+    historyChannel := make(chan int)
     for {
 	select {
+	  case signalId := <- historyChannel:
+	      captureHistoryValue(signalId)
 	  case histCtrlReq := <-histCtrlChannel: // history config request
-	    histCtrlChannel <- processHistoryCtrl(histCtrlReq)
-	  case histGetReq := <-historyChan: // history get request
-	    historyChan <- processHistoryGet(histGetReq)
+	    histCtrlChannel <- processHistoryCtrl(histCtrlReq, historyChannel)
+	  case getRequest := <-historyAccessChan: // history get request
+	    historyAccessChan <- processHistoryGet(getRequest)
           default:
-            checkForNewData(/*historyList*/)
 	    time.Sleep(50 * time.Millisecond)
 	}
     }
 }
 
-func processHistoryCtrl(histCtrlReq string) string {
-    return "ok"  // TODO
+func processHistoryCtrl(histCtrlReq string, historyChan chan int) string {
+    var requestMap = make(map[string]interface{})
+    utils.ExtractPayload(histCtrlReq, &requestMap)
+    if (requestMap["action"] == nil || requestMap["path"] == nil) {
+	  utils.Error.Printf("processHistoryCtrl:Missing command param")
+	  return "400 Bad Request"
+    }
+    index := getHistoryListIndex(requestMap["path"].(string))
+    switch requestMap["action"].(string) {
+        case "create":
+            if (requestMap["buf-size"] == nil) {
+ 	        utils.Error.Printf("processHistoryCtrl:Buffer size missing")
+	        return "400 Bad Request"
+            }
+            bufSize, err := strconv.Atoi(requestMap["buf-size"].(string))
+            if err != nil {
+ 	        utils.Error.Printf("processHistoryCtrl:Buffer size malformed=%s", requestMap["buf-size"].(string))
+	        return "400 Bad Request"
+            }
+	    historyList[index].BufSize = bufSize
+	    historyList[index].Buffer = make([]string, bufSize)
+        case "start":
+            if (requestMap["frequency"] == nil) {
+ 	        utils.Error.Printf("processHistoryCtrl:Frequency missing")
+	        return "400 Bad Request"
+            }
+            freq, err := strconv.Atoi(requestMap["frequency"].(string))
+            if err != nil {
+ 	        utils.Error.Printf("processHistoryCtrl:Frequeny malformed=%s", requestMap["frequency"].(string))
+	        return "400 Bad Request"
+            }
+	    historyList[index].Frequency = freq
+	    historyList[index].Status = 1
+            activateHistory(historyChan, index, freq)
+        case "stop":
+	    historyList[index].Status = 0
+            deactivateHistory(index)
+        case "delete":
+            if (historyList[index].Status != 0) {
+	        utils.Error.Printf("processHistoryCtrl:History recording must first be stopped")
+	        return "409 Conflict"
+            }
+	    historyList[index].Frequency = 0
+	    historyList[index].BufSize = 0
+	    historyList[index].BufIndex = 0
+	    historyList[index].Buffer = nil
+        default:
+	  utils.Error.Printf("processHistoryCtrl:Unknown command:action=%s", requestMap["action"].(string))
+	  return "400 Bad Request"
+    }
+    return "200 OK"
 }
 
-func processHistoryGet(histGetReq string) string {
-    return ""  // TODO
+func getHistoryListIndex(path string) int {
+    for i := 0 ; i < len(historyList) ; i++ {
+        if ( historyList[i].Path == path) {
+            return i
+        }
+    }
+    return -1
 }
 
-func checkForNewData() {
+func getCurrentUtcTime() time.Time {
+    return time.Now().UTC()
 }
 
-func initHistoryControlServer(histCtrlChan chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initHistoryControlServer(): :8989/histctrlserver")
-	histCtrlServerHandler := makeHistCtrlServerHandler(histCtrlChan)
-	muxServer.HandleFunc("/agtserver", histCtrlServerHandler)
-	utils.Error.Fatal(http.ListenAndServe(":8989", muxServer))
+func convertFromIsoTime(isoTime string) (time.Time, error) {
+	time, err := time.Parse(time.RFC3339, isoTime)
+	return time, err
 }
 
-func makeHistCtrlServerHandler(histCtrlChan chan string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		utils.Info.Printf("histCtrlServer:url=%s", req.URL.Path)
-		if req.URL.Path != "/histctrlserver" {
-			http.Error(w, "404 url path not found.", 404)
-		} else if req.Method != "POST" {
-			http.Error(w, "400 bad request method.", 400)
-		} else {
-                        bodyBytes, err := ioutil.ReadAll(req.Body)
-                        if err != nil {
-                                http.Error(w, "400 request unreadable.", 400)
-                        } else {
-				utils.Info.Printf("agtServer:received POST request=%s\n", string(bodyBytes))
-				histCtrlChan <- string(bodyBytes)
-				response := <- histCtrlChan
-				utils.Info.Printf("agtServer:POST response=%s", response)
-                                if (len(response) == 0) {
-                                    http.Error(w, "400 bad input.", 400)
-                                } else {
-	                            w.Header().Set("Access-Control-Allow-Origin", "*")
-//				    w.Header().Set("Content-Type", "application/json")
-				    w.Write([]byte(response))
-                                }
-                        }
-		}
-	}
+func processHistoryGet(request string) string { // {"path":"X", "period":"Y"}
+    var requestMap = make(map[string]interface{})
+    utils.ExtractPayload(request, &requestMap)
+    index := getHistoryListIndex(requestMap["path"].(string))
+    currentTs := getCurrentUtcTime()
+    periodTime, _ := convertFromIsoTime(requestMap["period"].(string))
+    oldTs := currentTs.Add(time.Hour*(time.Duration)((24*periodTime.Day()+periodTime.Hour())*(-1)) - 
+             time.Minute*(time.Duration)(periodTime.Minute()) - time.Second*(time.Duration)(periodTime.Second())).UTC()
+    var matches int
+    for matches = 0 ; matches < historyList[index].BufIndex ; matches++ {
+        storedTs, _ := convertFromIsoTime(getDPTs(historyList[index].Buffer[matches]))
+        if (storedTs.Before(oldTs)) {
+            break
+        }
+    }
+    return historicDataPack(index, matches)
 }
 
-func getDataPack(pathArray []string, filter string) string {
+func historicDataPack(index int, matches int) string {
+    dp := ""
+    if (matches > 1) {
+        dp += "["
+    }
+    for i := 0 ; i < matches ; i++ {
+        dp += `{"value":"` + getDPValue(historyList[index].Buffer[i]) + `", "ts":"` + getDPTs(historyList[index].Buffer[i]) + `"}, `
+    }
+    if (matches > 0) {
+        dp = dp[:len(dp)-2]
+    }
+    if (matches > 1) {
+        dp += "]"
+    }
+    return dp
+}
+
+func captureHistoryValue(signalId int) {
+    dp := getVehicleData(historyList[signalId].Path)
+utils.Info.Printf("captureHistoryValue:Captured historic dp = %s", dp)
+    newTs := getDPTs(dp)
+    latestTs := ""
+    if (historyList[signalId].BufIndex > 0) {
+        latestTs = getDPTs(historyList[signalId].Buffer[historyList[signalId].BufIndex-1])
+    }
+    if (newTs != latestTs && historyList[signalId].BufIndex < historyList[signalId].BufSize -1) {
+        historyList[signalId].Buffer[historyList[signalId].BufIndex] = dp
+utils.Info.Printf("captureHistoryValue:Saved historic dp in buffer element=%d", historyList[signalId].BufIndex)
+        historyList[signalId].BufIndex++
+    }
+}
+
+func initHistoryControlServer(histCtrlChan chan string) {
+    os.Remove("/tmp/vissv2/histctrlserver.sock")
+    l, err := net.Listen("unix", "/tmp/vissv2/histctrlserver.sock")
+    if err != nil {
+            utils.Error.Printf("HistCtrlServer:Listen failed, err = %s", err)
+            return
+    }
+
+    for {
+        conn, err := l.Accept()
+        if err != nil {
+            utils.Error.Printf("HistCtrlServer:Accept failed, err = %s", err)
+            return
+        }
+
+        go historyControlServer(conn, histCtrlChan)
+    }
+}
+
+func historyControlServer(conn net.Conn, histCtrlChan chan string) {
+     buf := make([]byte, 512)
+     for {
+        nr, err := conn.Read(buf)
+        if err != nil {
+            utils.Error.Printf("HistCtrlServer:Read failed, err = %s", err)
+            conn.Close()  // assuming client hang up
+            return
+        }
+
+        data := buf[:nr]
+        utils.Info.Printf("HistCtrlServer:Read:data = %s", string(data))
+        histCtrlChan <- string(data)
+        resp := <- histCtrlChan
+        _, err = conn.Write([]byte(resp))
+        if err != nil {
+            utils.Error.Printf("HistCtrlServer:Write failed, err = %s", err)
+            return
+        }
+    }
+}
+
+func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
     dataPack := ""
     if (len(pathArray) > 1) {
         dataPack += "["
     }
+    getHistory := false
+    period := ""
+    if (filterList != nil) {
+	for i := 0; i < len(filterList); i++ {
+		if filterList[i].OpType == "history" {
+			period = filterList[i].OpValue
+			utils.Info.Printf("Historic data request, period=%s", period)
+			break
+		}
+	}
+        getHistory = true
+    }
+    var dataPoint string
+    var request string
     for i := 0 ; i < len(pathArray) ; i++ {
-        dataPoint  := getVehicleData(pathArray[i], filter)
-        dataPack += `{“path”:”` + pathArray[i] + `”, “dp”:` + dataPoint + "}, "
+        request = `{"path":"` + pathArray[i] + `", "period":"` + period + `"}`
+	utils.Info.Printf("Historic data request=%s", request)
+        if (getHistory == true) {
+            historyAccessChannel <- request
+            dataPoint = <- historyAccessChannel
+            if (len(dataPoint) == 0) {
+                return ""
+            }
+        } else {
+            dataPoint  = getVehicleData(pathArray[i])
+        }
+        dataPack += `{"path":"` + pathArray[i] + `", "dp":` + dataPoint + "}, "
     }
     dataPack = dataPack[:len(dataPack)-2]
     if (len(pathArray) > 1) {
@@ -661,7 +877,7 @@ func main() {
 	backendChan := make(chan string)
 	regRequest := RegRequest{Rootnode: "Vehicle"}
 	subscriptionChan := make(chan int)
-	historyChannel := make(chan string)
+	historyAccessChannel = make(chan string)
 	CLChannel := make(chan CLPack)
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
@@ -670,7 +886,7 @@ func main() {
 		return
 	}
 	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
-	go historyServer(utils.MuxServer[2], historyChannel)
+	go historyServer(historyAccessChannel)
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
 	utils.Info.Printf("initDataServer() done\n")
 	for {
@@ -707,18 +923,27 @@ func main() {
 	                           dataChan <- utils.FinalizeMessage(errorResponseMap)
 	                           break
                            }
-			    filter := ""
-			    if (requestMap["filter"] != nil) {
-				filterData, err := json.Marshal(requestMap["filter"])	
-				if err != nil {
-				    utils.Error.Printf("Marshal of filter failed.")
-		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Marshal failed on filter data.")
+			    var filterList []utils.FilterObject
+                           if (requestMap["filter"] != nil && requestMap["filter"] != "") {
+//				filterData, err := json.Marshal(requestMap["filter"])
+//				if err != nil {
+				utils.UnpackFilter(requestMap["filter"], &filterList)
+                               if (len(filterList) == 0) {
+				    utils.Error.Printf("Request filter malformed.")
+		                   utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Request filter malformed.")
 	                           dataChan <- utils.FinalizeMessage(errorResponseMap)
 	                           break
-				}	
-				filter = string(filterData)
+				}
+//				filter = string(filterData)
 			    }
-	                   dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), getDataPack(pathArray, filter))
+			    dataPack := getDataPack(pathArray, filterList)
+			    if (len(dataPack) == 0) {
+				utils.Info.Printf("No historic data available")
+		               utils.SetErrorResponse(requestMap, errorResponseMap, "404", "Not found", "Historic data not available.")
+	                       dataChan <- utils.FinalizeMessage(errorResponseMap)
+	                       break
+			    }	
+	                   dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), dataPack)
 			case "subscribe":
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
@@ -734,7 +959,7 @@ func main() {
 		                    utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
 			            dataChan <- utils.FinalizeMessage(errorResponseMap)
                                }
-				subscriptionState.latestDataPoint = getVehicleData(subscriptionState.path[0], "")
+				subscriptionState.latestDataPoint = getVehicleData(subscriptionState.path[0])
 				subscriptionList = append(subscriptionList, subscriptionState)
 				responseMap["subscriptionId"] = strconv.Itoa(subscriptionId)
 				activateIfIntervalOrCL(subscriptionState.filterList, subscriptionChan, CLChannel, subscriptionId, subscriptionState.path)
