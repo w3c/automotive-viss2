@@ -827,10 +827,10 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 		if filterList[i].OpType == "history" {
 			period = filterList[i].OpValue
 			utils.Info.Printf("Historic data request, period=%s", period)
+                       getHistory = true
 			break
 		}
 	}
-        getHistory = true
     }
     var dataPoint string
     var request string
