@@ -373,11 +373,7 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 }
 
 func addDataPackage(incompleteMessage string, dataPack string) string {
-    if (strings.Contains(dataPack, "[") == false) {
-        return incompleteMessage[:len(incompleteMessage)-1] + ", \"data\":\"" + dataPack + "\"" + "}"
-    } else {
-        return incompleteMessage[:len(incompleteMessage)-1] + ", \"data\":" + dataPack + "}"
-    }
+    return incompleteMessage[:len(incompleteMessage)-1] + ", \"data\":" + dataPack + "}"
 }
 
 func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backendChannel chan string, subscriptionList []SubscriptionState) {
