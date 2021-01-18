@@ -146,7 +146,7 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 		errRespMap["requestId"] = reqMap["requestId"]
 	}
 	errRespMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
-        errRespMap["timestamp"] = GetRfcTime()
+        errRespMap["ts"] = GetRfcTime()
 }
 
 func FinalizeMessage(responseMap map[string]interface{}) string {
@@ -424,7 +424,7 @@ func readCompressedMessage(message []byte, offset int) ([]byte, int) {
         if (message[offset]-128 == CODELISTINDEXPATH) {
             unCompressedToken = append(unCompressedToken, decompressPath(message[offset+1:])...)
             bytesRead += 2
-        } else if (message[offset]-128 == getCodeListIndex("timestamp")) {
+        } else if (message[offset]-128 == getCodeListIndex("ts")) {
             unCompressedToken = append(unCompressedToken, decompressTs(message[offset+1:])...)
             bytesRead += 4
         } else if (message[offset]-128 == CODELISTINDEXVALUE || message[offset]-128 == CODELISTINDEXREQID || message[offset]-128 == CODELISTINDEXSUBID) {
@@ -759,10 +759,12 @@ func CompressMessage(message []byte) []byte {
                     tokenState = 255
                 } else {
                     message2 = append(message2, token...)
-                    comma := make([]byte, 1)
-                    comma[0] = ','
-                    message2 = append(message2, comma...)   //simplifies decompress logic
-Info.Printf("CompressMessage:comma added, token=%s", string(token))
+                    if (message[offset] == ':') {
+                        colon := make([]byte, 1)
+                        colon[0] = ':'
+                        message2 = append(message2, colon...) 
+Info.Printf("CompressMessage:colon added, token=%s", string(token))
+                   }
                 }
             }
         }
@@ -781,17 +783,17 @@ Info.Printf("CompressMessage:comma added, token=%s", string(token))
 * constant key values in the middle of the lst, and number types at the end of the list.
 * The CODELISTDELIM must be updated to the correct element numbers.
 */
-var codelist string = `{"codes":["action", "requestId", "value", "timestamp", "path", "subscriptionId", "filter", "authorization",
+var codelist string = `{"codes":["action", "requestId", "value", "ts", "path", "subscriptionId", "data", "dp", "filter", "authorization",
                         "get", "set", "subscribe", "unsubscribe", "subscription", 
                         "nuint8", "uint8", "nuint16", "uint16", "nuint24", "uint24", "nuint32", "uint32", "bool", "float", "unknown"]}`
 
 const CODELISTINDEXREQID = 1  // must be set to the list index of the "requestId" element
 const CODELISTINDEXVALUE = 2  // must be set to the list index of the "value" element
-const CODELISTINDEXTS = 3  // must be set to the list index of the "timestamp" element
+const CODELISTINDEXTS = 3  // must be set to the list index of the "ts" element
 const CODELISTINDEXPATH = 4  // must be set to the list index of the "path" element
 const CODELISTINDEXSUBID = 5  // must be set to the list index of the "subscriptionId" element
-const CODELISTKEYS = 8  // must be set to the number of keys in the list
-const CODELISTKEYVALUES = 13  // must be set to the number of keys plus values in the list (excl value types)
+const CODELISTKEYS = 10  // must be set to the number of keys in the list
+const CODELISTKEYVALUES = 15  // must be set to the number of keys plus values in the list (excl value types)
 
 type CodeList struct {
 	Code []string `json:"codes"`
