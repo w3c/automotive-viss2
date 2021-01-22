@@ -72,7 +72,7 @@ var errorResponseMap = map[string]interface{}{
 	"action":    "unknown",
 	"requestId": "XX",
 	"error":     `{"number":AA, "reason": "BB", "message": "CC"}`,
-	"timestamp": "yy",
+	"ts": "yy",
 }
 
 var db *sql.DB
@@ -909,7 +909,7 @@ func main() {
 			                dataChan <- utils.FinalizeMessage(errorResponseMap)
                                        break
 				}
-				responseMap["timestamp"] = ts
+				responseMap["ts"] = ts
 			        dataChan <- utils.FinalizeMessage(responseMap)
 			case "get":
 		            pathArray := unpackPaths(requestMap["path"].(string))

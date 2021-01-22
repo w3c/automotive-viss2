@@ -37,7 +37,7 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	if responseMap["requestId"] != nil {
             delete(responseMap, "requestId")
         }
-        response := finalizeResponse(responseMap)
+        response := FinalizeMessage(responseMap)
 
 	resp := []byte(response)
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
@@ -84,16 +84,16 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 	}
 }
 
-func splitPathAndQuery(path string) (string, string) {
+func splitToPathQueryKeyValue(path string) (string, string, string) {
 	delim := strings.Index(path, "?")
 	if delim != -1 {
-		return path[:delim], path[delim+8:]   // path?filter=json-exp
+	    if (path[delim+1] == 'f') {
+		return path[:delim], "filter", path[delim+8:]   // path?filter=json-exp
+	    } else if (path[delim+1] == 'm') {
+		return path[:delim], "metadata", path[delim+10:]   // path?metadata=static (or dynamic)
+	    }
 	}
-	return path, ""
-}
-
-func addFilter(incompleteMessage string, filter string) string {  // to avoid Marshal() to reformat using \" 
-    return incompleteMessage[:len(incompleteMessage)-1] + ", \"filter\":" + filter + "}"
+	return path, "", ""
 }
 
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
@@ -104,12 +104,13 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
         path = strings.ReplaceAll(path, "%22", "\"")
         path = strings.ReplaceAll(path, "%20", "")
 	var requestMap = make(map[string]interface{})
-	var filterStr string
-//        if (strings.Contains(path, "?") == true) {
-            requestMap["path"], filterStr = splitPathAndQuery(path)
-/*        } else {
+	queryKey := ""
+	queryValue := ""
+        if (strings.Contains(path, "?") == true) {
+            requestMap["path"], queryKey, queryValue = splitToPathQueryKeyValue(path)
+        } else {
             requestMap["path"] = path
-        }*/
+        }
 	Info.Printf("HTTP method:%s, path: %s", req.Method, path)
         token := req.Header.Get("Authorization")
 	Info.Printf("HTTP token:%s", token)
@@ -133,7 +134,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
  	        backendHttpAppSession(`{"error": "400", "reason": "Bad request", "message":"Unsupported HTTP method"}`, &w)
 		return
 	}
-	clientChannel <- addFilter(finalizeResponse(requestMap), filterStr) // forward to mgr hub,
+	clientChannel <- AddKeyValue(FinalizeMessage(requestMap), queryKey, queryValue) // forward to mgr hub,
 	response := <-clientChannel                   //  and wait for response
 
 	backendHttpAppSession(response, &w)
@@ -260,12 +261,12 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			isCompressProtocol := false
 			h := http.Header{}
 			for _, sub := range websocket.Subprotocols(req) {
-			   if sub == "gen2c" {
+			   if sub == "VISSv2c" {
 			      isCompressProtocol = true
 			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
 			   }
-			   if sub == "gen2" {
+			   if sub == "VISSv2" {
 			      isCompressProtocol = false
 			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
@@ -302,15 +303,6 @@ func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *i
 	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
 	Error.Fatal(http.ListenAndServe(":8080", muxServer))
-}
-
-func finalizeResponse(responseMap map[string]interface{}) string {
-	response, err := json.Marshal(responseMap)
-	if err != nil {
-		Error.Printf(err.Error(), " ", TransportErrorMessage)
-		return "JSON marshal error" // what to do here?
-	}
-	return string(response)
 }
 
 func removeInternalData(response string) (string, int) {  // "RouterId" : "mgrId?clientId", 

@@ -158,6 +158,16 @@ func FinalizeMessage(responseMap map[string]interface{}) string {
 	return string(response)
 }
 
+func AddKeyValue(message string, key string, value string) string {  // to avoid Marshal() to reformat using \" 
+    if (len(value) > 0) {
+        if (value[0] == '{') {
+            return message[:len(message)-1] + ", \"" + key + "\":" + value + "}"
+        } 
+        return message[:len(message)-1] + ", \"" + key + "\":\"" + value + "\"}"
+    }
+    return message
+}
+
 func GetRfcTime() string {
     withTimeZone := time.Now().Format(time.RFC3339)   // 2020-05-01T15:34:35+02:00
     if (withTimeZone[len(withTimeZone)-6] == '+') {
