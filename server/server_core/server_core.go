@@ -33,22 +33,23 @@ import (
 )
 
 // #include <stdlib.h>
+// #include <stdint.h>
 // #include <stdio.h>
 // #include <stdbool.h>
-// #include "vssparserutilities.h"
+// #include "cparserlib.h"
 import "C"
 
 var VSSTreeRoot C.long
-// set to MAXFOUNDNODES in vssparserutilities.h
+// set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
 
-type searchData_t struct { // searchData_t defined in vssparserutilities.h
-	responsePath    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-	foundNodeHandle int64     // defined as long in vssparserutilities.h
+type searchData_t struct { // searchData_t defined in cparserlib.h
+	responsePath    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+	foundNodeHandle int64     // defined as long in cparserlib.h
 }
 
-type noScopeList_t struct { // noScopeList_t defined in vssparserutilities.h
-	path    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+type noScopeList_t struct { // noScopeList_t defined in cparserlib.h
+	path    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
 }
 
 var transportRegChan chan int
@@ -119,7 +120,7 @@ var errorResponseMap = map[string]interface{}{
 	"action":    "unknown",
 	"requestId": "XXX",
 	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
-	"timestamp": 1234,
+	"ts": 1234,
 }
 
 /*
@@ -388,7 +389,7 @@ func updateServiceRouting(portNo string, rootNode string) {
 }
 
 func initVssFile() bool {
-	filePath := "vss_gen2.cnative"
+	filePath := "vss_vissv2.binary"
 	cfilePath := C.CString(filePath)
 	VSSTreeRoot = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
@@ -404,7 +405,7 @@ func initVssFile() bool {
 func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, listSize int, noScopeList *noScopeList_t, validation *C.int) int {
 	utils.Info.Printf("searchTree(): path=%s, anyDepth=%t, leafNodesOnly=%t", path, anyDepth, leafNodesOnly)
 	if len(path) > 0 {
-// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth,  bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
+// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
 		cpath := C.CString(path)
 		var matches C.int = C.VSSSearchNodes(cpath, rootNode, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly, 
 		                                     (C.int)(listSize), (*C.struct_noScopeList_t)(unsafe.Pointer(noScopeList)), (*C.int)(unsafe.Pointer(validation)))
@@ -561,14 +562,6 @@ utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
     return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
 }
 
-func removePathFragment(path string) string {
-	pathEnd := strings.Index(path, "#")
-	if pathEnd != -1 {
-		return path[:pathEnd]
-	}
-	return path
-}
-
 func addQuery(path string) string {
 	queryStart := strings.Index(path, "?")
 	if queryStart != -1 {
@@ -580,13 +573,13 @@ func addQuery(path string) string {
 // nativeCnodeDef.h: nodeTypes_t; 
 func nodeTypesToString(nodeType int) string {
 	switch nodeType {
-	case 0:
-		return "sensor"
 	case 1:
-		return "actuator"
+		return "sensor"
 	case 2:
-		return "attribute"
+		return "actuator"
 	case 3:
+		return "attribute"
+	case 4:
 		return "branch"
 	default:
 		return ""
@@ -595,25 +588,25 @@ func nodeTypesToString(nodeType int) string {
 // nativeCnodeDef.h: nodeDatatypes_t
 func nodeDataTypesToString(nodeType int) string {
 	switch nodeType {
-	case 0:
-		return "int8"
 	case 1:
-		return "uint8"
+		return "int8"
 	case 2:
-		return "int16"
+		return "uint8"
 	case 3:
-		return "uint16"
+		return "int16"
 	case 4:
-		return "int32"
+		return "uint16"
 	case 5:
-		return "uint32"
+		return "int32"
 	case 6:
-		return "double"
+		return "uint32"
 	case 7:
-		return "float"
+		return "double"
 	case 8:
-		return "boolean"
+		return "float"
 	case 9:
+		return "boolean"
+	case 10:
 		return "string"
 	default:
 		return ""
@@ -626,25 +619,25 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 	}
 	depth++
 	var newJsonBuffer string
-	nodeName := C.GoString(C.getName(nodeHandle))
+	nodeName := C.GoString(C.VSSgetName(nodeHandle))
 	newJsonBuffer += `"` + nodeName + `":{`
 	nodeType := int(C.VSSgetType(nodeHandle))
+utils.Info.Printf("nodeType=%d", nodeType)
 	newJsonBuffer += `"type":` + `"` + nodeTypesToString(nodeType) + `",`
-	nodeDescr := C.GoString(C.getDescr(nodeHandle))
+	nodeDescr := C.GoString(C.VSSgetDescr(nodeHandle))
 	newJsonBuffer += `"description":` + `"` + nodeDescr + `",`
-	nodeNumofChildren := int(C.getNumOfChildren(nodeHandle))
+	nodeNumofChildren := int(C.VSSgetNumOfChildren(nodeHandle))
 	switch nodeType {
-	case 14: // branch
-	case 12: // stream
-	case 10: // sensor
+	case 4: // branch
+	case 1: // sensor
 		fallthrough
-	case 11: // actuator
+	case 2: // actuator
 		fallthrough
-	case 13: // attribute
+	case 3: // attribute
 		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := int(C.VSSgetDatatype(nodeHandle))
 		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(nodeDatatype) + `",`
-	default: // 0-9 -> the data types, should not occur here (needs to be separated in C code declarations...)
+	default:
 		return ""
 
 	}
@@ -653,21 +646,18 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 			newJsonBuffer += `"children":` + "{"
 		}
 		for i := 0; i < nodeNumofChildren; i++ {
-			childNode := C.long(C.getChild(nodeHandle, C.int(i)))
+			childNode := C.long(C.VSSgetChild(nodeHandle, C.int(i)))
 			newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer, depth, maxDepth)
 		}
 		if nodeNumofChildren > 0 {
-			if newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}' {
-				newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
-			}
-			newJsonBuffer += "},"
+				newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]  // remove comma after curly bracket
+			newJsonBuffer += "}"
 		}
 	}
 	if newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}' {
 		newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
 	}
-	newJsonBuffer += "},"
-	depth--
+        newJsonBuffer += "},"
 	return jsonBuffer + newJsonBuffer
 }
 
@@ -768,12 +758,15 @@ func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 		return ""
 	}
 	subTreeRoot := C.long(searchData[matches-1].foundNodeHandle)
-	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.getName(subTreeRoot)))
+	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.VSSgetName(subTreeRoot)))
 	if depth == 0 {
 		depth = 100
 	}
 	jsonBuffer = jsonifyTreeNode(subTreeRoot, jsonBuffer, 0, depth)
-	return "{" + jsonBuffer + "}"
+	if (len(jsonBuffer) > 0) {
+	    return "{" + jsonBuffer[:len(jsonBuffer)-1] + "}"  // remove comma
+	}
+	return ""
 }
 
 func getTokenContext(reqMap map[string]interface{}) string {
@@ -815,22 +808,34 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		serviceDataChan[sDChanIndex] <- request
 		return
 	}
-	if (requestMap["action"] == "get" && requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "#static-metadata") == true) {
+	if (requestMap["action"] == "get" && requestMap["path"] != nil && requestMap["metadata"] != nil == true) {
 		tokenContext := getTokenContext(requestMap)
 		if (len(tokenContext) == 0) {
 		    tokenContext = "Undefined+Undefined+Undefined"
 		}
-		requestMap["metadata"] = synthesizeJsonTree(removePathFragment(requestMap["path"].(string)), 0, tokenContext)  // TODO: depth setting via filtering?
-		delete(requestMap, "path")
-		requestMap["timestamp"] = utils.GetRfcTime()
-		backendChan[tDChanIndex] <- utils.FinalizeMessage(requestMap)
-		return
+		metadata := ""
+		if (requestMap["metadata"] == "static") {
+		    metadata = synthesizeJsonTree(requestMap["path"].(string), 0, tokenContext)  // TODO: depth setting via filtering?
+		} else {
+		    // TODO: get dynamic metadata
+		}
+		if (len(metadata) > 0) {
+		    delete(requestMap, "path")
+		    delete(requestMap, "metadata")
+		    requestMap["ts"] = utils.GetRfcTime()
+		    backendChan[tDChanIndex] <- utils.AddKeyValue(utils.FinalizeMessage(requestMap), "metadata", metadata)
+		    return
+		}
+		utils.Error.Printf("Metadata not available.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Metadata not available.")
+	        backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+	        return
 	}
 	issueServiceRequest(requestMap, tDChanIndex, sDChanIndex)
 }
 
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
-	rootPath := removePathFragment(requestMap["path"].(string))
+	rootPath := requestMap["path"].(string)
         var searchPath []string
 	if (requestMap["filter"] != nil) {
 	    var filterList []utils.FilterObject

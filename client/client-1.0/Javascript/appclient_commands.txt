@@ -4,6 +4,8 @@ Get request:
 {"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "requestId":"234"}
 {"action":"get", "path":"Vehicle/Cabin/Door/IsOpen", "requestId":"234"}
 {"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "requestId":"233"}
+
+Get request for historic data:
 {"action":"get", "path":"Vehicle.Acceleration.Longitudinal", "filter":{"op-type":"history", "op-value":"P2DT12H"}, "requestId":"235"}
 
 Get request with search:
@@ -16,7 +18,7 @@ Get request with AT token (XXX must be replaced with actual token):
 {"action":"get", "path":"Vehicle/Body/BodyType", "authorization":"XXX", "requestId":"243"}
 
 Service discovery request:
-{"action":"get", "path":"Vehicle/Cabin/Door/Row1/Right#static-metadata", "requestId":"236"}
+{"action":"get", "path":"Vehicle/ADAS/ABS", "metadata":"static", "requestId":"236"}
 
 Set request:
 {"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"237"}
@@ -38,20 +40,25 @@ Unsubscribe request:
 Get request:
 HTTP GET 
 URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
+URL: Vehicle.Acceleration.Longitudinal
 
 Get request with search:
 HTTP GET 
 URL: Vehicle/Cabin?filter={"op-type":"paths", "op-value":["Door/*/*/IsOpen", "Convertible/Status"]}
-pathEQ*/*/IsOpen
+URL: Vehicle/ADAS?filter={"op-type":"paths", "op-value":["ABS/*", "CruiseControl/Error"]}
+
+Get request for historic data:
+HTTP GET 
+URL: Vehicle.Acceleration.Longitudinal?filter={"op-type":"history", "op-value":"P2DT12H"}
 
 Set request:
 HTTP POST 
-URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
-Payload: 999
+URL: Vehicle.Acceleration.Longitudinal
+Payload: 0.123
 
 Service discovery request:
 HTTP GET 
-URL: Vehicle/Cabin/Door/Row1/Right#static-metadata
+URL: Vehicle/ADAS/ABS?metadata=static
 
 
 //  AGTserver POST input:
