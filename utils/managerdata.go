@@ -21,6 +21,7 @@ var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for app client HTTP sessions
 	http.NewServeMux(), // for data session with core server on port number provided at registration
 	http.NewServeMux(), // for history control HTTP sessions
+	http.NewServeMux(), // for MQTT sessions
 }
 
 // the number of channel array elements sets the limit for max number of parallel WS app clients
