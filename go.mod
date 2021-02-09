@@ -10,6 +10,7 @@ require (
 	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server v0.0.0-20191204211610-3716e7ac1e5f // indirect
 	github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils v0.0.0-20200913070624-f44a7c9498f6
 	github.com/PuerkitoBio/goquery v1.5.1 // indirect
+	github.com/eclipse/paho.mqtt.golang v1.3.2
 	github.com/golang/protobuf v1.4.1 // indirect
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/gorilla/websocket v1.4.2

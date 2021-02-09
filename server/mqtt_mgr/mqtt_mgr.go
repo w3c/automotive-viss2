@@ -10,46 +10,211 @@ package main
 import (
 	"strconv"
 	"strings"
+	"time"
+	"os"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 	"github.com/gorilla/websocket"
+  MQTT  "github.com/eclipse/paho.mqtt.golang"
 )
 
-//common source for all requestIds
+var mqttChannel chan string
 
-// TODO: check for token in get/set requests. If found, issue authorize-request prior to get/set (the response on this "extra" request needs to be blocked...)
+type NodeValue struct {
+	topicId int
+	topic  string
+}
 
-/**
-* Websocket transport manager tasks:
-*     - register with core server
-      - spawn a WS server for every connecting app client
-      - forward data between MQTT broker and core server, injecting mgr Id (and appClient Id?) into payloads
-**/
+type Node struct {
+	value NodeValue
+	next  *Node
+}
+
+type TopicList struct {
+	head *Node
+	nodes  int
+}
+
+var topicList TopicList
+
+func vissV2Receiver(dataConn *websocket.Conn, vissv2Channel chan string) {
+	for {
+		_, response, err := dataConn.ReadMessage()  // receive message from server core
+		if err != nil {
+			utils.Error.Println("Datachannel read error:" + err.Error())
+			return // ??
+		}
+		utils.Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
+		vissv2Channel <- string(response)  // send message to hub
+	}
+}
+
+func getBrokerSocket(isSecure bool) string {
+//	FVTAddr := os.Getenv("MQTT_BROKER_ADDR")
+//        FVTAddr := "mqtt.eclipse.org"   // does it work for testing?
+        FVTAddr := "mqtt.flespi.io"
+	if FVTAddr == "" {
+		FVTAddr = "127.0.0.1"
+	}
+	if (isSecure == true) {
+	    return "ssl://" + FVTAddr + ":8883"
+        } 
+	return "tcp://" + FVTAddr + ":1883"
+}
+
+var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
+    mqttChannel <- msg.Topic()
+    mqttChannel <- string(msg.Payload())
+}
+
+func mqttReceiver(brokerSocket string, topic string) {
+    opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
+    opts.SetClientID("VIN001")
+    opts.SetDefaultPublishHandler(publishHandler)
+
+    c := MQTT.NewClient(opts)
+    if token := c.Connect(); token.Wait() && token.Error() != nil {
+        panic(token.Error())
+    }
+    if token := c.Subscribe(topic, 0, nil); token.Wait() && token.Error() != nil {
+        utils.Error.Println(token.Error())
+        os.Exit(1)
+    }
+	for {
+	    time.Sleep(25 * time.Second)  // can this terminate with publishHandler still working?
+	}
+}
+
+func getTopic(topicId int) string {
+    iterator := topicList.head
+    for i := 0 ; i <  topicList.nodes ; i++ {
+        if (iterator.value.topicId == topicId) {
+            return iterator.value.topic
+        }
+        iterator = iterator.next
+    }
+    return ""
+}
+
+func pushTopic(topic string, topicId int) {
+    iterator := topicList.head
+    for i := 0 ; i <  topicList.nodes-1 ; i++ {
+        iterator = iterator.next
+    }
+    var newNode Node
+    newNode.value.topic = topic
+    newNode.value.topicId = topicId
+    iterator.next = &newNode
+    topicList.nodes++
+}
+
+func popTopic(topicId int) {  //TODO: to be used at unsubscribe, get, set responses from VISSv2
+    if (topicList.nodes > 0 && topicList.head.value.topicId == topicId) {
+        if (topicList.nodes > 1) {
+            topicList.head = topicList.head.next
+        } else {
+            topicList.head = nil
+        }
+        topicList.nodes--
+    }
+    iterator := topicList.head
+    var previousNode *Node
+    i := 0
+    for i = 0 ; i <  topicList.nodes ; i++ {
+        if (iterator.value.topicId == topicId) {
+            break
+        }
+        previousNode = iterator
+        iterator = iterator.next
+    }
+    if (i == topicList.nodes) {
+        return
+    }
+    previousNode.next = iterator.next
+    topicList.nodes--
+}
+
+func publishMessage(brokerSocket string , topic string, payload string) {   
+    opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
+    opts.SetClientID("VIN001")
+
+    c := MQTT.NewClient(opts)
+    if token := c.Connect(); token.Wait() && token.Error() != nil {
+        utils.Error.Println(token.Error())
+        os.Exit(1)
+    }
+    token := c.Publish(topic, 0, false, payload)
+    token.Wait()
+}
+
+func getVissV2Topic(dataConn *websocket.Conn, regData utils.RegData) string {
+    vinRequest := "{\"RouterId\":\"" + strconv.Itoa(regData.Mgrid) + `?0", "action":"get", "path":"Vehicle.VehicleIdentification.VIN", "requestId":"570415"}`
+    err := dataConn.WriteMessage(websocket.TextMessage, []byte(vinRequest))
+    if err != nil {
+        utils.Error.Println("Datachannel write error:" + err.Error())
+    }
+    _, response, err := dataConn.ReadMessage()  // receive message from server core
+    if err != nil {
+	utils.Error.Println("Datachannel read error:" + err.Error())
+        os.Exit(1)
+    }
+    vin := extractVin(string(response))
+    utils.Info.Printf("VIN=%s", vin)
+    return vin + "/Vehicle"
+}
+
+func extractVin(response string) string {
+    vinStartIndex := strings.Index(response, "value") 
+    if vinStartIndex == -1 {
+	utils.Error.Printf("VIN cannot be extracted in %s", response)
+        os.Exit(1)
+    }
+    vinStartIndex += 8  // value”:”
+    vinEndIndex := utils.NextQuoteMark([]byte(response), vinStartIndex)
+    return response[vinStartIndex:vinEndIndex]
+}
+
 func main() {
 	utils.TransportErrorMessage = "MQTT transport mgr-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("mqtt-mgr-log.txt", "./logs")
 
 	regData := utils.RegData{}
 	utils.RegisterAsTransportMgr(&regData, "MQTT")
+	
+	mqttChannel = make(chan string)
+	vissv2Channel := make(chan string)
 
-	go utils.HttpServer{}.InitClientServer(utils.MuxServer[3]) // go routine needed due to listenAndServe call...
 	dataConn := utils.InitDataSession(utils.MuxServer[1], regData)
+	go vissV2Receiver(dataConn, vissv2Channel)  //message reception from server core
 
-	go utils.HttpWSsession{}.TransportHubFrontendWSsession(dataConn, utils.AppClientChan) // receives messages from server core
-	utils.Info.Println("**** MQTT manager entering server loop... ****")
-	// loopIter := 0
+	brokerSocket := getBrokerSocket(false)
+	go mqttReceiver(brokerSocket, getVissV2Topic(dataConn, regData))
+	topicId := 0
+	topicList.nodes = 0
+
+	utils.Info.Println("**** MQTT manager hub entering server loop... ****")
 	for {
 		select {
-		case reqMessage := <-utils.AppClientChan[0]:
-			utils.Info.Printf("Transport server hub: Request from client 0:%s\n", reqMessage)
+		  case mqttTopic := <-mqttChannel:
+		       mqttPayload := <-mqttChannel
+			utils.Info.Printf("MQTT hub: Message from broker:Topic=%s, Payload=%s\n", mqttTopic, mqttPayload)
+			// decompose message into topic and vissv2 request parts, create topic/routerId entry, add routerId to vissv2 request, and send request to server core
+			pushTopic(mqttTopic, topicId)
+			topicId++
 			// add mgrId + clientId=0 to message, forward to server core
-			newPrefix := "{ \"RouterId\":\"" + strconv.Itoa(regData.Mgrid) + "?0\", "
-			request := strings.Replace(reqMessage, "{", newPrefix, 1)
-			//utils.Info.Println("HTTP mgr message to core server:" + request)
-			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
+			newPrefix := "{\"RouterId\":\"" + strconv.Itoa(regData.Mgrid) + "?" + strconv.Itoa(topicId) + "\", "
+			request := strings.Replace(mqttPayload, "{", newPrefix, 1)
+			err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))  // send request to server core
 			if err != nil {
-				utils.Warning.Println("Datachannel write error:" + err.Error())
+			    utils.Error.Println("Datachannel write error:" + err.Error())
 			}
+		  case vissv2Message := <-vissv2Channel:
+			utils.Info.Printf("MQTT hub: Message from VISSv2 server:%s\n", vissv2Message)
+			// link routerId to topic, remove routerId from message, create mqtt message, send message to mqtt transport
+			payload, topicHandle := utils.RemoveInternalData(string(vissv2Message))
+			publishMessage(brokerSocket, getTopic(topicHandle), payload)
+		  default:
+			time.Sleep(25 * time.Millisecond)
 		}
 	}
 }
