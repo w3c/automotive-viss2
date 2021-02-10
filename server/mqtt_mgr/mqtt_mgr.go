@@ -51,8 +51,7 @@ func vissV2Receiver(dataConn *websocket.Conn, vissv2Channel chan string) {
 
 func getBrokerSocket(isSecure bool) string {
 //	FVTAddr := os.Getenv("MQTT_BROKER_ADDR")
-        FVTAddr := "test.mosquitto.org"   // does it work for testing?
-//        FVTAddr := "mqtt.flespi.io"
+        FVTAddr := "test.mosquitto.org"
 	if FVTAddr == "" {
 		FVTAddr = "127.0.0.1"
 	}
@@ -64,10 +63,12 @@ func getBrokerSocket(isSecure bool) string {
 
 var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
 //    mqttChannel <- msg.Topic()
+    utils.Info.Printf("publishHandler:payload=%s", string(msg.Payload()))
     mqttChannel <- string(msg.Payload())
 }
 
-func mqttReceiver(brokerSocket string, topic string) MQTT.Client {
+func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
+    utils.Info.Printf("mqttSubscribe:Topic=%s", topic)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
     opts.SetClientID("VIN001")
     opts.SetDefaultPublishHandler(publishHandler)
@@ -133,6 +134,7 @@ func popTopic(topicId int) {  //TODO: to be used at unsubscribe, get, set respon
 }
 
 func publishMessage(brokerSocket string , topic string, payload string) {   
+    utils.Info.Printf("publishMessage:Topic=%s, Payload=%s", topic, payload)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
     opts.SetClientID("VIN001")
 
@@ -193,7 +195,7 @@ func main() {
 	go vissV2Receiver(dataConn, vissv2Channel)  //message reception from server core
 
 	brokerSocket := getBrokerSocket(false)
-	serverSubscription := mqttReceiver(brokerSocket, getVissV2Topic(dataConn, regData))
+	serverSubscription := mqttSubscribe(brokerSocket, getVissV2Topic(dataConn, regData))
 	topicId := 0
 	topicList.nodes = 0
 

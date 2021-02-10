@@ -33,11 +33,12 @@ func getBrokerSocket(isSecure bool) string {
 }
 
 var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
-    fmt.Printf("Topic=%s", msg.Topic())
-    fmt.Printf("Payload=%s", string(msg.Payload()))
+    fmt.Printf("Topic=%s\n", msg.Topic())
+    fmt.Printf("Payload=%s\n", string(msg.Payload()))
 }
 
 func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
+    fmt.Printf("mqttSubscribe:Topic=%s\n", topic)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
     opts.SetClientID("VIN001-Client")
     opts.SetDefaultPublishHandler(publishHandler)
@@ -58,6 +59,7 @@ func mqttUnsubscribe(mqttClient MQTT.Client) {
 }
 
 func publishMessage(brokerSocket string , topic string, payload string) {   
+    fmt.Printf("publishMessage:Topic=%s, Payload=%s\n", topic, payload)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
     opts.SetClientID("VIN001")
 
@@ -95,18 +97,19 @@ func main() {
     var request string
     clientSubscription := make([]MQTT.Client, 25)
     i := 0
-    for {
+    continueLoop := true
+    for continueLoop {
         fmt.Printf("\nVISSv2-request (or q to quit):")
         fmt.Scanf("%s", &request)
         switch request[0] {
-          case 'q': break
+          case 'q': continueLoop = false
           default:
 	      clientSubscription[i] = getVissV2Response(brokerSocket, vin, request)
         }
         i++
         if (i == 25) {
-            fmt.Printf("Max number of requests reached. Goodbye.")
-            break
+            fmt.Printf("Max number of requests reached. Goodbye.\n")
+            continueLoop = false
         }
     }
     for j := 0 ; j < i ; j++ {
