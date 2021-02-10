@@ -305,7 +305,7 @@ func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *i
 	Error.Fatal(http.ListenAndServe(":8080", muxServer))
 }
 
-func removeInternalData(response string) (string, int) {  // "RouterId" : "mgrId?clientId", 
+func RemoveInternalData(response string) (string, int) {  // "RouterId" : "mgrId?clientId", 
     routerIdStart := strings.Index(response, "RouterId") - 1
     clientIdStart := strings.Index(response[routerIdStart:], "?") + 1 + routerIdStart
     clientIdStop := NextQuoteMark([]byte(response), clientIdStart)
@@ -323,7 +323,7 @@ func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataCon
 			return // ??
 		}
 		Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
-		trimmedResponse, clientId := removeInternalData(string(response))
+		trimmedResponse, clientId := RemoveInternalData(string(response))
 		appClientChannel[clientId] <- trimmedResponse // no need for clientBackendChannel as subscription notifications not supported
 	}
 }
@@ -336,7 +336,7 @@ func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *w
 			return // ??
 		}
 		Info.Printf("Server hub: WS response from server core:%s\n", string(response))
-		trimmedResponse, clientId := removeInternalData(string(response))
+		trimmedResponse, clientId := RemoveInternalData(string(response))
 		if strings.Contains(trimmedResponse, "\"subscription\"") {
 			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
 		} else {
