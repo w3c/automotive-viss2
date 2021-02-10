@@ -54,8 +54,8 @@ func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
     return c
 }
 
-func mqttUnsubscribe(mqttClient MQTT.Client) {
-    mqttClient.Disconnect(250)
+func mqttUnsubscribe(mqttClient *(MQTT.Client)) {
+    (*mqttClient).Disconnect(250)
 }
 
 func publishMessage(brokerSocket string , topic string, payload string) {   
@@ -73,14 +73,14 @@ func publishMessage(brokerSocket string , topic string, payload string) {
     c.Disconnect(250)
 }
 
-func getVissV2Response(brokerSocket string, vin string, request string) MQTT.Client {
-    uniqueTopic := "VISSv2Request-" + strconv.Itoa(requestNo)
+func getVissV2Response(brokerSocket string, vin string, request string) *(MQTT.Client) {
+    uniqueTopic := "/VISSv2Request-" + strconv.Itoa(requestNo)
     client := mqttSubscribe(brokerSocket, uniqueTopic)
     
     payload := `{"topic":"` + uniqueTopic + `", "request":"` + request + `"}`
-    publishMessage(brokerSocket, vin + "/Vehicle", payload)
+    publishMessage(brokerSocket, "/" + vin + "/Vehicle", payload)
     requestNo++
-    return client
+    return &client
 }
 
 func main() {
@@ -95,7 +95,7 @@ func main() {
 	brokerSocket := getBrokerSocket(false)
 	
     var request string
-    clientSubscription := make([]MQTT.Client, 25)
+    clientSubscription := make([]*(MQTT.Client), 25)
     i := 0
     continueLoop := true
     for continueLoop {

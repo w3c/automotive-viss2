@@ -161,7 +161,7 @@ func getVissV2Topic(dataConn *websocket.Conn, regData utils.RegData) string {
     }
     vin := extractVin(string(response))
     utils.Info.Printf("VIN=%s", vin)
-    return vin + "/Vehicle"
+    return "/" + vin + "/Vehicle"
 }
 
 func extractVin(response string) string {
