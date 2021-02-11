@@ -5,19 +5,19 @@ CORE_SVR=2
 SVCMGR_SVR=3
 AGT_SVR=4
 ATT_SVR=5
-declare -a svrfolders=("server/httpmgr" 
-                        "server/wsmgr" 
-                        "server/server-core" 
-                        "server/servicemgr"
-                        "client/client-1.0/Go"
-                        "server/atserver")
+declare -a svrfolders=("server/http_mgr"
+                        "server/ws_mgr"
+                        "server/server_core" 
+                        "server/service_mgr"
+                        "client/client-1.0"
+                        "server/at_server")
 
 declare -a svrbin=("http_mgr" 
                         "ws_mgr" 
-                        "server-core" 
+                        "server_core" 
                         "service_mgr"
-                        "agt-server"
-                        "at-server")
+                        "agt_server"
+                        "at_server")
 
 declare -a svrname=("HTTP SERVER"
                         "WEB SOCKET SERVER"

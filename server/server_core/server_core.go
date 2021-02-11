@@ -398,7 +398,7 @@ func initVssFile() bool {
 	C.free(unsafe.Pointer(cfilePath))
 
 	if VSSTreeRoot == 0 {
-		//		utils.Error.Println("Tree file not found")
+		utils.Error.Println("Tree file not found")
 		return false
 	}
 

@@ -51,7 +51,8 @@ func vissV2Receiver(dataConn *websocket.Conn, vissv2Channel chan string) {
 
 func getBrokerSocket(isSecure bool) string {
 //	FVTAddr := os.Getenv("MQTT_BROKER_ADDR")
-        FVTAddr := "test.mosquitto.org"
+        //FVTAddr := "test.mosquitto.org"
+	FVTAddr := ""
 	if FVTAddr == "" {
 		FVTAddr = "127.0.0.1"
 	}
@@ -69,11 +70,9 @@ var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Messa
 
 func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
     utils.Info.Printf("mqttSubscribe:Topic=%s", topic)
-    opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-    opts.SetClientID("VIN001")
-    opts.SetDefaultPublishHandler(publishHandler)
 
-    c := MQTT.NewClient(opts)
+    c := MQTT.NewClient(GetBrokerOptions("VIN000y",brokerSocket))
+
     if token := c.Connect(); token.Wait() && token.Error() != nil {
         panic(token.Error())
     }
@@ -133,12 +132,20 @@ func popTopic(topicId int) {  //TODO: to be used at unsubscribe, get, set respon
     topicList.nodes--
 }
 
+func GetBrokerOptions(ID string,brokerSocket string) *MQTT.ClientOptions{
+
+	opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
+	// opts.SetClientID(ID)
+	opts.SetUsername("homesecurity").SetPassword("rocktheworld")
+
+	return opts
+}
+
 func publishMessage(brokerSocket string , topic string, payload string) {   
     utils.Info.Printf("publishMessage:Topic=%s, Payload=%s", topic, payload)
-    opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-    opts.SetClientID("VIN001")
 
-    c := MQTT.NewClient(opts)
+
+    c := MQTT.NewClient(GetBrokerOptions("VIN001",brokerSocket))
     if token := c.Connect(); token.Wait() && token.Error() != nil {
         utils.Error.Println(token.Error())
         os.Exit(1)
