@@ -17,6 +17,7 @@ import (
 )
 
 var requestNo int
+var uniqueTopicName string
 
 
 func getBrokerSocket(isSecure bool) string {
@@ -40,7 +41,7 @@ var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Messa
 func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
     fmt.Printf("mqttSubscribe:Topic=%s\n", topic)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-    opts.SetClientID("VIN001-Client")
+//    opts.SetClientID("VIN001-Client")
     opts.SetDefaultPublishHandler(publishHandler)
 
     c := MQTT.NewClient(opts)
@@ -61,7 +62,7 @@ func mqttUnsubscribe(mqttClient *(MQTT.Client)) {
 func publishMessage(brokerSocket string , topic string, payload string) {   
     fmt.Printf("publishMessage:Topic=%s, Payload=%s\n", topic, payload)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-    opts.SetClientID("VIN001")
+//    opts.SetClientID("VIN001")
 
     c := MQTT.NewClient(opts)
     if token := c.Connect(); token.Wait() && token.Error() != nil {
@@ -74,10 +75,11 @@ func publishMessage(brokerSocket string , topic string, payload string) {
 }
 
 func getVissV2Response(brokerSocket string, vin string, request string) *(MQTT.Client) {
-    uniqueTopic := "/VISSv2Request-" + strconv.Itoa(requestNo)
+    uniqueTopic := uniqueTopicName + strconv.Itoa(requestNo)
     client := mqttSubscribe(brokerSocket, uniqueTopic)
     
-    payload := `{"topic":"` + uniqueTopic + `", "request":"` + request + `"}`
+    payload := `{"topic":"` + uniqueTopic + `", "request":` + request + `}`
+//    payload := `{"topic":"` + uniqueTopic + `", "request":"` + request + `"}`
     publishMessage(brokerSocket, "/" + vin + "/Vehicle", payload)
     requestNo++
     return &client
@@ -98,6 +100,8 @@ func main() {
     clientSubscription := make([]*(MQTT.Client), 25)
     i := 0
     continueLoop := true
+    fmt.Printf("\nSet unique topic name:")
+    fmt.Scanf("%s", &uniqueTopicName)
     for continueLoop {
         fmt.Printf("\nVISSv2-request (or q to quit):")
         fmt.Scanf("%s", &request)

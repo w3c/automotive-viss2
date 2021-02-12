@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 	"os"
+	"encoding/json"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 	"github.com/gorilla/websocket"
@@ -38,13 +39,14 @@ type TopicList struct {
 var topicList TopicList
 
 func vissV2Receiver(dataConn *websocket.Conn, vissv2Channel chan string) {
+	defer dataConn.Close()
 	for {
 		_, response, err := dataConn.ReadMessage()  // receive message from server core
 		if err != nil {
 			utils.Error.Println("Datachannel read error:" + err.Error())
-			return // ??
+			break
 		}
-		utils.Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
+		utils.Info.Printf("MQTT mgr: Response from server core:%s\n", string(response))
 		vissv2Channel <- string(response)  // send message to hub
 	}
 }
@@ -70,7 +72,7 @@ var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Messa
 func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
     utils.Info.Printf("mqttSubscribe:Topic=%s", topic)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-    opts.SetClientID("VIN001")
+//    opts.SetClientID("VIN001")
     opts.SetDefaultPublishHandler(publishHandler)
 
     c := MQTT.NewClient(opts)
@@ -96,14 +98,23 @@ func getTopic(topicId int) string {
 }
 
 func pushTopic(topic string, topicId int) {
-    iterator := topicList.head
-    for i := 0 ; i <  topicList.nodes-1 ; i++ {
-        iterator = iterator.next
-    }
     var newNode Node
     newNode.value.topic = topic
     newNode.value.topicId = topicId
-    iterator.next = &newNode
+    newNode.next = nil
+
+    if (topicList.nodes == 0) {
+        topicList.head = &newNode
+        topicList.nodes++
+        return
+    }
+    iterator := topicList.head
+    for i := 0 ; i <  topicList.nodes-1 ; i++ {
+        iterator = iterator.next
+        if (iterator.next == nil) {
+            iterator.next = &newNode
+        }
+    }
     topicList.nodes++
 }
 
@@ -136,7 +147,7 @@ func popTopic(topicId int) {  //TODO: to be used at unsubscribe, get, set respon
 func publishMessage(brokerSocket string , topic string, payload string) {   
     utils.Info.Printf("publishMessage:Topic=%s, Payload=%s", topic, payload)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-    opts.SetClientID("VIN001")
+//    opts.SetClientID("VIN001")
 
     c := MQTT.NewClient(opts)
     if token := c.Connect(); token.Wait() && token.Error() != nil {
@@ -178,7 +189,12 @@ func extractVin(response string) string {
 func decomposeMqttPayload(mqttPayload string) (string, string) { // {"topic":"X", "request":"{...}"}
     var payloadMap = make(map[string]interface{})
     utils.ExtractPayload(mqttPayload, &payloadMap)
-    return payloadMap["topic"].(string), payloadMap["request"].(string)
+    payload, err := json.Marshal(payloadMap["request"])
+    if err != nil {
+	utils.Error.Printf("decomposeMqttPayload: cannot marshal request in response=%s", mqttPayload)
+        os.Exit(1)
+    }
+    return payloadMap["topic"].(string), string(payload)
 }
 
 func main() {
@@ -192,12 +208,13 @@ func main() {
 	vissv2Channel := make(chan string)
 
 	dataConn := utils.InitDataSession(utils.MuxServer[1], regData)
-	go vissV2Receiver(dataConn, vissv2Channel)  //message reception from server core
 
 	brokerSocket := getBrokerSocket(false)
 	serverSubscription := mqttSubscribe(brokerSocket, getVissV2Topic(dataConn, regData))
 	topicId := 0
 	topicList.nodes = 0
+
+	go vissV2Receiver(dataConn, vissv2Channel)  //message reception from server core
 
 	utils.Info.Println("**** MQTT manager hub entering server loop... ****")
 	for {
@@ -206,7 +223,6 @@ func main() {
 			topic, payload := decomposeMqttPayload(mqttPayload)
 			utils.Info.Printf("MQTT hub: Message from broker:Topic=%s, Payload=%s\n", topic, payload)
 			pushTopic(topic, topicId)
-			topicId++
 			// add mgrId + clientId=0 to message, forward to server core
 			newPrefix := "{\"RouterId\":\"" + strconv.Itoa(regData.Mgrid) + "?" + strconv.Itoa(topicId) + "\", "
 			request := strings.Replace(payload, "{", newPrefix, 1)
@@ -214,6 +230,7 @@ func main() {
 			if err != nil {
 			    utils.Error.Println("Datachannel write error:" + err.Error())
 			}
+			topicId++
 		  case vissv2Message := <-vissv2Channel:
 			utils.Info.Printf("MQTT hub: Message from VISSv2 server:%s\n", vissv2Message)
 			// link routerId to topic, remove routerId from message, create mqtt message, send message to mqtt transport

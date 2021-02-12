@@ -245,6 +245,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
 		}
 		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
+utils.Info.Printf("mgrIndex=%d", mgrIndex)
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
