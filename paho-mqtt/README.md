@@ -8,6 +8,17 @@ docker run -ti -p 8883:8883 -p 9001:9001 paho-mqtt:latest // TLS
 docker run -p 1883:1883 <image_tag> // TCP
 ```
 
+If you want to run TLS you need to uncomment in mosquitto.conf:
+```
+#cafile /etc/mosquitto/ca.crt
+
+# Path to the PEM encoded server certificate.
+#certfile /etc/mosquitto/server.crt
+
+# Path to the PEM encoded keyfile.
+#keyfile /etc/mosquitto/server.key
+```
+
 The broker is pwd protected
 ```
  opts.SetUsername(<uname>).SetPassword(<pwd>)
