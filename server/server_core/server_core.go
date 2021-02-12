@@ -60,9 +60,11 @@ var transportDataPortNum int = 8100 // port number interval [8100-]
 var transportDataChan = []chan string{
 	make(chan string),
 	make(chan string),
+	make(chan string),
 }
 
 var backendChan = []chan string{
+	make(chan string),
 	make(chan string),
 	make(chan string),
 }
@@ -77,6 +79,7 @@ var backendChan = []chan string{
 var supportedProtocols = map[int]string{
 	0: "HTTP",
 	1: "WebSocket",
+	2: "MQTT",
 }
 
 var serviceRegChan chan string
@@ -242,6 +245,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
 		}
 		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
+utils.Info.Printf("mgrIndex=%d", mgrIndex)
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
@@ -982,7 +986,9 @@ func main() {
 			serveRequest(request, 0, 0)
 		case request := <-transportDataChan[1]: // request from transport1 (=WS), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
 			serveRequest(request, 1, 0)
-			//        case xxx := <- transportDataChan[2]:  // implement when there is a 3rd transport protocol mgr
+		case request := <-transportDataChan[2]: // request from transport2 (=MQTT), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
+			serveRequest(request, 2, 0)
+			//        case xxx := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
 		case portNo := <-serviceRegChan: // save service data portnum and root node in routing table
 			rootNode := <-serviceRegChan
 			updateServiceRouting(portNo, rootNode)
