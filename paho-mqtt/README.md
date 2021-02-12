@@ -4,7 +4,13 @@ mosquitto mqtt broker. Docker image which pulls down and builds the broker. Conf
 To build and run locally.
 ```
 docker build -t paho-mqtt .
-docker run -ti -p 8883:8883 -p 9001:9001 paho-mqtt:latest
+docker run -ti -p 8883:8883 -p 9001:9001 paho-mqtt:latest // TLS
+docker run -p 1883:1883 <image_tag> // TCP
+```
+
+The broker is pwd protected
+```
+ opts.SetUsername(<uname>).SetPassword(<pwd>)
 ```
 
 Installing mosquitto on mac osx issues. Run these commands before
