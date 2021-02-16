@@ -95,6 +95,26 @@ services:
             - internal
             - external
 
+    agtserver:
+        build:
+            context: .  # context set to repo root
+            dockerfile: server/agt_server/Dockerfile
+        depends_on:
+            - "servercore"
+        volumes:
+            - logdata:/app/logs
+        environment:
+            - GEN2MODULEIP=srvcore
+        ports:
+            - "7500:7500"
+        networks:
+            internal:
+                aliases:
+                    - agtserver
+            external:
+                aliases:
+                    - agtserver
+
 networks:
     internal:
     external:
