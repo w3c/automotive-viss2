@@ -109,11 +109,12 @@ func pushTopic(topic string, topicId int) {
         return
     }
     iterator := topicList.head
-    for i := 0 ; i <  topicList.nodes-1 ; i++ {
-        iterator = iterator.next
+    for i := 0 ; i <  topicList.nodes ; i++ {
         if (iterator.next == nil) {
             iterator.next = &newNode
+            break
         }
+        iterator = iterator.next
     }
     topicList.nodes++
 }

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"os"
 	"fmt"
+	"time"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
   MQTT  "github.com/eclipse/paho.mqtt.golang"
@@ -115,6 +116,7 @@ func main() {
             fmt.Printf("Max number of requests reached. Goodbye.\n")
             continueLoop = false
         }
+	time.Sleep(2 * time.Second)
     }
     for j := 0 ; j < i ; j++ {
         mqttUnsubscribe(clientSubscription[j])
