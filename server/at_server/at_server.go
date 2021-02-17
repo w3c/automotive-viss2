@@ -103,7 +103,7 @@ type ScopeElement struct {
 }
 
 func initVssFile() bool {
-	filePath := "vss_gen2.binary"
+	filePath := "vss_vissv2.binary"
 	cfilePath := C.CString(filePath)
 	VSSTreeRoot = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))

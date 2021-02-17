@@ -1,7 +1,7 @@
 #editable variables
 ARG GO_VERSION=1.13
 ARG DEFAULT_APP_NAME="at_server"
-ARG DEFAULT_VSSTREE_NAME="vss_gen2.cnative"
+ARG DEFAULT_VSSTREE_NAME="vss_vissv2.binary"
 ARG DEFAULT_APP_PATH="/app"
 ARG DEFAULT_SRCDIR="server/${DEFAULT_APP_NAME}/"
 
@@ -43,6 +43,7 @@ COPY --from=dev ${APP_PATH}/${VSSTREE} .
 #rebuilding the container
 COPY --from=dev ${APP_PATH}/purposelist.json .
 COPY --from=dev ${APP_PATH}/scopelist.json .
+
 
 ENTRYPOINT ./${APP_NAME}
 CMD ""
