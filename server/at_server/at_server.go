@@ -24,18 +24,19 @@ import (
 )
 
 // #include <stdlib.h>
+// #include <stdint.h>
 // #include <stdio.h>
 // #include <stdbool.h>
-// #include "vssparserutilities.h"
+// #include "cparserlib.h"
 import "C"
 
 var VSSTreeRoot C.long
-// set to MAXFOUNDNODES in vssparserutilities.h
+// set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
 
-type searchData_t struct { // searchData_t defined in vssparserutilities.h
-	path    [512]byte // vssparserutilities.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-	foundNodeHandle int64     // defined as long in vssparserutilities.h
+type searchData_t struct { // searchData_t defined in cparserlib.h
+	path    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+	foundNodeHandle int64     // defined as long in cparserlib.h
 }
 
 const theAgtSecret = "averysecretkeyvalue1" //shared with agt-server
@@ -102,7 +103,7 @@ type ScopeElement struct {
 }
 
 func initVssFile() bool {
-	filePath := "vss_gen2.cnative"
+	filePath := "vss_gen2.binary"
 	cfilePath := C.CString(filePath)
 	VSSTreeRoot = C.VSSReadTree(cfilePath)
 	C.free(unsafe.Pointer(cfilePath))
@@ -189,10 +190,9 @@ func validateRequestAccess(scope string, action string, paths string) int {
         numOfWildcardPaths := 1
         if (strings.Contains(paths, "*") == true) {
    	    searchData := [MAXFOUNDNODES]searchData_t{} 
-	    // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int* validation);
+	    // call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
 	    cpath := C.CString(pathList[i])
-	    numOfWildcardPaths := int(C.VSSSearchNodes(cpath, VSSTreeRoot, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(&searchData)), true, 
-	    true, nil))
+	    numOfWildcardPaths := int(C.VSSSearchNodes(cpath, VSSTreeRoot, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(&searchData)), true, true, 0, nil, nil))
 	    C.free(unsafe.Pointer(cpath))
             pathSubList = make([]string, numOfWildcardPaths)
             for j := 0 ; j < numOfWildcardPaths ; j++ {
