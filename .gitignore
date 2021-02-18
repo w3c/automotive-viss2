@@ -34,6 +34,7 @@ ws_mgr
 http_mgr
 agt_server
 at_server
+mqtt_mgr
 
 # Folders
 !server/service_mgr/
@@ -42,6 +43,7 @@ at_server
 !server/http_mgr/
 !server/agt_server/
 !server/at_server/
+!server/mqtt_mgr/
 vendor/
 logs/
 
