@@ -17,10 +17,10 @@ WORKDIR ${APP_PATH}
 COPY ${DEFAULT_SRCDIR} .
 COPY go.mod go.sum ./
 
-#compile agtserver
+#compile agt_server
 RUN go build -o ${APP_NAME} .
 
-FROM alpine AS agt-server
+FROM alpine AS agt_server
 ARG DEFAULT_APP_NAME
 ARG DEFAULT_APP_PATH
 

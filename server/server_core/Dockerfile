@@ -1,9 +1,8 @@
 ARG GO_VERSION=1.13
 ARG DEFAULT_APP_NAME="server_core"
-ARG DEFAULT_VSSTREE_NAME="vss_rel_2.0.0-alpha+006.cnative"
+ARG DEFAULT_VSSTREE_NAME="vss_vissv2.binary"
 ARG DEFAULT_APP_PATH="/app"
 ARG DEFAULT_SRCDIR="server/${DEFAULT_APP_NAME}/"
-
 
 FROM golang:${GO_VERSION}-alpine AS dev
 ARG DEFAULT_APP_NAME
@@ -36,14 +35,6 @@ ENV APP_NAME=${DEFAULT_APP_NAME} \
 WORKDIR ${APP_PATH}
 COPY --from=dev ${APP_PATH}/${APP_NAME} .
 COPY --from=dev ${APP_PATH}/${VSSTREE} .
-
-#transportRegPort, transportDataPort [8100-]
-#EXPOSE 8081
-#EXPOSE 8100
-
-#serviceRegPort, serviceDataPort [8200-]
-#EXPOSE 8082
-#EXPOSE 8200
 
 ENTRYPOINT ./${APP_NAME}
 CMD ""

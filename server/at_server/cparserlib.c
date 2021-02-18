@@ -190,7 +190,7 @@ char* dataTypeToString(nodeDatatypes_t datatype) {
     return "";
 }
 
-int validateToInt(char* validate) {
+uint8_t validateToUint8(char* validate) {
     if (strcmp(validate, "write-only") == 0) {
         return 1;
     }
@@ -502,13 +502,13 @@ printf("unit: %s\n", thisNode->unit);
 printf("default: %s\n", thisNode->defaultEnum);
 	}
 
-	int validateLen;
+	uint8_t validateLen;
 	ret = fread(&validateLen, sizeof(uint8_t), 1, treeFp);
 	if (validateLen > 0) {
 		char validate[50];
 		ret = fread(validate, sizeof(char)*validateLen, 1, treeFp);
 		validate[validateLen] = '\0';
-		thisNode->validate = validateToInt(validate);
+		thisNode->validate = validateToUint8(validate);
 printf("validate: %s\n", validate);
 	} else {
 	    thisNode->validate = 0;
