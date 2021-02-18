@@ -3,7 +3,7 @@ services:
     servercore:
         build:
             context: .  # context set to repo root
-            dockerfile: server/server_core/Dockerfile
+            target: server_core
         environment:
             - GEN2MODULEIP=atserver
         volumes:
@@ -15,7 +15,7 @@ services:
     servicemgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/service_mgr/Dockerfile
+            target: service_mgr
         depends_on:
             - "servercore"
         volumes:
@@ -30,7 +30,7 @@ services:
     atserver:
         build:
             context: .  # context set to repo root
-            dockerfile: server/at_server/Dockerfile
+            target: at_server
         depends_on:
             - "servercore"
         volumes:
@@ -49,7 +49,7 @@ services:
     agtserver:
         build:
             context: .  # context set to repo root
-            dockerfile: server/agt_server/Dockerfile
+            target: agt_server
         depends_on:
             - "servercore"
         volumes:
@@ -69,7 +69,7 @@ services:
     httpmgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/http_mgr/Dockerfile
+            target: http_mgr
         depends_on:
             - "servercore"
         volumes:
@@ -84,7 +84,7 @@ services:
     wsmgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/ws_mgr/Dockerfile
+            target: ws_mgr
         depends_on:
             - "servercore"
         volumes:
@@ -96,26 +96,19 @@ services:
         networks:
             - internal
             - external
-
-    agtserver:
+    mqttmgr:
         build:
             context: .  # context set to repo root
-            dockerfile: server/agt_server/Dockerfile
+            target: mqtt_mgr
         depends_on:
             - "servercore"
         volumes:
             - logdata:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
-        ports:
-            - "7500:7500"
         networks:
-            internal:
-                aliases:
-                    - agtserver
-            external:
-                aliases:
-                    - agtserver
+            - internal
+            - external
 
 networks:
     internal:
