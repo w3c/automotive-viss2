@@ -5,7 +5,7 @@ services:
             context: .  # context set to repo root
             dockerfile: server/server_core/Dockerfile
         environment:
-            - GEN2MODULEIP=srvcore
+            - GEN2MODULEIP=atserver
         volumes:
             - logdata:/app/logs
         networks:
@@ -23,7 +23,9 @@ services:
         environment:
             - GEN2MODULEIP=srvcore
         networks:
-            - internal
+            internal:
+                aliases:
+                    - servicemgr
            
     atserver:
         build:
