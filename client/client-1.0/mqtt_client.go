@@ -8,7 +8,6 @@
 package main
 
 import (
-	"strconv"
 	"os"
 	"fmt"
 	"time"
@@ -17,7 +16,6 @@ import (
   MQTT  "github.com/eclipse/paho.mqtt.golang"
 )
 
-var requestNo int
 var uniqueTopicName string
 
 
@@ -39,10 +37,9 @@ var publishHandler MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Messa
     fmt.Printf("Payload=%s\n", string(msg.Payload()))
 }
 
-func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
+func mqttSubscribe(brokerSocket string, topic string) {
     fmt.Printf("mqttSubscribe:Topic=%s\n", topic)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-//    opts.SetClientID("VIN001-Client")
     opts.SetDefaultPublishHandler(publishHandler)
 
     c := MQTT.NewClient(opts)
@@ -53,17 +50,11 @@ func mqttSubscribe(brokerSocket string, topic string) MQTT.Client {
         utils.Error.Println(token.Error())
         os.Exit(1)
     }
-    return c
-}
-
-func mqttUnsubscribe(mqttClient *(MQTT.Client)) {
-    (*mqttClient).Disconnect(250)
 }
 
 func publishMessage(brokerSocket string , topic string, payload string) {   
     fmt.Printf("publishMessage:Topic=%s, Payload=%s\n", topic, payload)
     opts := MQTT.NewClientOptions().AddBroker(brokerSocket)
-//    opts.SetClientID("VIN001")
 
     c := MQTT.NewClient(opts)
     if token := c.Connect(); token.Wait() && token.Error() != nil {
@@ -75,15 +66,13 @@ func publishMessage(brokerSocket string , topic string, payload string) {
     c.Disconnect(250)
 }
 
-func getVissV2Response(brokerSocket string, vin string, request string) *(MQTT.Client) {
-    uniqueTopic := uniqueTopicName + strconv.Itoa(requestNo)
-    client := mqttSubscribe(brokerSocket, uniqueTopic)
-    
-    payload := `{"topic":"` + uniqueTopic + `", "request":` + request + `}`
-//    payload := `{"topic":"` + uniqueTopic + `", "request":"` + request + `"}`
+func subscribeVissV2Response(brokerSocket string) {
+    mqttSubscribe(brokerSocket, uniqueTopicName)
+}
+
+func publishVissV2Request(brokerSocket string, vin string, request string) {
+    payload := `{"topic":"` + uniqueTopicName + `", "request":` + request + `}`
     publishMessage(brokerSocket, "/" + vin + "/Vehicle", payload)
-    requestNo++
-    return &client
 }
 
 func main() {
@@ -98,18 +87,18 @@ func main() {
 	brokerSocket := getBrokerSocket(false)
 	
     var request string
-    clientSubscription := make([]*(MQTT.Client), 25)
     i := 0
     continueLoop := true
     fmt.Printf("\nSet unique topic name:")
     fmt.Scanf("%s", &uniqueTopicName)
+    subscribeVissV2Response(brokerSocket)
     for continueLoop {
         fmt.Printf("\nVISSv2-request (or q to quit):")
         fmt.Scanf("%s", &request)
         switch request[0] {
           case 'q': continueLoop = false
           default:
-	      clientSubscription[i] = getVissV2Response(brokerSocket, vin, request)
+	      publishVissV2Request(brokerSocket, vin, request)
         }
         i++
         if (i == 25) {
@@ -117,8 +106,5 @@ func main() {
             continueLoop = false
         }
 	time.Sleep(2 * time.Second)
-    }
-    for j := 0 ; j < i ; j++ {
-        mqttUnsubscribe(clientSubscription[j])
     }
 }
