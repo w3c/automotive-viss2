@@ -802,6 +802,9 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
+	if (requestMap["path"] != nil) {
+	    requestMap["path"] = utils.UrlToPath(requestMap["path"].(string))  // replace slash with dot
+	}
 	if (requestMap["action"] == "set" && requestMap["filter"] != nil) {
 		utils.Error.Printf("serveRequest():Set request combined with filtering.")
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request", "Set request must not contain filtering.")
@@ -856,7 +859,7 @@ utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filt
 	                    return
 	                }
                        for i := 0 ; i < len(searchPath) ; i++ {
-  	                  searchPath[i] = rootPath + "." + searchPath[i]
+  	                  searchPath[i] = rootPath + "." + utils.UrlToPath(searchPath[i])  // replace slash with dot
   	               }
   	            } else {
                        searchPath = make([]string, 1)

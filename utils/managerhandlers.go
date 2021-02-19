@@ -97,7 +97,7 @@ func splitToPathQueryKeyValue(path string) (string, string, string) {
 }
 
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
-	path := UrlToPath(req.RequestURI)
+	path := req.RequestURI
         if (len(path) ==  0) {
             path = "empty-path"   // will generate error as not found in VSS tree
         }
@@ -209,7 +209,7 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 		if (isCompressProtocol == true) {
 		    msg = DecompressMessage(msg)
 		}
-		payload := UrlToPath(string(msg)) // if path in payload slash delimited, replace with dot delimited
+		payload := string(msg)
 		Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), payload, len(payload))
 
 		clientChannel <- payload    // forward to mgr hub,
