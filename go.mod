@@ -4,6 +4,7 @@ go 1.13
 
 //example on how to use replace to point to fork or local path
 //replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils master
+//replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => ./utils
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.3.2
