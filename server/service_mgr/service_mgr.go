@@ -602,7 +602,7 @@ func unpackPaths(paths string) []string {
    return pathArray
 }
 
-func createHistoryList(fname string) {
+func createHistoryList(fname string) bool {
 	type PathList struct {
 		LeafPaths []string
 	}
@@ -612,12 +612,12 @@ func createHistoryList(fname string) {
 	data, err := ioutil.ReadFile(fname)
 	if err != nil {
 		utils.Error.Printf("Error reading %s: %s\n", fname, err)
-		return
+		return false
 	}
 	err = json.Unmarshal([]byte(data), &pathList)
 	if err != nil {
 		utils.Error.Printf("Error unmarshal json=%s, err=%s\n", data, err)
-		return
+		return false
 	}
 	historyList = make([]HistoryList, len(pathList.LeafPaths))
 	for i := 0 ; i < len(pathList.LeafPaths) ; i++ {
@@ -628,10 +628,11 @@ func createHistoryList(fname string) {
 	    historyList[i].BufIndex = 0
 	    historyList[i].Buffer = nil
 	}
+	return true
 }
 
 func historyServer(historyAccessChan chan string) {
-    createHistoryList("../vsspathlist.json")  // file is created by core-server at startup
+    listExists := createHistoryList("../vsspathlist.json")  // file is created by core-server at startup
     histCtrlChannel := make(chan string)
     go initHistoryControlServer(histCtrlChannel)
     historyChannel := make(chan int)
@@ -640,16 +641,24 @@ func historyServer(historyAccessChan chan string) {
 	  case signalId := <- historyChannel:
 	      captureHistoryValue(signalId)
 	  case histCtrlReq := <-histCtrlChannel: // history config request
-	    histCtrlChannel <- processHistoryCtrl(histCtrlReq, historyChannel)
+	    histCtrlChannel <- processHistoryCtrl(histCtrlReq, historyChannel, listExists)
 	  case getRequest := <-historyAccessChan: // history get request
-	    historyAccessChan <- processHistoryGet(getRequest)
+	    response := ""
+	    if (listExists == true) {
+	        response = processHistoryGet(getRequest)
+	    }
+	    historyAccessChan <- response
           default:
 	    time.Sleep(50 * time.Millisecond)
 	}
     }
 }
 
-func processHistoryCtrl(histCtrlReq string, historyChan chan int) string {
+func processHistoryCtrl(histCtrlReq string, historyChan chan int, listExists bool) string {
+    if (listExists == false) {
+	  utils.Error.Printf("processHistoryCtrl:Path list not found")
+	  return "500 Internal Server Error"
+    }
     var requestMap = make(map[string]interface{})
     utils.ExtractPayload(histCtrlReq, &requestMap)
     if (requestMap["action"] == nil || requestMap["path"] == nil) {
