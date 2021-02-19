@@ -1,6 +1,6 @@
 version: '3.7'
 services:
-    servercore:
+    server_core:
         build:
             context: .  # context set to repo root
             target: server_core
@@ -12,12 +12,12 @@ services:
             internal:
                 aliases:
                     - srvcore
-    servicemgr:
+    mgr_service:
         build:
             context: .  # context set to repo root
             target: service_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -27,12 +27,12 @@ services:
                 aliases:
                     - servicemgr
            
-    atserver:
+    server_at:
         build:
             context: .  # context set to repo root
             target: at_server
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -46,12 +46,12 @@ services:
             external:
                 aliases:
                     - atserver
-    agtserver:
+    server_agt:
         build:
             context: .  # context set to repo root
             target: agt_server
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -66,12 +66,12 @@ services:
                 aliases:
                     - agtserver
                 
-    httpmgr:
+    mgr_http:
         build:
             context: .  # context set to repo root
             target: http_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         ports:
@@ -81,12 +81,13 @@ services:
         networks:
             - internal
             - external
-    wsmgr:
+
+    mgr_ws:
         build:
             context: .  # context set to repo root
             target: ws_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -96,18 +97,32 @@ services:
         networks:
             - internal
             - external
-    mqttmgr:
+
+    mgr_mqtt:
         build:
             context: .  # context set to repo root
             target: mqtt_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
+        ports: 
+            - "1883:1883"
         networks:
             - internal
+            - external
+
+    server_web:
+        image: 'httpd:2.4-alpine'
+        depends_on:
+            - "server_core"
+        volumes:
+            - ./client/client-1.0/Javascript/:/usr/local/apache2/htdocs/
+        ports:
+            - "10080:80"
+        networks:
             - external
 
 networks:
