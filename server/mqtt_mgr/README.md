@@ -11,6 +11,5 @@ The broker then pushes this publication to the VISSv2 MQTT client, as it previou
 
 ![VISSv2 over MQTT sequence diagram](../../pics/mqtt_vissv2_protocol.jpg?raw=true)<br>
 
-The cloud client can repeat this sequence for another VISSv2 request, using a different unique request topic.<br>
-What is not shown in the diagram are the life time of the cloud client subscriptions, which depends on whether a request is a Read/Update or a Subscribe/Unsubscribe. 
+The cloud client can repeat this sequence for further VISSv2 requests, using the same unique request topic. 
 
