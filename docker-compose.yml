@@ -4,6 +4,7 @@ services:
         build:
             context: .  # context set to repo root
             target: server_core
+        entrypoint: /app/server_core
         environment:
             - GEN2MODULEIP=atserver
         volumes:
@@ -16,6 +17,7 @@ services:
         build:
             context: .  # context set to repo root
             target: service_mgr
+        entrypoint: [/app/service_mgr, -uds, /app/uds.sock, -vssPathList, vsspathlist.json]
         depends_on:
             - "server_core"
         volumes:
@@ -31,6 +33,7 @@ services:
         build:
             context: .  # context set to repo root
             target: at_server
+        entrypoint: /app/at_server
         depends_on:
             - "server_core"
         volumes:
@@ -50,6 +53,7 @@ services:
         build:
             context: .  # context set to repo root
             target: agt_server
+        entrypoint: /app/agt_server
         depends_on:
             - "server_core"
         volumes:
@@ -70,6 +74,7 @@ services:
         build:
             context: .  # context set to repo root
             target: http_mgr
+        entrypoint: /app/http_mgr
         depends_on:
             - "server_core"
         volumes:
@@ -86,6 +91,7 @@ services:
         build:
             context: .  # context set to repo root
             target: ws_mgr
+        entrypoint: /app/ws_mgr
         depends_on:
             - "server_core"
         volumes:
@@ -102,6 +108,7 @@ services:
         build:
             context: .  # context set to repo root
             target: mqtt_mgr
+        entrypoint: /app/mqtt_mgr
         depends_on:
             - "server_core"
         volumes:
