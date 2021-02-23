@@ -11,7 +11,7 @@
 package main
 
 import (
-	 //   "fmt"
+	//   "fmt"
 	"flag"
 	"regexp"
 
@@ -23,10 +23,10 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
-        "sort"
 	"unsafe"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
@@ -40,6 +40,7 @@ import (
 import "C"
 
 var VSSTreeRoot C.long
+
 // set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
 
@@ -49,7 +50,7 @@ type searchData_t struct { // searchData_t defined in cparserlib.h
 }
 
 type noScopeList_t struct { // noScopeList_t defined in cparserlib.h
-	path    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+	path [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
 }
 
 var transportRegChan chan int
@@ -119,11 +120,11 @@ type RouterTable_t struct {
 var routerTable []RouterTable_t
 
 var errorResponseMap = map[string]interface{}{
-	"RouterId":     0,
+	"RouterId":  0,
 	"action":    "unknown",
 	"requestId": "XXX",
 	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
-	"ts": 1234,
+	"ts":        1234,
 }
 
 /*
@@ -146,13 +147,13 @@ func routerTableAdd(mgrId int, mgrIndex int) {
 }
 
 func extractMgrId(routerId string) int { // "RouterId" : "mgrId?clientId"
-    delim := strings.Index(routerId, "?")
-    mgrId, _ := strconv.Atoi(routerId[:delim])
-    return mgrId
+	delim := strings.Index(routerId, "?")
+	mgrId, _ := strconv.Atoi(routerId[:delim])
+	return mgrId
 }
 
 func routerTableSearchForMgrIndex(routerId string) int {
-        mgrId := extractMgrId(routerId)
+	mgrId := extractMgrId(routerId)
 	for _, element := range routerTable {
 		if element.mgrId == mgrId {
 			return element.mgrIndex
@@ -161,16 +162,16 @@ func routerTableSearchForMgrIndex(routerId string) int {
 	return -1
 }
 
-func getRouterId(response string) string {  // "RouterId" : "mgrId?clientId", 
-    afterRouterIdKey := strings.Index(response, "RouterId")
-    if (afterRouterIdKey == -1) {
-        return ""
-    }
-    afterRouterIdKey += 8 + 1  // points to after quote
-    routerIdValStart := utils.NextQuoteMark([]byte(response), afterRouterIdKey) + 1
-    routerIdValStop := utils.NextQuoteMark([]byte(response), routerIdValStart)
-utils.Info.Printf("getRouterId: %s", response[routerIdValStart:routerIdValStop])
-    return response[routerIdValStart:routerIdValStop]
+func getRouterId(response string) string { // "RouterId" : "mgrId?clientId",
+	afterRouterIdKey := strings.Index(response, "RouterId")
+	if afterRouterIdKey == -1 {
+		return ""
+	}
+	afterRouterIdKey += 8 + 1 // points to after quote
+	routerIdValStart := utils.NextQuoteMark([]byte(response), afterRouterIdKey) + 1
+	routerIdValStop := utils.NextQuoteMark([]byte(response), routerIdValStart)
+	utils.Info.Printf("getRouterId: %s", response[routerIdValStart:routerIdValStop])
+	return response[routerIdValStart:routerIdValStop]
 }
 
 /*
@@ -245,7 +246,7 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
 		}
 		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
-utils.Info.Printf("mgrIndex=%d", mgrIndex)
+		utils.Info.Printf("mgrIndex=%d", mgrIndex)
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
@@ -409,10 +410,10 @@ func initVssFile() bool {
 func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, listSize int, noScopeList *noScopeList_t, validation *C.int) int {
 	utils.Info.Printf("searchTree(): path=%s, anyDepth=%t, leafNodesOnly=%t", path, anyDepth, leafNodesOnly)
 	if len(path) > 0 {
-// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
+		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
 		cpath := C.CString(path)
-		var matches C.int = C.VSSSearchNodes(cpath, rootNode, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly, 
-		                                     (C.int)(listSize), (*C.struct_noScopeList_t)(unsafe.Pointer(noScopeList)), (*C.int)(unsafe.Pointer(validation)))
+		var matches C.int = C.VSSSearchNodes(cpath, rootNode, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly,
+			(C.int)(listSize), (*C.struct_noScopeList_t)(unsafe.Pointer(noScopeList)), (*C.int)(unsafe.Pointer(validation)))
 		C.free(unsafe.Pointer(cpath))
 		return int(matches)
 	} else {
@@ -430,36 +431,36 @@ func getPathLen(path string) int {
 }
 
 func getTokenErrorMessage(index int) string {
-        switch (index) {
-        case 0:
-          return "Token missing. "
+	switch index {
+	case 0:
+		return "Token missing. "
 	case 1:
-	  return "Invalid token signature. "
+		return "Invalid token signature. "
 	case 2:
-	  return "Invalid purpose scope. "
+		return "Invalid purpose scope. "
 	case 3:
-	  return "Insufficient access mode permission. "
+		return "Insufficient access mode permission. "
 	case 4:
-	  return "Invalid issued at time. "
+		return "Invalid issued at time. "
 	case 5:
-	  return "Token expired. "
+		return "Token expired. "
 	case 6:
-	  return ""
+		return ""
 	case 7:
-	  return "Internal error. "
+		return "Internal error. "
 	}
-        return "Unknown error. "
+	return "Unknown error. "
 }
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
-        errMsg := ""
-        bitValid := 1
-        for i := 0 ; i < 8 ; i++ {
-            if (errorCode & bitValid == bitValid) {
-                errMsg += getTokenErrorMessage(i)
-            }
-            bitValid = bitValid << 1
-        }
+	errMsg := ""
+	bitValid := 1
+	for i := 0; i < 8; i++ {
+		if errorCode&bitValid == bitValid {
+			errMsg += getTokenErrorMessage(i)
+		}
+		bitValid = bitValid << 1
+	}
 	utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", errMsg)
 }
 
@@ -498,8 +499,8 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 		return -128
 	}
 
-        bdy := string(body)
-	frontIndex := strings.Index(bdy, "validation") + 13  // point to first char of int-string
+	bdy := string(body)
+	frontIndex := strings.Index(bdy, "validation") + 13 // point to first char of int-string
 	endIndex := nextQuoteMark(bdy[frontIndex:]) + frontIndex
 	atsValidation, err := strconv.Atoi(bdy[frontIndex:endIndex])
 	if err != nil {
@@ -517,23 +518,23 @@ func verifyToken(token string, action string, paths string, validation int) int 
 		utils.Error.Print("Error reading iat. ", err)
 		return -128
 	}
-        now := time.Now()
-        if (now.Before(time.Unix(int64(iat), 0)) == true) {
-            validateResult -= 16
-        }
+	now := time.Now()
+	if now.Before(time.Unix(int64(iat), 0)) == true {
+		validateResult -= 16
+	}
 	expStr := utils.ExtractFromToken(token, "exp")
 	exp, err := strconv.Atoi(expStr)
 	if err != nil {
 		utils.Error.Print("Error reading exp. ", err)
 		return -128
 	}
-        if (now.After(time.Unix(int64(exp), 0)) == true) {
-            validateResult -= 32
-        }
+	if now.After(time.Unix(int64(exp), 0)) == true {
+		validateResult -= 32
+	}
 	return validateResult
 }
 
-func isDataMatch(queryData string, response string) bool {  // deprecated when new query syntax is introduced, range=x may be supported by service-mgr, but in a different way
+func isDataMatch(queryData string, response string) bool { // deprecated when new query syntax is introduced, range=x may be supported by service-mgr, but in a different way
 	var responsetMap = make(map[string]interface{})
 	utils.ExtractPayload(response, &responsetMap)
 	utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
@@ -543,27 +544,27 @@ func isDataMatch(queryData string, response string) bool {  // deprecated when n
 	return false
 }
 
-func nextQuoteMark(message string) int {  // strings.Index() seems to have a problem with finding a quote char
-    for i := 0 ; i < len(message) ; i++ {
-        if (message[i] == '"') {
-            return i
-        }
-    }
-    return -1
+func nextQuoteMark(message string) int { // strings.Index() seems to have a problem with finding a quote char
+	for i := 0; i < len(message); i++ {
+		if message[i] == '"' {
+			return i
+		}
+	}
+	return -1
 }
 
-func modifyResponse(resp string, aggregatedValue string) string {  // "value":"xxx" OR "value":"["xxx","yyy",..]"
-    index := strings.Index(resp, "value") + 5
-    quoteIndex1 := nextQuoteMark(resp[index+1:])
-utils.Info.Printf("quoteIndex1=%d", quoteIndex1)
-    quoteIndex2 := 0
-    if (strings.Contains(resp[index+1:] , "\"[") == false) {
-        quoteIndex2 = nextQuoteMark(resp[index+1+quoteIndex1+1:])
-    } else {
-        quoteIndex2 = strings.Index(resp[index+1+quoteIndex1+1:], "]\"") + 1
-    }
-utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
-    return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
+func modifyResponse(resp string, aggregatedValue string) string { // "value":"xxx" OR "value":"["xxx","yyy",..]"
+	index := strings.Index(resp, "value") + 5
+	quoteIndex1 := nextQuoteMark(resp[index+1:])
+	utils.Info.Printf("quoteIndex1=%d", quoteIndex1)
+	quoteIndex2 := 0
+	if strings.Contains(resp[index+1:], "\"[") == false {
+		quoteIndex2 = nextQuoteMark(resp[index+1+quoteIndex1+1:])
+	} else {
+		quoteIndex2 = strings.Index(resp[index+1+quoteIndex1+1:], "]\"") + 1
+	}
+	utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
+	return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
 }
 
 func addQuery(path string) string {
@@ -574,7 +575,7 @@ func addQuery(path string) string {
 	return ""
 }
 
-// nativeCnodeDef.h: nodeTypes_t; 
+// nativeCnodeDef.h: nodeTypes_t;
 func nodeTypesToString(nodeType int) string {
 	switch nodeType {
 	case 1:
@@ -589,6 +590,7 @@ func nodeTypesToString(nodeType int) string {
 		return ""
 	}
 }
+
 // nativeCnodeDef.h: nodeDatatypes_t
 func nodeDataTypesToString(nodeType int) string {
 	switch nodeType {
@@ -626,7 +628,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 	nodeName := C.GoString(C.VSSgetName(nodeHandle))
 	newJsonBuffer += `"` + nodeName + `":{`
 	nodeType := int(C.VSSgetType(nodeHandle))
-utils.Info.Printf("nodeType=%d", nodeType)
+	utils.Info.Printf("nodeType=%d", nodeType)
 	newJsonBuffer += `"type":` + `"` + nodeTypesToString(nodeType) + `",`
 	nodeDescr := C.GoString(C.VSSgetDescr(nodeHandle))
 	newJsonBuffer += `"description":` + `"` + nodeDescr + `",`
@@ -654,14 +656,14 @@ utils.Info.Printf("nodeType=%d", nodeType)
 			newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer, depth, maxDepth)
 		}
 		if nodeNumofChildren > 0 {
-				newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]  // remove comma after curly bracket
+			newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1] // remove comma after curly bracket
 			newJsonBuffer += "}"
 		}
 	}
 	if newJsonBuffer[len(newJsonBuffer)-1] == ',' && newJsonBuffer[len(newJsonBuffer)-2] != '}' {
 		newJsonBuffer = newJsonBuffer[:len(newJsonBuffer)-1]
 	}
-        newJsonBuffer += "},"
+	newJsonBuffer += "},"
 	return jsonBuffer + newJsonBuffer
 }
 
@@ -670,7 +672,7 @@ func countPathSegments(path string) int {
 }
 
 func getNoScopeList(tokenContext string) ([]noScopeList_t, int) {
-// call ATS to get list
+	// call ATS to get list
 	hostIp := utils.GetServerIP()
 	url := "http://" + hostIp + ":8600/atserver"
 
@@ -703,60 +705,60 @@ func getNoScopeList(tokenContext string) ([]noScopeList_t, int) {
 		utils.Error.Print("getNoScopeList:Error reading response. ", err)
 		return nil, 0
 	}
-        var noScopeMap map[string]interface{}
+	var noScopeMap map[string]interface{}
 	err = json.Unmarshal(body, &noScopeMap)
 	if err != nil {
-            utils.Error.Printf("initPurposelist:error data=%s, err=%s", data, err)
-	    return nil, 0
+		utils.Error.Printf("initPurposelist:error data=%s, err=%s", data, err)
+		return nil, 0
 	}
 	return extractNoScopeElementsLevel1(noScopeMap)
 }
 
 func extractNoScopeElementsLevel1(noScopeMap map[string]interface{}) ([]noScopeList_t, int) {
-    for k, v := range noScopeMap {
-        switch vv := v.(type) {
-          case string:
-            utils.Info.Println(k, "is string", vv)
-            noScopeList := make([]noScopeList_t, 1)
-            for i := 0 ; i < len(vv) ; i++ {
-                noScopeList[0].path[i] = byte(vv[i])
-            }
-            noScopeList[0].path[len(vv)] = 0
-            return noScopeList, 1
-          case []interface{}:
-            utils.Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
-  	    return extractNoScopeElementsLevel2(vv)
-          default:
-            utils.Info.Println(k, "is of an unknown type")
-        }
-    }
-    return nil, 0
+	for k, v := range noScopeMap {
+		switch vv := v.(type) {
+		case string:
+			utils.Info.Println(k, "is string", vv)
+			noScopeList := make([]noScopeList_t, 1)
+			for i := 0; i < len(vv); i++ {
+				noScopeList[0].path[i] = byte(vv[i])
+			}
+			noScopeList[0].path[len(vv)] = 0
+			return noScopeList, 1
+		case []interface{}:
+			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+			return extractNoScopeElementsLevel2(vv)
+		default:
+			utils.Info.Println(k, "is of an unknown type")
+		}
+	}
+	return nil, 0
 }
 
 func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, int) {
-    noScopeList := make([]noScopeList_t, len(noScopeMap))
-    i := 0
-    for k, v := range noScopeMap {
-        switch vv := v.(type) {
-          case string:
-            utils.Info.Println(k, "is string", vv)
-            for j := 0 ; j < len(vv) ; j++ {
-                noScopeList[i].path[j] = byte(vv[j])
-            }
-            noScopeList[i].path[len(vv)] = 0
-          default:
-            utils.Info.Println(k, "is of an unknown type")
-        }
-        i++
-    }
-    return noScopeList, i
+	noScopeList := make([]noScopeList_t, len(noScopeMap))
+	i := 0
+	for k, v := range noScopeMap {
+		switch vv := v.(type) {
+		case string:
+			utils.Info.Println(k, "is string", vv)
+			for j := 0; j < len(vv); j++ {
+				noScopeList[i].path[j] = byte(vv[j])
+			}
+			noScopeList[i].path[len(vv)] = 0
+		default:
+			utils.Info.Println(k, "is of an unknown type")
+		}
+		i++
+	}
+	return noScopeList, i
 }
 
 func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 	var jsonBuffer string
 	searchData := [MAXFOUNDNODES]searchData_t{}
 	noScopeList, numOfListElem := getNoScopeList(tokenContext)
-//utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
+	//utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
 	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, numOfListElem, &noScopeList[0], nil)
 	if matches < countPathSegments(path) {
 		return ""
@@ -767,140 +769,140 @@ func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 		depth = 100
 	}
 	jsonBuffer = jsonifyTreeNode(subTreeRoot, jsonBuffer, 0, depth)
-	if (len(jsonBuffer) > 0) {
-	    return "{" + jsonBuffer[:len(jsonBuffer)-1] + "}"  // remove comma
+	if len(jsonBuffer) > 0 {
+		return "{" + jsonBuffer[:len(jsonBuffer)-1] + "}" // remove comma
 	}
 	return ""
 }
 
 func getTokenContext(reqMap map[string]interface{}) string {
 	if reqMap["authorization"] != nil {
-	    return utils.ExtractFromToken(reqMap["authorization"].(string), "clx")
+		return utils.ExtractFromToken(reqMap["authorization"].(string), "clx")
 	}
 	return ""
 }
 
 func validAction(action string) bool {
-    if (action == "get" || action == "set" || action == "subscribe" || action == "unsubscribe") {
-        return true
-    }
-    return false
+	if action == "get" || action == "set" || action == "subscribe" || action == "unsubscribe" {
+		return true
+	}
+	return false
 }
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
-	if (validAction(requestMap["action"].(string)) == false) {
+	if validAction(requestMap["action"].(string)) == false {
 		utils.Error.Printf("serveRequest():invalid action=%s", requestMap["action"])
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid action", "See VISSv2 spec for valid request actions.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
-	if (requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "*") == true) {
+	if requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "*") == true {
 		utils.Error.Printf("serveRequest():path contained wildcard=%s", requestMap["path"])
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "Wildcard must be in filter expression.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
-	if (requestMap["path"] != nil) {
-	    requestMap["path"] = utils.UrlToPath(requestMap["path"].(string))  // replace slash with dot
+	if requestMap["path"] != nil {
+		requestMap["path"] = utils.UrlToPath(requestMap["path"].(string)) // replace slash with dot
 	}
-	if (requestMap["action"] == "set" && requestMap["filter"] != nil) {
+	if requestMap["action"] == "set" && requestMap["filter"] != nil {
 		utils.Error.Printf("serveRequest():Set request combined with filtering.")
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request", "Set request must not contain filtering.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
-	if (requestMap["action"] == "unsubscribe") {
+	if requestMap["action"] == "unsubscribe" {
 		serviceDataChan[sDChanIndex] <- request
 		return
 	}
-	if (requestMap["action"] == "get" && requestMap["path"] != nil && requestMap["metadata"] != nil == true) {
+	if requestMap["action"] == "get" && requestMap["path"] != nil && requestMap["metadata"] != nil == true {
 		tokenContext := getTokenContext(requestMap)
-		if (len(tokenContext) == 0) {
-		    tokenContext = "Undefined+Undefined+Undefined"
+		if len(tokenContext) == 0 {
+			tokenContext = "Undefined+Undefined+Undefined"
 		}
 		metadata := ""
-		if (requestMap["metadata"] == "static") {
-		    metadata = synthesizeJsonTree(requestMap["path"].(string), 0, tokenContext)  // TODO: depth setting via filtering?
+		if requestMap["metadata"] == "static" {
+			metadata = synthesizeJsonTree(requestMap["path"].(string), 0, tokenContext) // TODO: depth setting via filtering?
 		} else {
-		    // TODO: get dynamic metadata
+			// TODO: get dynamic metadata
 		}
-		if (len(metadata) > 0) {
-		    delete(requestMap, "path")
-		    delete(requestMap, "metadata")
-		    requestMap["ts"] = utils.GetRfcTime()
-		    backendChan[tDChanIndex] <- utils.AddKeyValue(utils.FinalizeMessage(requestMap), "metadata", metadata)
-		    return
+		if len(metadata) > 0 {
+			delete(requestMap, "path")
+			delete(requestMap, "metadata")
+			requestMap["ts"] = utils.GetRfcTime()
+			backendChan[tDChanIndex] <- utils.AddKeyValue(utils.FinalizeMessage(requestMap), "metadata", metadata)
+			return
 		}
 		utils.Error.Printf("Metadata not available.")
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Metadata not available.")
-	        backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-	        return
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
 	}
 	issueServiceRequest(requestMap, tDChanIndex, sDChanIndex)
 }
 
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
 	rootPath := requestMap["path"].(string)
-        var searchPath []string
-	if (requestMap["filter"] != nil) {
-	    var filterList []utils.FilterObject
-	    utils.UnpackFilter(requestMap["filter"], &filterList)
-  	    for i := 0 ; i < len(filterList) ; i++ {
-utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
-  	        if (filterList[i].OpType == "paths") {
-  	            if (strings.Contains(filterList[i].OpValue, "[") == true) {
-                        err := json.Unmarshal([]byte(filterList[i].OpValue), &searchPath)
-                        if (err != nil) {
-			    utils.Error.Printf("Unmarshal filter path array failed.")
-		            utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
-	                    backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-	                    return
-	                }
-                       for i := 0 ; i < len(searchPath) ; i++ {
-  	                  searchPath[i] = rootPath + "." + utils.UrlToPath(searchPath[i])  // replace slash with dot
-  	               }
-  	            } else {
-                       searchPath = make([]string, 1)
-  	               searchPath[0] = rootPath + "." + filterList[i].OpValue
-  	            }
-                    break  // only one paths object is allowed
-  	        }
-	    }
-	} 
-	if (requestMap["filter"] == nil || len(searchPath) == 0) {
-           searchPath = make([]string, 1)
-           searchPath[0] = rootPath
+	var searchPath []string
+	if requestMap["filter"] != nil {
+		var filterList []utils.FilterObject
+		utils.UnpackFilter(requestMap["filter"], &filterList)
+		for i := 0; i < len(filterList); i++ {
+			utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
+			if filterList[i].OpType == "paths" {
+				if strings.Contains(filterList[i].OpValue, "[") == true {
+					err := json.Unmarshal([]byte(filterList[i].OpValue), &searchPath)
+					if err != nil {
+						utils.Error.Printf("Unmarshal filter path array failed.")
+						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
+						backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+						return
+					}
+					for i := 0; i < len(searchPath); i++ {
+						searchPath[i] = rootPath + "." + utils.UrlToPath(searchPath[i]) // replace slash with dot
+					}
+				} else {
+					searchPath = make([]string, 1)
+					searchPath[0] = rootPath + "." + filterList[i].OpValue
+				}
+				break // only one paths object is allowed
+			}
+		}
+	}
+	if requestMap["filter"] == nil || len(searchPath) == 0 {
+		searchPath = make([]string, 1)
+		searchPath[0] = rootPath
 	}
 	searchData := [MAXFOUNDNODES]searchData_t{}
 	totalMatches := 0
 	paths := ""
 	maxValidation := -1
-        for i := 0 ; i < len(searchPath) ; i++ {
- 	    var anyDepth C.bool = true
-	    var validation C.int = -1
-	    matches := searchTree(VSSTreeRoot, searchPath[i], &searchData[0], anyDepth, true, 0, nil, &validation)
-//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
-	    utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
-	    for i := 0; i < matches; i++ {
-		pathLen := getPathLen(string(searchData[i].responsePath[:]))
-		paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
-	    }
-	    totalMatches += matches
-	    if (int(validation) > maxValidation) {
-	        maxValidation = int(validation)
-	    }
-  	}
+	for i := 0; i < len(searchPath); i++ {
+		var anyDepth C.bool = true
+		var validation C.int = -1
+		matches := searchTree(VSSTreeRoot, searchPath[i], &searchData[0], anyDepth, true, 0, nil, &validation)
+		//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
+		utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
+		for i := 0; i < matches; i++ {
+			pathLen := getPathLen(string(searchData[i].responsePath[:]))
+			paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
+		}
+		totalMatches += matches
+		if int(validation) > maxValidation {
+			maxValidation = int(validation)
+		}
+	}
 	if totalMatches == 0 {
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	} else {
 		paths = paths[:len(paths)-2]
-	        if (totalMatches > 1) {
-	            paths = "[" + paths + "]"
-	        }
+		if totalMatches > 1 {
+			paths = "[" + paths + "]"
+		}
 		switch maxValidation {
 		case 0: // validation not required
 		case 1:
@@ -936,6 +938,7 @@ func updateTransportRoutingTable(mgrId int, portNum int) {
 type PathList struct {
 	LeafPaths []string
 }
+
 var pathList PathList
 
 func sortPathList(listFname string) {
@@ -963,13 +966,19 @@ func createPathListFile(listFname string) {
 }
 
 func main() {
+	pathList := flag.Bool("p", false, "dry run to generate vsspathlist file")
+	flag.Parse()
+
 	utils.InitLog("servercore-log.txt", "./logs")
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
-	createPathListFile("../vsspathlist.json")  // save in server directory, where transport managers will expect it to be
+	createPathListFile("../vsspathlist.json") // save in server directory, where transport managers will expect it to be
+	if *pathList {
+		return
+	}
 
 	initTransportDataServers(transportDataChan, backendChan)
 	utils.Info.Printf("main():initTransportDataServers() executed...")
