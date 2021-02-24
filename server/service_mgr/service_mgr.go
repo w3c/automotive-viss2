@@ -857,9 +857,8 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	var dataPoint string
 	var request string
 	for i := 0; i < len(pathArray); i++ {
-		request = `{"path":"` + pathArray[i] + `", "period":"` + period + `"}`
-		utils.Info.Printf("Historic data request=%s", request)
 		if getHistory == true {
+			request = `{"path":"` + pathArray[i] + `", "period":"` + period + `"}`
 			historyAccessChannel <- request
 			dataPoint = <-historyAccessChannel
 			if len(dataPoint) == 0 {

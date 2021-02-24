@@ -4,7 +4,13 @@ All files and artifacts in this repository are licensed under the provisions of 
 
 # VISS v2 service manager
 
-At statup the VISSv2 service manager tries to read a DB file named statestorage.db.
+The service manager may at startup be supplemented with one or two flags: -uds and/or -vssPathList<br>
+The uds flag sets the path and filename for the Unix domain socket communication used for history control, see below. This flag has a default value of "/tmp/vissv2/histctrlserver.sock".<br>
+The vssPathList flag sets the path to a file containing a JSON list of all leaf nodes in the VSS tree being used. This flag has a default value of "../vsspathlist.json".<br>
+The flags can be set to any value by following the flag with the new value in the startup command.
+If one or both of the flags are left out in the command, requests for historic data always return an error message saying there is no historic data available. 
+
+At startup the VISSv2 service manager tries to read a DB file named statestorage.db, located in the same directory.
 If successful, then the signal value(s) being requested will first be searched for in this DB, if not found then dummy values will be returned instead. 
 Dummy values are always an integer, taken from a counter that is incremented every 37 msec, and wrapping to stay within the values 0 to 999.
 
