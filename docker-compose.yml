@@ -1,36 +1,41 @@
 version: '3.7'
 services:
-    servercore:
+    server_core:
         build:
             context: .  # context set to repo root
-            dockerfile: server/server_core/Dockerfile
+            target: server_core
+        entrypoint: /app/server_core
         environment:
-            - GEN2MODULEIP=srvcore
+            - GEN2MODULEIP=atserver
         volumes:
             - logdata:/app/logs
         networks:
             internal:
                 aliases:
                     - srvcore
-    servicemgr:
+    mgr_service:
         build:
             context: .  # context set to repo root
-            dockerfile: server/service_mgr/Dockerfile
+            target: service_mgr
+        entrypoint: [/app/service_mgr, -uds, /app/uds.sock, -vssPathList, vsspathlist.json]
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
         networks:
-            - internal
+            internal:
+                aliases:
+                    - servicemgr
            
-    atserver:
+    server_at:
         build:
             context: .  # context set to repo root
-            dockerfile: server/at_server/Dockerfile
+            target: at_server
+        entrypoint: /app/at_server
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -44,12 +49,13 @@ services:
             external:
                 aliases:
                     - atserver
-    agtserver:
+    server_agt:
         build:
             context: .  # context set to repo root
-            dockerfile: server/agt_server/Dockerfile
+            target: agt_server
+        entrypoint: /app/agt_server
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -64,12 +70,13 @@ services:
                 aliases:
                     - agtserver
                 
-    httpmgr:
+    mgr_http:
         build:
             context: .  # context set to repo root
-            dockerfile: server/http_mgr/Dockerfile
+            target: http_mgr
+        entrypoint: /app/http_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         ports:
@@ -79,12 +86,14 @@ services:
         networks:
             - internal
             - external
-    wsmgr:
+
+    mgr_ws:
         build:
             context: .  # context set to repo root
-            dockerfile: server/ws_mgr/Dockerfile
+            target: ws_mgr
+        entrypoint: /app/ws_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
@@ -95,25 +104,33 @@ services:
             - internal
             - external
 
-    agtserver:
+    mgr_mqtt:
         build:
             context: .  # context set to repo root
-            dockerfile: server/agt_server/Dockerfile
+            target: mqtt_mgr
+        entrypoint: /app/mqtt_mgr
         depends_on:
-            - "servercore"
+            - "server_core"
         volumes:
             - logdata:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
-        ports:
-            - "7500:7500"
+        ports: 
+            - "1883:1883"
         networks:
-            internal:
-                aliases:
-                    - agtserver
-            external:
-                aliases:
-                    - agtserver
+            - internal
+            - external
+
+    server_web:
+        image: 'httpd:2.4-alpine'
+        depends_on:
+            - "server_core"
+        volumes:
+            - ./client/client-1.0/Javascript/:/usr/local/apache2/htdocs/
+        ports:
+            - "10080:80"
+        networks:
+            - external
 
 networks:
     internal:
