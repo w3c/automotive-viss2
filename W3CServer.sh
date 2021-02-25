@@ -11,7 +11,11 @@ startme() {
 	for service in ${services[@]}; do
 		echo "Starting $service"
 		mkdir -p logs
-		screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
+		if [ $service == "service_mgr" ]; then
+			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service -uds -vssPathList &> ./logs/$service-log.txt && popd"
+		else
+			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
+		fi
 		if [ $service == "server_core" ]; then
 			sleep 5s
 		fi
