@@ -45,8 +45,8 @@ var VSSTreeRoot C.long
 const MAXFOUNDNODES = 1500
 
 type searchData_t struct { // searchData_t defined in cparserlib.h
-	responsePath    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-	foundNodeHandle int64     // defined as long in cparserlib.h
+	nodePath    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
+	nodeHandle int64     // defined as long in cparserlib.h
 }
 
 type noScopeList_t struct { // noScopeList_t defined in cparserlib.h
@@ -763,7 +763,7 @@ func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 	if matches < countPathSegments(path) {
 		return ""
 	}
-	subTreeRoot := C.long(searchData[matches-1].foundNodeHandle)
+	subTreeRoot := C.long(searchData[matches-1].nodeHandle)
 	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.VSSgetName(subTreeRoot)))
 	if depth == 0 {
 		depth = 100
@@ -886,8 +886,8 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
 		utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
 		for i := 0; i < matches; i++ {
-			pathLen := getPathLen(string(searchData[i].responsePath[:]))
-			paths += "\"" + string(searchData[i].responsePath[:pathLen]) + "\", "
+			pathLen := getPathLen(string(searchData[i].nodePath[:]))
+			paths += "\"" + string(searchData[i].nodePath[:pathLen]) + "\", "
 		}
 		totalMatches += matches
 		if int(validation) > maxValidation {
@@ -898,37 +898,41 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
-	} else {
-		paths = paths[:len(paths)-2]
-		if totalMatches > 1 {
-			paths = "[" + paths + "]"
+	}
+	if requestMap["action"] == "set" && C.VSSgetType(C.long(searchData[0].nodeHandle)) != C.ACTUATOR {
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Illegal command", "Only the actuator node type can be set.")
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
+	}
+	paths = paths[:len(paths)-2]
+	if totalMatches > 1 {
+		paths = "[" + paths + "]"
+	}
+	switch maxValidation {
+	case 0: // validation not required
+	case 1:
+		fallthrough
+	case 2:
+		errorCode := 0
+		if requestMap["authorization"] == nil {
+			errorCode = -1
+		} else {
+			if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
+				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), maxValidation)
+			}
 		}
-		switch maxValidation {
-		case 0: // validation not required
-		case 1:
-			fallthrough
-		case 2:
-			errorCode := 0
-			if requestMap["authorization"] == nil {
-				errorCode = -1
-			} else {
-				if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
-					errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), maxValidation)
-				}
-			}
-			if errorCode < 0 {
-				setTokenErrorResponse(requestMap, errorCode)
-				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-				return
-			}
-		default: // should not be possible...
-			utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+		if errorCode < 0 {
+			setTokenErrorResponse(requestMap, errorCode)
 			backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return
 		}
-		requestMap["path"] = paths
-		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
+	default: // should not be possible...
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
 	}
+	requestMap["path"] = paths
+	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 }
 
 func updateTransportRoutingTable(mgrId int, portNum int) {
