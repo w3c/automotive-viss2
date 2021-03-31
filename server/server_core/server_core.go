@@ -27,31 +27,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 
+	gomodel "github.com/GENIVI/vss-tools/binary/go_parser/datamodel"
+	golib "github.com/GENIVI/vss-tools/binary/go_parser/parserlib"
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
-// #include <stdlib.h>
-// #include <stdint.h>
-// #include <stdio.h>
-// #include <stdbool.h>
-// #include "cparserlib.h"
-import "C"
-
-var VSSTreeRoot C.long
+var VSSTreeRoot *gomodel.Node_t
 
 // set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
-
-type searchData_t struct { // searchData_t defined in cparserlib.h
-	nodePath    [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-	nodeHandle int64     // defined as long in cparserlib.h
-}
-
-type noScopeList_t struct { // noScopeList_t defined in cparserlib.h
-	path [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-}
 
 var transportRegChan chan int
 var transportRegPortNum int = 8081
@@ -395,11 +380,9 @@ func updateServiceRouting(portNo string, rootNode string) {
 
 func initVssFile() bool {
 	filePath := "vss_vissv2.binary"
-	cfilePath := C.CString(filePath)
-	VSSTreeRoot = C.VSSReadTree(cfilePath)
-	C.free(unsafe.Pointer(cfilePath))
+	VSSTreeRoot = golib.VSSReadTree(filePath)
 
-	if VSSTreeRoot == 0 {
+	if VSSTreeRoot == nil {
 		//		utils.Error.Println("Tree file not found")
 		return false
 	}
@@ -407,18 +390,16 @@ func initVssFile() bool {
 	return true
 }
 
-func searchTree(rootNode C.long, path string, searchData *searchData_t, anyDepth C.bool, leafNodesOnly C.bool, listSize int, noScopeList *noScopeList_t, validation *C.int) int {
+func searchTree(rootNode *gomodel.Node_t, path string, anyDepth bool, leafNodesOnly bool, listSize int, noScopeList []string, validation *int) (int, []golib.SearchData_t) {
 	utils.Info.Printf("searchTree(): path=%s, anyDepth=%t, leafNodesOnly=%t", path, anyDepth, leafNodesOnly)
 	if len(path) > 0 {
-		// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
-		cpath := C.CString(path)
-		var matches C.int = C.VSSSearchNodes(cpath, rootNode, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(searchData)), anyDepth, leafNodesOnly,
-			(C.int)(listSize), (*C.struct_noScopeList_t)(unsafe.Pointer(noScopeList)), (*C.int)(unsafe.Pointer(validation)))
-		C.free(unsafe.Pointer(cpath))
-		return int(matches)
-	} else {
-		return 0
+		var searchData []golib.SearchData_t
+		var matches int
+		searchData, matches = golib.VSSsearchNodes(path, rootNode, MAXFOUNDNODES, anyDepth, leafNodesOnly, listSize, noScopeList, validation)
+//		searchData, matches = golib.VSSsearchNodes(path, rootNode, MAXFOUNDNODES, anyDepth, leafNodesOnly, validation)
+		return matches, searchData
 	}
+	return 0, nil
 }
 
 func getPathLen(path string) int {
@@ -619,20 +600,20 @@ func nodeDataTypesToString(nodeType int) string {
 	}
 }
 
-func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth int) string {
+func jsonifyTreeNode(nodeHandle *gomodel.Node_t, jsonBuffer string, depth int, maxDepth int) string {
 	if depth >= maxDepth {
 		return jsonBuffer
 	}
 	depth++
 	var newJsonBuffer string
-	nodeName := C.GoString(C.VSSgetName(nodeHandle))
+	nodeName := golib.VSSgetName(nodeHandle)
 	newJsonBuffer += `"` + nodeName + `":{`
-	nodeType := int(C.VSSgetType(nodeHandle))
+	nodeType := int(golib.VSSgetType(nodeHandle))
 	utils.Info.Printf("nodeType=%d", nodeType)
 	newJsonBuffer += `"type":` + `"` + nodeTypesToString(nodeType) + `",`
-	nodeDescr := C.GoString(C.VSSgetDescr(nodeHandle))
+	nodeDescr := golib.VSSgetDescr(nodeHandle)
 	newJsonBuffer += `"description":` + `"` + nodeDescr + `",`
-	nodeNumofChildren := int(C.VSSgetNumOfChildren(nodeHandle))
+	nodeNumofChildren := golib.VSSgetNumOfChildren(nodeHandle)
 	switch nodeType {
 	case 4: // branch
 	case 1: // sensor
@@ -641,8 +622,8 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 		fallthrough
 	case 3: // attribute
 		// TODO Look for other metadata, unit, enum, ...
-		nodeDatatype := int(C.VSSgetDatatype(nodeHandle))
-		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(nodeDatatype) + `",`
+		nodeDatatype := golib.VSSgetDatatype(nodeHandle)
+		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(int(nodeDatatype)) + `",`
 	default:
 		return ""
 
@@ -652,7 +633,7 @@ func jsonifyTreeNode(nodeHandle C.long, jsonBuffer string, depth int, maxDepth i
 			newJsonBuffer += `"children":` + "{"
 		}
 		for i := 0; i < nodeNumofChildren; i++ {
-			childNode := C.long(C.VSSgetChild(nodeHandle, C.int(i)))
+			childNode := golib.VSSgetChild(nodeHandle, i)
 			newJsonBuffer += jsonifyTreeNode(childNode, jsonBuffer, depth, maxDepth)
 		}
 		if nodeNumofChildren > 0 {
@@ -671,7 +652,7 @@ func countPathSegments(path string) int {
 	return strings.Count(path, ".") + 1
 }
 
-func getNoScopeList(tokenContext string) ([]noScopeList_t, int) {
+func getNoScopeList(tokenContext string) ([]string, int) {
 	// call ATS to get list
 	hostIp := utils.GetServerIP()
 	url := "http://" + hostIp + ":8600/atserver"
@@ -714,16 +695,13 @@ func getNoScopeList(tokenContext string) ([]noScopeList_t, int) {
 	return extractNoScopeElementsLevel1(noScopeMap)
 }
 
-func extractNoScopeElementsLevel1(noScopeMap map[string]interface{}) ([]noScopeList_t, int) {
+func extractNoScopeElementsLevel1(noScopeMap map[string]interface{}) ([]string, int) {
 	for k, v := range noScopeMap {
 		switch vv := v.(type) {
 		case string:
 			utils.Info.Println(k, "is string", vv)
-			noScopeList := make([]noScopeList_t, 1)
-			for i := 0; i < len(vv); i++ {
-				noScopeList[0].path[i] = byte(vv[i])
-			}
-			noScopeList[0].path[len(vv)] = 0
+			noScopeList := make([]string, 1)
+			noScopeList[0] = vv
 			return noScopeList, 1
 		case []interface{}:
 			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
@@ -735,17 +713,14 @@ func extractNoScopeElementsLevel1(noScopeMap map[string]interface{}) ([]noScopeL
 	return nil, 0
 }
 
-func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, int) {
-	noScopeList := make([]noScopeList_t, len(noScopeMap))
+func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]string, int) {
+	noScopeList := make([]string, len(noScopeMap))
 	i := 0
 	for k, v := range noScopeMap {
 		switch vv := v.(type) {
 		case string:
 			utils.Info.Println(k, "is string", vv)
-			for j := 0; j < len(vv); j++ {
-				noScopeList[i].path[j] = byte(vv[j])
-			}
-			noScopeList[i].path[len(vv)] = 0
+				noScopeList[i] = vv
 		default:
 			utils.Info.Println(k, "is of an unknown type")
 		}
@@ -756,15 +731,16 @@ func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]noScopeList_t, in
 
 func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 	var jsonBuffer string
-	searchData := [MAXFOUNDNODES]searchData_t{}
+	var searchData []golib.SearchData_t
+	var matches int
 	noScopeList, numOfListElem := getNoScopeList(tokenContext)
-	//utils.Info.Printf("noScopeList[0]=%c", string(noScopeList[0].path[0]))
-	matches := searchTree(VSSTreeRoot, path, &searchData[0], false, false, numOfListElem, &noScopeList[0], nil)
+	//utils.Info.Printf("noScopeList[0]=%s", noScopeList[0])
+	matches, searchData = searchTree(VSSTreeRoot, path, false, false, numOfListElem, noScopeList, nil)
 	if matches < countPathSegments(path) {
 		return ""
 	}
-	subTreeRoot := C.long(searchData[matches-1].nodeHandle)
-	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", C.GoString(C.VSSgetName(subTreeRoot)))
+	subTreeRoot := searchData[matches-1].NodeHandle
+	utils.Info.Printf("synthesizeJsonTree:subTreeRoot-name=%s", golib.VSSgetName(subTreeRoot))
 	if depth == 0 {
 		depth = 100
 	}
@@ -875,19 +851,20 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		searchPath = make([]string, 1)
 		searchPath[0] = rootPath
 	}
-	searchData := [MAXFOUNDNODES]searchData_t{}
+	var searchData []golib.SearchData_t
+	var matches int
 	totalMatches := 0
 	paths := ""
 	maxValidation := -1
 	for i := 0; i < len(searchPath); i++ {
-		var anyDepth C.bool = true
-		var validation C.int = -1
-		matches := searchTree(VSSTreeRoot, searchPath[i], &searchData[0], anyDepth, true, 0, nil, &validation)
+		anyDepth := true
+		validation := -1
+		matches, searchData = searchTree(VSSTreeRoot, searchPath[i], anyDepth, true, 0, nil, &validation)
 		//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
 		utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
 		for i := 0; i < matches; i++ {
-			pathLen := getPathLen(string(searchData[i].nodePath[:]))
-			paths += "\"" + string(searchData[i].nodePath[:pathLen]) + "\", "
+			pathLen := getPathLen(string(searchData[i].NodePath[:]))
+			paths += "\"" + string(searchData[i].NodePath[:pathLen]) + "\", "
 		}
 		totalMatches += matches
 		if int(validation) > maxValidation {
@@ -899,7 +876,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
-	if requestMap["action"] == "set" && C.VSSgetType(C.long(searchData[0].nodeHandle)) != C.ACTUATOR {
+	if requestMap["action"] == "set" && golib.VSSgetType(searchData[0].NodeHandle) != gomodel.ACTUATOR {
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Illegal command", "Only the actuator node type can be set.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
@@ -963,9 +940,7 @@ func sortPathList(listFname string) {
 
 func createPathListFile(listFname string) {
 	// call int VSSGetLeafNodesList(long rootNode, char* leafNodeList);
-	clistFname := C.CString(listFname)
-	C.VSSGetLeafNodesList(VSSTreeRoot, clistFname)
-	C.free(unsafe.Pointer(clistFname))
+	golib.VSSGetLeafNodesList(VSSTreeRoot, listFname)
 	sortPathList(listFname)
 }
 
