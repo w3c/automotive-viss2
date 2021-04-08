@@ -5,14 +5,14 @@ go 1.13
 //example on how to use replace to point to fork or local path
 //replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils master
 //replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => ./utils
-replace (
-	github.com/GENIVI/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/genivi/vss-tools/binary/go_parser/datamodel
-	github.com/GENIVI/vss-tools/binary/go_parser/parserlib => /home/ulfbjorkengren/Proj/genivi/vss-tools/binary/go_parser/parserlib
-)
+//replace (
+//	github.com/GENIVI/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/genivi/vss-tools/binary/go_parser/datamodel
+//	github.com/GENIVI/vss-tools/binary/go_parser/parserlib => /home/ulfbjorkengren/Proj/genivi/vss-tools/binary/go_parser/parserlib
+//)
 
 require (
-	github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210330175945-c29206fbef71
-	github.com/GENIVI/vss-tools/binary/go_parser/parserlib v0.0.0-20210330175945-c29206fbef71
+	github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210401175906-ae9043606d97
+	github.com/GENIVI/vss-tools/binary/go_parser/parserlib v0.0.0-20210401175906-ae9043606d97
 	github.com/eclipse/paho.mqtt.golang v1.3.2
 	github.com/golang/protobuf v1.4.1
 	github.com/gorilla/websocket v1.4.2
