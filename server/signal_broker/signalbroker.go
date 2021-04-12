@@ -1,8 +1,9 @@
-package signal_broker
+package main
 
 import (
 	"context"
 	"fmt"
+	base "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/signal_broker/proto_files"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

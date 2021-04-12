@@ -51,15 +51,18 @@ func vissV2Receiver(dataConn *websocket.Conn, vissv2Channel chan string) {
 	}
 }
 
+//TODO add conf file
 func getBrokerSocket(isSecure bool) string {
 //	FVTAddr := os.Getenv("MQTT_BROKER_ADDR")
-        FVTAddr := "test.mosquitto.org"
+
+	FVTAddr := "test.mosquitto.org"
 	if FVTAddr == "" {
 		FVTAddr = "127.0.0.1"
 	}
+
 	if (isSecure == true) {
 	    return "ssl://" + FVTAddr + ":8883"
-        } 
+	}
 	return "tcp://" + FVTAddr + ":1883"
 }
 
@@ -218,8 +221,10 @@ func main() {
 	go vissV2Receiver(dataConn, vissv2Channel)  //message reception from server core
 
 	utils.Info.Println("**** MQTT manager hub entering server loop... ****")
+
 	for {
 		select {
+
 		  case mqttPayload := <-mqttChannel:
 			topic, payload := decomposeMqttPayload(mqttPayload)
 			utils.Info.Printf("MQTT hub: Message from broker:Topic=%s, Payload=%s\n", topic, payload)
@@ -232,14 +237,17 @@ func main() {
 			    utils.Error.Println("Datachannel write error:" + err.Error())
 			}
 			topicId++
+
 		  case vissv2Message := <-vissv2Channel:
 			utils.Info.Printf("MQTT hub: Message from VISSv2 server:%s\n", vissv2Message)
 			// link routerId to topic, remove routerId from message, create mqtt message, send message to mqtt transport
 			payload, topicHandle := utils.RemoveInternalData(string(vissv2Message))
 			publishMessage(brokerSocket, getTopic(topicHandle), payload)
+
 		  default:
 			time.Sleep(25 * time.Millisecond)
 		}
 	}
+
 	serverSubscription.Disconnect(250)
 }

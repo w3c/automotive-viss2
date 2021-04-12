@@ -1,14 +1,16 @@
 package main
 
 import (
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 	log "github.com/sirupsen/logrus"
 	//	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/signal_broker"
 )
 
 func main() {
-	util.InitLogger()
+
+	utils.InitLog("brokerlog","")
 	// Test connection
-	conn, response := signal_broker.GetResponseReceiver()
+	conn, response := GetResponseReceiver()
 	defer conn.Close()
 
 	for { // infinit loop

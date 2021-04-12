@@ -9,7 +9,7 @@ class W3CWebSocket extends W3CClient{
      }
 
     setup(){
-        this.socket = new WebSocket('ws://192.168.150.131:8080/');
+        this.socket = new WebSocket('ws://localhost:8080/');
         this.socket.onclose = this.websocket_onclose;
         this.socket.onmessage = this.websocket_onmessage;
 
