@@ -856,7 +856,6 @@ func main() {
 	subscriptionChan := make(chan int)
 	historyAccessChannel = make(chan string)
 	CLChannel = make(chan CLPack)
-	InitRingArray()
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
 

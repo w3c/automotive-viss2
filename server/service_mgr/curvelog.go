@@ -30,16 +30,14 @@ var CLChannel chan CLPack
 var closeClSubId int = -1
 var mcloseClSubId = &sync.Mutex{}
 
-// RINGSIZE must be sufficiently larger than bufSize set by client, so that overwrite does not occur. 
-const MAXBUFSIZE = 150
-const RINGSIZE = MAXBUFSIZE + 20  // the buffer extension value depends on the relation between the CL algo execution time and the sample frequency
 type RingElement struct {
 	Value string
 	Timestamp string
 }
 
+const MAXCLBUFSIZE = 240
 type RingBuffer struct {
-    RingElem [RINGSIZE]RingElement
+    RingElem [MAXCLBUFSIZE]RingElement
     Head int
     Tail int
 }
@@ -49,51 +47,41 @@ type CLBufElement struct {
 	Timestamp int64
 }
 
-const MAXBUFFERS = 10
-var ringArray []RingBuffer
-var ringArrayIndex int
+const MAXCLSESSIONS = 100  // This value depends on the HW memory and performance
+var numOfClSessions int = 0
 
-func InitRingArray() {
-    ringArray = make([]RingBuffer, MAXBUFFERS)
-    for i := 0 ; i < MAXBUFFERS ; i++ {
-        ringArray[i].Head = 0
-        ringArray[i].Tail = 0
-    }
-    ringArrayIndex = 0
+func getRingHead(aRingBuffer *RingBuffer) int {
+    return aRingBuffer.Head
 }
 
-func getRingHead(ringIndex int) int {
-    return ringArray[ringIndex].Head
+func setRingTail(aRingBuffer *RingBuffer, tail int) {
+    aRingBuffer.Tail = aRingBuffer.Head - tail
 }
 
-func setRingTail(ringIndex int, tail int) {
-    ringArray[ringIndex].Tail = ringArray[ringIndex].Head - tail
-}
-
-func writeRing(ringIndex int, value string, timestamp string) {
-//utils.Info.Printf("writeRing(%d): value=%s, ts=%s\n", ringIndex, value, timestamp)
-    ringArray[ringIndex].RingElem[ringArray[ringIndex].Head].Value = value
-    ringArray[ringIndex].RingElem[ringArray[ringIndex].Head].Timestamp = timestamp
-    ringArray[ringIndex].Head++
-    if (ringArray[ringIndex].Head == RINGSIZE) {
-        ringArray[ringIndex].Head = 0
+func writeRing(aRingBuffer *RingBuffer, value string, timestamp string) {
+//utils.Info.Printf("writeRing: value=%s, ts=%s\n", value, timestamp)
+    aRingBuffer.RingElem[aRingBuffer.Head].Value = value
+    aRingBuffer.RingElem[aRingBuffer.Head].Timestamp = timestamp
+    aRingBuffer.Head++
+    if (aRingBuffer.Head == MAXCLBUFSIZE) {
+        aRingBuffer.Head = 0
     }
 }
 
-func readRing(ringIndex int, headOffset int) (string, string) {
-    currentHead := ringArray[ringIndex].Head - (headOffset + 1)   // Head points to next to write to
+func readRing(aRingBuffer *RingBuffer, headOffset int) (string, string) {
+    currentHead := aRingBuffer.Head - (headOffset + 1)   // Head points to next to write to
     if (currentHead < 0) {
-        currentHead += RINGSIZE
+        currentHead += MAXCLBUFSIZE
     }
-//utils.Info.Printf("readRing:ringIndex=%d,headOffset=%d,ringArray[ringIndex].Head=%d,currentHead=%d,", ringIndex, headOffset, ringArray[ringIndex].Head, currentHead)
-    return ringArray[ringIndex].RingElem[currentHead].Value, ringArray[ringIndex].RingElem[currentHead].Timestamp
+//utils.Info.Printf("readRing:headOffset=%d,aRingBuffer.Head=%d,currentHead=%d,", headOffset, aRingBuffer.Head, currentHead)
+    return aRingBuffer.RingElem[currentHead].Value, aRingBuffer.RingElem[currentHead].Timestamp
 }
 
-func getNumOfPopulatedRingElements(ringIndex int) int {
-    head := ringArray[ringIndex].Head
-    tail := ringArray[ringIndex].Tail
+func getNumOfPopulatedRingElements(aRingBuffer *RingBuffer) int {
+    head := aRingBuffer.Head
+    tail := aRingBuffer.Tail
     if (head < tail) {
-        head += RINGSIZE
+        head += MAXCLBUFSIZE
     }
     return head - tail
 }
@@ -267,25 +255,26 @@ func is3dim(path string, index int, dim3List []Dim3Elem) bool {
 
 func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, paths []string) {
 	maxError, bufSize := getCurveLogicParams(opExtra)
-	if (bufSize > MAXBUFSIZE) {
-	    bufSize = MAXBUFSIZE
+	if (bufSize > MAXCLBUFSIZE) {
+	    bufSize = MAXCLBUFSIZE
 	}
 	dim1List, _, _ := populateDimLists(paths)
 	for i := 0 ; i < len(dim1List) ; i++ {
-	    if (ringArrayIndex > MAXBUFFERS) {
+	    if (numOfClSessions > MAXCLSESSIONS) {
 	        utils.Error.Printf("Curve logic: All resources are utilized.")
 	        break
 	    }
 //	    returnInitialDp(clChan, subscriptionId, dim1List[i]) //TODO: Very first dp at start of subscribe should be returned. 
-	    go clCapture1dim(clChan, subscriptionId, dim1List[i], bufSize, maxError, &(ringArray[ringArrayIndex]), ringArrayIndex)
-	    ringArrayIndex++
+	    go clCapture1dim(clChan, subscriptionId, dim1List[i], bufSize, maxError)
+	    numOfClSessions++
 	}
 }
 
-func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64, ringBuffer *RingBuffer, ringIndex int) {
+func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64) {
+    var aRingBuffer RingBuffer
     bufDataChan := make(chan int)
     bufResultChan := make(chan string)
-    go clAnalyze1dim(bufDataChan, bufResultChan, subscriptionId, path, maxError, ringIndex)
+    go clAnalyze1dim(bufDataChan, bufResultChan, subscriptionId, path, maxError, &aRingBuffer)
     bufferReady := false
     var dpMap = make(map[string]interface{})
     closeClSession := false
@@ -297,16 +286,16 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
 	mcloseClSubId.Unlock()
         dp := getVehicleData(path)
 	utils.ExtractPayload(dp, &dpMap)
-	_, ts := readRing(ringIndex, 0)  // read latest written
+	_, ts := readRing(&aRingBuffer, 0)  // read latest written
 	if (ts != dpMap["ts"].(string)) {
-	    writeRing(ringIndex, dpMap["value"].(string), dpMap["ts"].(string))
+	    writeRing(&aRingBuffer, dpMap["value"].(string), dpMap["ts"].(string))
 	}
-	currentBufSize := getNumOfPopulatedRingElements(ringIndex)
+	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer)
 	if (currentBufSize == bufSize) || (closeClSession == true) {
-	    head := getRingHead(ringIndex)
+	    head := getRingHead(&aRingBuffer)
 	    bufDataChan <- head - 1
 	    bufDataChan <- currentBufSize
-	    setRingTail(ringIndex, -1)
+	    setRingTail(&aRingBuffer, -1)
 	    bufferReady = true
 	}
 	time.Sleep(500 * time.Millisecond)  // Should be configurable and set to less than sample freq of signal...
@@ -317,7 +306,7 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
               clPack.DataPack = `{"path":"`+ path + `","data":` + dp + "}"
               clPack.SubscriptionId = subscriptionId
 	      clChan <- clPack
-	      setRingTail(ringIndex, tail)
+	      setRingTail(&aRingBuffer, tail)
 	      bufferReady = false
 	  default:
 	      if (bufferReady == true) {
@@ -332,20 +321,20 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
     // send final notification with last dp?
 }
 
-func clAnalyze1dim(bufDataChan chan int, bufResultChan chan string, subscriptionId int, path string, maxError float64, ringIndex int) {
+func clAnalyze1dim(bufDataChan chan int, bufResultChan chan string, subscriptionId int, path string, maxError float64, aRingBuffer *RingBuffer) {
     for {
         ringHead := <- bufDataChan
         bufSize := <- bufDataChan
-        dp, tail := clAnalysis1dim(ringHead, ringIndex, maxError, bufSize)
+        dp, tail := clAnalysis1dim(ringHead, aRingBuffer, maxError, bufSize)
         bufResultChan <- dp
         bufDataChan <- tail  // return adjusted tail
     }
 }
 
-func clAnalysis1dim(head int, ringIndex int, maxError float64, bufSize int) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
+func clAnalysis1dim(head int, aRingBuffer *RingBuffer, maxError float64, bufSize int) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
     clBuffer := make([]CLBufElement, bufSize)  // array holds transformed value/ts pairs, from latest to first captured
     for i := 0 ; i < bufSize ; i++ {
-        val, ts := readRing(ringIndex, i)
+        val, ts := readRing(aRingBuffer, i)
         value, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		utils.Error.Printf("Curve log failed to convert value=%s to float err=%s", val, err)
@@ -370,7 +359,7 @@ func clAnalysis1dim(head int, ringIndex int, maxError float64, bufSize int) (str
         }
         for i := 0 ; i < len(savedIndex) ; i++ {
 //utils.Info.Printf("clAnalysis1dim:savedIndex[%d]=%d", i, savedIndex[i])
-            val, ts := readRing(ringIndex, savedIndex[i])
+            val, ts := readRing(aRingBuffer, savedIndex[i])
             dataPoint += `{"value":"` + val + `","ts":"` + ts + `"},`
         }
         dataPoint = dataPoint[:len(dataPoint)-1]
@@ -378,7 +367,7 @@ func clAnalysis1dim(head int, ringIndex int, maxError float64, bufSize int) (str
             dataPoint += "]"
         }
     } else {
-            val, ts := readRing(ringIndex, 0)  // return latest sample (= head sample)
+            val, ts := readRing(aRingBuffer, 0)  // return latest sample (= head sample)
             dataPoint += `{"value":"` + val + `","ts":"` + ts + `"}`
     }
     return dataPoint, updatedTail
