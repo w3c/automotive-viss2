@@ -35,9 +35,9 @@ type RingElement struct {
 	Timestamp string
 }
 
-const MAXCLBUFSIZE = 240
 type RingBuffer struct {
-    RingElem [MAXCLBUFSIZE]RingElement
+    bufSize int
+    RingElem []RingElement
     Head int
     Tail int
 }
@@ -47,8 +47,18 @@ type CLBufElement struct {
 	Timestamp int64
 }
 
+const MAXCLBUFSIZE = 240   // something large...
 const MAXCLSESSIONS = 100  // This value depends on the HW memory and performance
 var numOfClSessions int = 0
+
+func createRingBuffer(bufSize int) RingBuffer {
+    var aRingBuffer RingBuffer
+    aRingBuffer.bufSize = bufSize
+    aRingBuffer.Head = 0
+    aRingBuffer.Tail = 0
+    aRingBuffer.RingElem = make([]RingElement, bufSize)
+    return aRingBuffer
+}
 
 func getRingHead(aRingBuffer *RingBuffer) int {
     return aRingBuffer.Head
@@ -63,7 +73,7 @@ func writeRing(aRingBuffer *RingBuffer, value string, timestamp string) {
     aRingBuffer.RingElem[aRingBuffer.Head].Value = value
     aRingBuffer.RingElem[aRingBuffer.Head].Timestamp = timestamp
     aRingBuffer.Head++
-    if (aRingBuffer.Head == MAXCLBUFSIZE) {
+    if (aRingBuffer.Head == aRingBuffer.bufSize) {
         aRingBuffer.Head = 0
     }
 }
@@ -71,9 +81,9 @@ func writeRing(aRingBuffer *RingBuffer, value string, timestamp string) {
 func readRing(aRingBuffer *RingBuffer, headOffset int) (string, string) {
     currentHead := aRingBuffer.Head - (headOffset + 1)   // Head points to next to write to
     if (currentHead < 0) {
-        currentHead += MAXCLBUFSIZE
+        currentHead += aRingBuffer.bufSize
     }
-//utils.Info.Printf("readRing:headOffset=%d,aRingBuffer.Head=%d,currentHead=%d,", headOffset, aRingBuffer.Head, currentHead)
+//utils.Info.Printf("value=%s,timestamp=%s, currentHead=%d,", aRingBuffer.RingElem[currentHead].Value, aRingBuffer.RingElem[currentHead].Timestamp, currentHead)
     return aRingBuffer.RingElem[currentHead].Value, aRingBuffer.RingElem[currentHead].Timestamp
 }
 
@@ -81,7 +91,7 @@ func getNumOfPopulatedRingElements(aRingBuffer *RingBuffer) int {
     head := aRingBuffer.Head
     tail := aRingBuffer.Tail
     if (head < tail) {
-        head += MAXCLBUFSIZE
+        head += aRingBuffer.bufSize
     }
     return head - tail
 }
@@ -259,6 +269,7 @@ func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, pa
 	    bufSize = MAXCLBUFSIZE
 	}
 	dim1List, dim2List, _ := populateDimLists(paths)
+//utils.Info.Printf("len(dim1List)=%d, len(dim2List)=%d", len(dim1List), len(dim2List))
 	for i := 0 ; i < len(dim1List) ; i++ {
 	    if (numOfClSessions > MAXCLSESSIONS) {
 	        utils.Error.Printf("Curve logic: All resources are utilized.")
@@ -274,13 +285,13 @@ func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, pa
 	        break
 	    }
 //	    returnInitialDp(clChan, subscriptionId, dim2List[i], 2) //TODO: Very first dp at start of subscribe should be returned? 
-	    go clCapture2dim(clChan, subscriptionId, dim2List[i], bufSize, maxError)
+//	    go clCapture2dim(clChan, subscriptionId, dim2List[i], bufSize, maxError)
 	    numOfClSessions++
 	}
 }
 
 func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64) {
-    var aRingBuffer RingBuffer
+    aRingBuffer := createRingBuffer(bufSize+1)  // logic requires buffer to have a size of one larger than needed
     var dpMap = make(map[string]interface{})
     closeClSession := false
     for {
@@ -293,11 +304,13 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
         dp := getVehicleData(path)
 	utils.ExtractPayload(dp, &dpMap)
 	_, ts := readRing(&aRingBuffer, 0)  // read latest written
+//utils.Info.Printf("ts=%s", ts)
 	if (ts != dpMap["ts"].(string)) {
 	    writeRing(&aRingBuffer, dpMap["value"].(string), dpMap["ts"].(string))
 	}
 	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer)
 	if (currentBufSize == bufSize) || (closeClSession == true) {
+//utils.Info.Printf("clAnalyze1dim called for path=%s", path)
 	    dp, updatedTail := clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
             var clPack CLPack
             clPack.DataPack = `{"path":"`+ path + `","data":` + dp + "}"
