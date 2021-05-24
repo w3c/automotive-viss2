@@ -20,7 +20,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
+//	"sync"
 	"time"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
@@ -47,13 +47,6 @@ type SubscriptionState struct {
 }
 
 var subscriptionId int
-var killCurveLogicId int = -1 //mutex m shall be used for read/write
-var m sync.Mutex
-
-type CLPack struct {
-	DataPack       string
-	SubscriptionId int
-}
 
 type HistoryList struct {
 	Path      string
@@ -403,7 +396,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
 	case clPack := <-CLChan: // curve logic notification
-		subscriptionState := subscriptionList[getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)]
+	        index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
+		subscriptionState := subscriptionList[index]
+		if (clPack.SubscriptionId == closeClSubId) {
+		    removeFromsubscriptionList(subscriptionList, index)
+		}
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), clPack.DataPack)
@@ -433,16 +430,19 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, curve-logic)=%d", getOpType(subscriptionList[index].filterList, "curve-logic"))
 	if getOpType(subscriptionList[index].filterList, "time-based") == true {
 		deactivateInterval(subscriptionList[index].subscriptionId)
+		removeFromsubscriptionList(subscriptionList, index)
 	} else if getOpType(subscriptionList[index].filterList, "curve-logic") == true {
-		m.Lock()
-		killCurveLogicId = subscriptionList[index].subscriptionId
-		utils.Info.Printf("deactivateSubscription: killCurveLogicId set to %d", killCurveLogicId)
-		m.Unlock()
+		mcloseClSubId.Lock()
+		closeClSubId = subscriptionList[index].subscriptionId
+		utils.Info.Printf("deactivateSubscription: closeClSubId set to %d", closeClSubId)
+		mcloseClSubId.Unlock()
 	}
-	//remove from list
+	return 1, subscriptionList
+}
+
+func removeFromsubscriptionList(subscriptionList []SubscriptionState, index int) {
 	subscriptionList[index] = subscriptionList[len(subscriptionList)-1] // Copy last element to index i.
 	subscriptionList = subscriptionList[:len(subscriptionList)-1]       // Truncate slice.
-	return 1, subscriptionList
 }
 
 func getOpType(filterList []utils.FilterObject, opType string) bool {
@@ -472,7 +472,7 @@ func getIntervalPeriod(opExtra string) int { // {"period":"X"}
 	return period
 }
 
-func getCurveLogicParams(opExtra string) (int, int) { // {"max-err": "X", "buf-size":"Y"}
+func getCurveLogicParams(opExtra string) (float64, int) { // {"max-err": "X", "buf-size":"Y"}
 	type CLData struct {
 		MaxErr  string `json:"max-err"`
 		BufSize string `json:"buf-size"`
@@ -481,17 +481,17 @@ func getCurveLogicParams(opExtra string) (int, int) { // {"max-err": "X", "buf-s
 	err := json.Unmarshal([]byte(opExtra), &cLData)
 	if err != nil {
 		utils.Error.Printf("getIntervalPeriod: Unmarshal failed, err=%s", err)
-		return 0, 0
+		return 0.0, 0
 	}
-	maxErr, err := strconv.Atoi(cLData.MaxErr)
+        maxErr, err := strconv.ParseFloat(cLData.MaxErr, 64)
 	if err != nil {
 		utils.Error.Printf("getIntervalPeriod: MaxErr invalid integer, maxErr=%s", cLData.MaxErr)
-		maxErr = 0
+		maxErr = 0.0
 	}
 	bufSize, err := strconv.Atoi(cLData.BufSize)
 	if err != nil {
 		utils.Error.Printf("getIntervalPeriod: BufSize invalid integer, BufSize=%s", cLData.BufSize)
-		maxErr = 0
+		maxErr = 0.0
 	}
 	return maxErr, bufSize
 }
@@ -507,61 +507,10 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 			break
 		}
 		if filterList[i].OpValue == "curve-logic" {
-			go curveLogicServer(CLChan, subscriptionId, filterList[i].OpExtra, paths, &m)
+			go curveLogicServer(CLChan, subscriptionId, filterList[i].OpExtra, paths)
 			break
 		}
 	}
-}
-
-func curveLogicServer(CLChan chan CLPack, subscriptionId int, opExtra string, paths []string, m *sync.Mutex) {
-	maxError, bufSize := getCurveLogicParams(opExtra)
-	type DataPoint struct {
-		Value string
-		Ts    string
-	}
-	clBuf := make([]DataPoint, bufSize)
-	bufIndex := 0
-	utils.Info.Printf("Curve logic activated with max error=%d, buffer size=%d", maxError, bufSize)
-	for {
-		// TODO: load buffer with new dp from statestorage
-		clBuf[bufIndex].Value = "0"
-		clBuf[bufIndex].Ts = ""
-		bufIndex++
-		m.Lock()
-		if killCurveLogicId == subscriptionId {
-			m.Unlock()
-			break
-		}
-		m.Unlock()
-		if bufIndex == bufSize {
-			// TODO: run CL algo, send resulting dataPack on CLChan
-			simulateClResults(paths, subscriptionId, CLChan) // simulate by having bufIndex counter, send dummy dataPack
-			bufIndex = 0
-		}
-		time.Sleep(200 * time.Millisecond) // 200 ms is appropriate for simulation case, probably less in non-sim (configuration data from vehicle system?)
-	}
-	utils.Info.Printf("Curve logic de-activated for subscriptionId=%d", subscriptionId)
-}
-
-func simulateClResults(paths []string, subscriptionId int, CLChan chan CLPack) { //TODO: replace with real CL impl
-	dp := `[{"value":"1", "ts":"2020-12-31T23:59:40Z"}, {"value":"2", "ts":"2020-12-31T23:59:56Z"}, {"value":"3", "ts":"2020-12-31T23:59:59Z"}]`
-	data := ""
-	if len(paths) > 1 {
-		data = "["
-	}
-	for i := 0; i < len(paths); i++ {
-		data += `{"path":"` + paths[i] + `", "dp":` + dp + "}, "
-	}
-	data = data[:len(data)-2]
-	if len(paths) > 1 {
-		data = "]"
-	}
-	var clPack CLPack
-	clPack.DataPack = data
-	//    clPack.DataPack = `{"data":` + data + `}`
-	clPack.SubscriptionId = subscriptionId
-	utils.Info.Printf("simulateClResults:dataPack=%s", clPack.DataPack)
-	CLChan <- clPack
 }
 
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
@@ -906,7 +855,7 @@ func main() {
 	regRequest := RegRequest{Rootnode: "Vehicle"}
 	subscriptionChan := make(chan int)
 	historyAccessChannel = make(chan string)
-	CLChannel := make(chan CLPack)
+	CLChannel = make(chan CLPack, 5)  // allow some buffering...
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
 
