@@ -258,27 +258,33 @@ func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, pa
 	if (bufSize > MAXCLBUFSIZE) {
 	    bufSize = MAXCLBUFSIZE
 	}
-	dim1List, _, _ := populateDimLists(paths)
+	dim1List, dim2List, _ := populateDimLists(paths)
 	for i := 0 ; i < len(dim1List) ; i++ {
 	    if (numOfClSessions > MAXCLSESSIONS) {
 	        utils.Error.Printf("Curve logic: All resources are utilized.")
 	        break
 	    }
-//	    returnInitialDp(clChan, subscriptionId, dim1List[i]) //TODO: Very first dp at start of subscribe should be returned. 
+//	    returnInitialDp(clChan, subscriptionId, dim1List[i], 1) //TODO: Very first dp at start of subscribe should be returned? 
 	    go clCapture1dim(clChan, subscriptionId, dim1List[i], bufSize, maxError)
+	    numOfClSessions++
+	}
+	for i := 0 ; i < len(dim2List) ; i++ {
+	    if (numOfClSessions > MAXCLSESSIONS) {
+	        utils.Error.Printf("Curve logic: All resources are utilized.")
+	        break
+	    }
+//	    returnInitialDp(clChan, subscriptionId, dim2List[i], 2) //TODO: Very first dp at start of subscribe should be returned? 
+	    go clCapture2dim(clChan, subscriptionId, dim2List[i], bufSize, maxError)
 	    numOfClSessions++
 	}
 }
 
 func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64) {
     var aRingBuffer RingBuffer
-    bufDataChan := make(chan int)
-    bufResultChan := make(chan string)
-    go clAnalyze1dim(bufDataChan, bufResultChan, subscriptionId, path, maxError, &aRingBuffer)
-    bufferReady := false
     var dpMap = make(map[string]interface{})
     closeClSession := false
     for {
+	time.Sleep(500 * time.Millisecond)  // TODO:Should be configurable and set to less than sample freq of signal.
 	mcloseClSubId.Lock()
 	if (closeClSubId == subscriptionId) {
 	    closeClSession = true
@@ -292,46 +298,21 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
 	}
 	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer)
 	if (currentBufSize == bufSize) || (closeClSession == true) {
-	    head := getRingHead(&aRingBuffer)
-	    bufDataChan <- head - 1
-	    bufDataChan <- currentBufSize
-	    setRingTail(&aRingBuffer, -1)
-	    bufferReady = true
-	}
-	time.Sleep(500 * time.Millisecond)  // Should be configurable and set to less than sample freq of signal...
-	select {
-	  case dp := <- bufResultChan:
-	      tail := <-bufDataChan
-              var clPack CLPack
-              clPack.DataPack = `{"path":"`+ path + `","data":` + dp + "}"
-              clPack.SubscriptionId = subscriptionId
-	      clChan <- clPack
-	      setRingTail(&aRingBuffer, tail)
-	      bufferReady = false
-	  default:
-	      if (bufferReady == true) {
-	          utils.Warning.Printf("Curve logging buffer analysis not finished in time.") // The CL analysis should be finished, so this should not happen
-	          //TODO: if happens, introduce an offset used in ringRead?
-	      }
+	    dp, updatedTail := clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
+            var clPack CLPack
+            clPack.DataPack = `{"path":"`+ path + `","data":` + dp + "}"
+            clPack.SubscriptionId = subscriptionId
+            clChan <- clPack
+	    setRingTail(&aRingBuffer, updatedTail)
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    // send final notification with last dp?
+    // TODO:send final notification with last dp?
 }
 
-func clAnalyze1dim(bufDataChan chan int, bufResultChan chan string, subscriptionId int, path string, maxError float64, aRingBuffer *RingBuffer) {
-    for {
-        ringHead := <- bufDataChan
-        bufSize := <- bufDataChan
-        dp, tail := clAnalysis1dim(ringHead, aRingBuffer, maxError, bufSize)
-        bufResultChan <- dp
-        bufDataChan <- tail  // return adjusted tail
-    }
-}
-
-func clAnalysis1dim(head int, aRingBuffer *RingBuffer, maxError float64, bufSize int) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
+func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
     clBuffer := make([]CLBufElement, bufSize)  // array holds transformed value/ts pairs, from latest to first captured
     for i := 0 ; i < bufSize ; i++ {
         val, ts := readRing(aRingBuffer, i)
@@ -403,5 +384,8 @@ func clReduction(clBuffer []CLBufElement, firstIndex int, lastIndex int, maxErro
         return append(savedIndex1, indexOfMaxMeasuredError)
     }
     return nil
+}
+
+func clCapture2dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64) {
 }
 

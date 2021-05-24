@@ -855,7 +855,7 @@ func main() {
 	regRequest := RegRequest{Rootnode: "Vehicle"}
 	subscriptionChan := make(chan int)
 	historyAccessChannel = make(chan string)
-	CLChannel = make(chan CLPack)
+	CLChannel = make(chan CLPack, 5)  // allow some buffering...
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
 
