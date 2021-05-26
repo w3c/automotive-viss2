@@ -1,7 +1,7 @@
 /**
 * (C) 2021 Geotab Inc
 *
-* All files and artifacts in the repository at https://github.com/UlfBj/ccs-w3c-client
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -15,6 +15,7 @@ import (
     "sync"
     "encoding/json"
     "io/ioutil"
+    "math"
 
     "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
     _ "github.com/mattn/go-sqlite3"
@@ -97,19 +98,19 @@ func getNumOfPopulatedRingElements(aRingBuffer *RingBuffer) int {
 }
 
 type Dim2Elem struct {
-    path1 string
-    path2 string
+    Path1 string `json:"path1"`
+    Path2 string `json:"path2"`
 }
 
 type Dim3Elem struct {
-    path1 string
-    path2 string
-    path3 string
+    Path1 string `json:"path1"`
+    Path2 string `json:"path2"`
+    Path3 string `json:"path3"`
 }
 
 type SignalDimensionLists struct {
-    dim2List []Dim2Elem
-    dim3List []Dim3Elem
+    dim2List []Dim2Elem `json:"dim2"`
+    dim3List []Dim3Elem `json:"dim3"`
 }
 
 type PathDimElem struct {
@@ -118,7 +119,82 @@ type PathDimElem struct {
     Populated bool
 }
 
-func populateDimLists(paths []string) ([]string, []string, []string) {  // TODO: read signaldimensions.json, populate 1dimList, 2dimList, 3dimList accordingly
+func unpacksignalDimensionMap(signalDimensionMap map[string]interface{}, signalDimensionLists SignalDimensionLists) SignalDimensionLists {
+    for dimKey, v := range signalDimensionMap {
+        switch vv := v.(type) {
+          case map[string]interface{}:
+            utils.Info.Println(dimKey, "is a map:")
+            if (dimKey == "dim2") {
+                signalDimensionLists.dim2List = make([]Dim2Elem, 1)
+            } else if (dimKey == "dim3") {
+                signalDimensionLists.dim3List = make([]Dim3Elem, 1)
+            }
+            unPackDimSignalsLevel1(0,vv, dimKey, signalDimensionLists)
+          case []interface{}:
+            utils.Info.Println(dimKey, "is an array:, len=", strconv.Itoa(len(vv)))
+            if (dimKey == "dim2") {
+                signalDimensionLists.dim2List = make([]Dim2Elem, len(vv))
+            } else if (dimKey == "dim3") {
+                signalDimensionLists.dim3List = make([]Dim3Elem, len(vv))
+            }
+            for k, v := range vv {
+                unPackDimSignalsLevel1(k,v.(map[string]interface{}), dimKey, signalDimensionLists)
+            }
+          default:
+            utils.Info.Println(dimKey, "is of an unknown type")
+        }
+    }
+    return signalDimensionLists
+}
+
+func unPackDimSignalsLevel1(index int, signalDimMap map[string]interface{}, dimKey string, signalDimensionLists SignalDimensionLists) {
+    for pathKey, v := range signalDimMap {
+        switch vv := v.(type) {
+          case string:
+            utils.Info.Println(vv, "is string")
+            if (dimKey == "dim2") {
+                if (pathKey == "path1") {
+                    signalDimensionLists.dim2List[index].Path1 = vv
+                } else {
+                    signalDimensionLists.dim2List[index].Path2 = vv
+            }
+            } else {
+                if (pathKey == "path1") {
+                    signalDimensionLists.dim3List[index].Path1 = vv
+                } else if (pathKey == "path2") {
+                    signalDimensionLists.dim3List[index].Path2 = vv
+                } else {
+                    signalDimensionLists.dim3List[index].Path3 = vv
+                }
+            }
+          default:
+            utils.Info.Println(pathKey, "is of an unknown type")
+        }
+    }
+}
+
+func jsonToStructList(data string) *SignalDimensionLists {
+	var signalDimensionMap map[string]interface{}
+        var signalDimensionLists SignalDimensionLists
+	err := json.Unmarshal([]byte(data), &signalDimensionMap)
+	if err != nil {
+		utils.Error.Printf("Error unmarshal signal dimension list=%s", err)
+		return nil
+	}
+        signalDimensionLists = unpacksignalDimensionMap(signalDimensionMap, signalDimensionLists)
+	return &signalDimensionLists
+}
+
+func readSignalDimensions(fname string) *SignalDimensionLists {
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		utils.Error.Printf("Error reading signal dimension file=%s", err)
+		return nil
+	}
+	return jsonToStructList(string(data))
+}
+
+func populateDimLists(paths []string) ([]string, []Dim2Elem, []Dim3Elem) {
     var dim1List []string
     var dim2List []Dim2Elem
     var dim3List []Dim3Elem
@@ -133,8 +209,8 @@ func populateDimLists(paths []string) ([]string, []string, []string) {  // TODO:
             for j := i+1 ; j < len(paths) ; j++ {
                 if (pathDimList[j].Dim == 2 && pathDimList[j].Id == pathDimList[i].Id) {
                     var dim2Elem Dim2Elem
-                    dim2Elem.path1 = paths[i]
-                    dim2Elem.path2 = paths[j]
+                    dim2Elem.Path1 = paths[i]
+                    dim2Elem.Path2 = paths[j]
                     dim2List = append(dim2List, dim2Elem)
                     pathDimList[j].Populated = true
                 }
@@ -146,9 +222,9 @@ func populateDimLists(paths []string) ([]string, []string, []string) {  // TODO:
                     for k := j+1 ; k < len(paths) ; k++ {
                         if (pathDimList[k].Dim == 3 && pathDimList[k].Id == pathDimList[i].Id) {
                             var dim3Elem Dim3Elem
-                            dim3Elem.path1 = paths[i]
-                            dim3Elem.path2 = paths[j]
-                            dim3Elem.path3 = paths[k]
+                            dim3Elem.Path1 = paths[i]
+                            dim3Elem.Path2 = paths[j]
+                            dim3Elem.Path3 = paths[k]
                             dim3List = append(dim3List, dim3Elem)
                             pathDimList[j].Populated = true
                             pathDimList[k].Populated = true
@@ -158,29 +234,10 @@ func populateDimLists(paths []string) ([]string, []string, []string) {  // TODO:
             }
         }
     }
-    return dim1List, nil, nil
+    return dim1List, dim2List, nil
 }
 
-func jsonToStructList(jsonList string) SignalDimensionLists {
-        var signalDimensionLists SignalDimensionLists
-	err := json.Unmarshal([]byte(jsonList), &signalDimensionLists)
-	if err != nil {
-		utils.Error.Printf("Error unmarshal signal dimension list=%s\n", err)
-//		return 
-	}
-	return signalDimensionLists
-}
-
-func readSignalDimensions(fname string) SignalDimensionLists {
-	data, err := ioutil.ReadFile(fname)
-	if err != nil {
-		utils.Error.Printf("Error reading signal dimension file=%s\n", err)
-//		return
-	}
-	return jsonToStructList(string(data))
-}
-
-func analyzeSignalDimensions(paths []string, signalDimensionList SignalDimensionLists) []PathDimElem {
+func analyzeSignalDimensions(paths []string, signalDimensionList *SignalDimensionLists) []PathDimElem {
     pathDimList := make([]PathDimElem, len(paths))
     dim2Id := 0
     dim3Id := 0
@@ -198,9 +255,11 @@ func analyzeSignalDimensions(paths []string, signalDimensionList SignalDimension
                     pathDimList[j].Dim = 2
                     pathDimList[j].Id = dim2Id
                     dim2Id++
+                    break
                 }
             }
         } else if (is3dim(paths[i], 1, signalDimensionList.dim3List) == true) {
+            done := false
             for j := i+1 ; j < len(paths) ; j++ {
                 if (is3dim(paths[j], 2, signalDimensionList.dim3List) == true) {
                     for k := j+1 ; k < len(paths) ; k++ {
@@ -212,14 +271,21 @@ func analyzeSignalDimensions(paths []string, signalDimensionList SignalDimension
                             pathDimList[k].Dim = 3
                             pathDimList[k].Id = dim3Id
                             dim3Id++
+                            done = true
+                            break
                         } else {
                             pathDimList[i].Dim = 2
                             pathDimList[i].Id = dim2Id
                             pathDimList[j].Dim = 2
                             pathDimList[j].Id = dim2Id
                             dim2Id++
+                            done = true
+                            break
                         }
                     }
+                }
+                if (done == true) {
+                    break
                 }
             }
         }
@@ -231,13 +297,14 @@ func is2dim(path string, index int, dim2List []Dim2Elem) bool {
     var listPath string
     for i := 0 ; i < len(dim2List) ; i++ {
         if (index == 1) {
-            listPath = dim2List[i].path1
+            listPath = dim2List[i].Path1
         } else if (index == 2) {
-            listPath = dim2List[i].path2
+            listPath = dim2List[i].Path2
         } else {
             return false
         }
         if (listPath == path) {
+utils.Info.Printf("is2dim=true")
             return true
         }
     }
@@ -248,11 +315,11 @@ func is3dim(path string, index int, dim3List []Dim3Elem) bool {
     var listPath string
     for i := 0 ; i < len(dim3List) ; i++ {
         if (index == 1) {
-            listPath = dim3List[i].path1
+            listPath = dim3List[i].Path1
         } else if (index == 2) {
-            listPath = dim3List[i].path2
+            listPath = dim3List[i].Path2
         } else if (index == 3) {
-            listPath = dim3List[i].path3
+            listPath = dim3List[i].Path3
         } else {
             return false
         }
@@ -263,19 +330,24 @@ func is3dim(path string, index int, dim3List []Dim3Elem) bool {
     return false
 }
 
+func getSleepDuration(newTime time.Time, oldTime time.Time, wantedDuration int) time.Duration {
+    workDuration := newTime.Sub(oldTime)
+    sleepDuration := time.Duration(wantedDuration) * time.Millisecond
+    return sleepDuration - workDuration
+}
+
 func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, paths []string) {
 	maxError, bufSize := getCurveLogicParams(opExtra)
 	if (bufSize > MAXCLBUFSIZE) {
 	    bufSize = MAXCLBUFSIZE
 	}
-	dim1List, dim2List, _ := populateDimLists(paths)
-//utils.Info.Printf("len(dim1List)=%d, len(dim2List)=%d", len(dim1List), len(dim2List))
+	dim1List, dim2List, dim3List := populateDimLists(paths)
 	for i := 0 ; i < len(dim1List) ; i++ {
 	    if (numOfClSessions > MAXCLSESSIONS) {
 	        utils.Error.Printf("Curve logic: All resources are utilized.")
 	        break
 	    }
-//	    returnInitialDp(clChan, subscriptionId, dim1List[i], 1) //TODO: Very first dp at start of subscribe should be returned? 
+	    returnSingleDp(clChan, subscriptionId, dim1List[i])
 	    go clCapture1dim(clChan, subscriptionId, dim1List[i], bufSize, maxError)
 	    numOfClSessions++
 	}
@@ -284,8 +356,17 @@ func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, pa
 	        utils.Error.Printf("Curve logic: All resources are utilized.")
 	        break
 	    }
-//	    returnInitialDp(clChan, subscriptionId, dim2List[i], 2) //TODO: Very first dp at start of subscribe should be returned? 
-//	    go clCapture2dim(clChan, subscriptionId, dim2List[i], bufSize, maxError)
+	    returnSingleDp2(clChan, subscriptionId, dim2List[i])
+	    go clCapture2dim(clChan, subscriptionId, dim2List[i], bufSize, maxError)
+	    numOfClSessions++
+	}
+	for i := 0 ; i < len(dim3List) ; i++ {
+	    if (numOfClSessions > MAXCLSESSIONS) {
+	        utils.Error.Printf("Curve logic: All resources are utilized.")
+	        break
+	    }
+	    returnSingleDp3(clChan, subscriptionId, dim3List[i])
+	    go clCapture3dim(clChan, subscriptionId, dim3List[i], bufSize, maxError)
 	    numOfClSessions++
 	}
 }
@@ -294,8 +375,15 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
     aRingBuffer := createRingBuffer(bufSize+1)  // logic requires buffer to have a size of one larger than needed
     var dpMap = make(map[string]interface{})
     closeClSession := false
+    oldTime := getCurrentUtcTime()
     for {
-	time.Sleep(500 * time.Millisecond)  // TODO:Should be configurable and set to less than sample freq of signal.
+        newTime := getCurrentUtcTime()
+        sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
+        if (sleepPeriod < 0) {
+            utils.Warning.Printf("Curve logging may have missed to capture.")
+        }
+	time.Sleep(sleepPeriod)
+	oldTime = getCurrentUtcTime()
 	mcloseClSubId.Lock()
 	if (closeClSubId == subscriptionId) {
 	    closeClSession = true
@@ -304,16 +392,14 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
         dp := getVehicleData(path)
 	utils.ExtractPayload(dp, &dpMap)
 	_, ts := readRing(&aRingBuffer, 0)  // read latest written
-//utils.Info.Printf("ts=%s", ts)
 	if (ts != dpMap["ts"].(string)) {
 	    writeRing(&aRingBuffer, dpMap["value"].(string), dpMap["ts"].(string))
 	}
 	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer)
 	if (currentBufSize == bufSize) || (closeClSession == true) {
-//utils.Info.Printf("clAnalyze1dim called for path=%s", path)
-	    dp, updatedTail := clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
+	    data, updatedTail := clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
             var clPack CLPack
-            clPack.DataPack = `{"path":"`+ path + `","data":` + dp + "}"
+            clPack.DataPack = `{"path":"`+ path + `","data":` + data + "}"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
 	    setRingTail(&aRingBuffer, updatedTail)
@@ -322,27 +408,13 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
 	    break
 	}
     }
-    // TODO:send final notification with last dp?
+    returnSingleDp(clChan, subscriptionId, path)
 }
 
 func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
     clBuffer := make([]CLBufElement, bufSize)  // array holds transformed value/ts pairs, from latest to first captured
-    for i := 0 ; i < bufSize ; i++ {
-        val, ts := readRing(aRingBuffer, i)
-        value, err := strconv.ParseFloat(val, 64)
-	if err != nil {
-		utils.Error.Printf("Curve log failed to convert value=%s to float err=%s", val, err)
-		return "", -1
-	}
-        clBuffer[i].Value = (float64)(value)
-        t, err := time.Parse(time.RFC3339, ts)
-	if err != nil {
-		utils.Error.Printf("Curve log failed to convert time to Unix time err=%s", err)
-		return "", -1
-	}
-        clBuffer[i].Timestamp = t.Unix()
-    }
-    savedIndex := clReduction(clBuffer, 0, bufSize-1, maxError)
+    clBuffer = transformDataPoints(aRingBuffer, clBuffer, bufSize)
+    savedIndex := clReduction1Dim(clBuffer, 0, bufSize-1, maxError)
     dataPoint := ""
     updatedTail := 0
     if (savedIndex != nil) {
@@ -367,7 +439,7 @@ func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (stri
     return dataPoint, updatedTail
 }
 
-func clReduction(clBuffer []CLBufElement, firstIndex int, lastIndex int, maxError float64) []int {
+func clReduction1Dim(clBuffer []CLBufElement, firstIndex int, lastIndex int, maxError float64) []int {
 //utils.Info.Printf("clReduction:firstIndex=%d, lastIndex=%d, maxError=%f, ", firstIndex, lastIndex, maxError)
     if (lastIndex - firstIndex <= 1) {
         return nil
@@ -391,14 +463,314 @@ func clReduction(clBuffer []CLBufElement, firstIndex int, lastIndex int, maxErro
     
     if (maxMeasuredError > maxError) {
         var savedIndex1, savedIndex2 []int
-        savedIndex1 = append(savedIndex1, clReduction(clBuffer, firstIndex, indexOfMaxMeasuredError, maxError)...)
-        savedIndex2 = append(savedIndex2, clReduction(clBuffer, indexOfMaxMeasuredError, lastIndex, maxError)...)
+        savedIndex1 = append(savedIndex1, clReduction1Dim(clBuffer, firstIndex, indexOfMaxMeasuredError, maxError)...)
+        savedIndex2 = append(savedIndex2, clReduction1Dim(clBuffer, indexOfMaxMeasuredError, lastIndex, maxError)...)
         savedIndex1 = append(savedIndex1, savedIndex2...)
         return append(savedIndex1, indexOfMaxMeasuredError)
     }
     return nil
 }
 
-func clCapture2dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64) {
+func transformDataPoints(aRingBuffer *RingBuffer, clBuffer []CLBufElement, bufSize int) []CLBufElement {
+    for i := 0 ; i < bufSize ; i++ {
+        val, ts := readRing(aRingBuffer, i)
+        value, err := strconv.ParseFloat(val, 64)
+	if err != nil {
+		utils.Error.Printf("Curve log failed to convert value=%s to float err=%s", val, err)
+		return nil
+	}
+        clBuffer[i].Value = (float64)(value)
+        t, err := time.Parse(time.RFC3339, ts)
+	if err != nil {
+		utils.Error.Printf("Curve log failed to convert time to Unix time err=%s", err)
+		return nil
+	}
+        clBuffer[i].Timestamp = t.Unix()
+    }
+    return clBuffer
+}
+
+func returnSingleDp(clChan chan CLPack, subscriptionId int, path string) {
+        dp := getVehicleData(path)
+        var clPack CLPack
+        clPack.DataPack = `{"path":"`+ path + `","data":` + dp + "}"
+        clPack.SubscriptionId = subscriptionId
+        clChan <- clPack
+}
+
+func returnSingleDp2(clChan chan CLPack, subscriptionId int, paths Dim2Elem) {
+        dp1 := getVehicleData(paths.Path1)
+        dp2 := getVehicleData(paths.Path2)
+        var clPack CLPack
+        clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + dp1 + "}," + `{"path":"`+ paths.Path2 + `","data":` + dp2 + "}]"
+        clPack.SubscriptionId = subscriptionId
+        clChan <- clPack
+}
+
+func returnSingleDp3(clChan chan CLPack, subscriptionId int, paths Dim3Elem) {
+        dp1 := getVehicleData(paths.Path1)
+        dp2 := getVehicleData(paths.Path2)
+        dp3 := getVehicleData(paths.Path3)
+        var clPack CLPack
+        clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + dp1 + `},{"path":"`+ paths.Path2 + `","data":` + dp2 + `},{"path":"`+ paths.Path3 + `","data":` + dp3 + "}]"
+        clPack.SubscriptionId = subscriptionId
+        clChan <- clPack
+}
+
+
+func clCapture2dim(clChan chan CLPack, subscriptionId int, paths Dim2Elem, bufSize int, maxError float64) {
+    aRingBuffer1 := createRingBuffer(bufSize+1)
+    aRingBuffer2 := createRingBuffer(bufSize+1)
+    var dpMap1 = make(map[string]interface{})
+    var dpMap2 = make(map[string]interface{})
+    closeClSession := false
+    oldTime := getCurrentUtcTime()
+    for {
+        newTime := getCurrentUtcTime()
+        sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
+        if (sleepPeriod < 0) {
+            utils.Warning.Printf("Curve logging may have missed to capture.")
+        }
+	time.Sleep(sleepPeriod)
+	oldTime = getCurrentUtcTime()
+	mcloseClSubId.Lock()
+	if (closeClSubId == subscriptionId) {
+	    closeClSession = true
+	}
+	mcloseClSubId.Unlock()
+        dp1 := getVehicleData(paths.Path1)
+        dp2 := getVehicleData(paths.Path2)
+	utils.ExtractPayload(dp1, &dpMap1)
+	utils.ExtractPayload(dp2, &dpMap2)
+	_, ts1 := readRing(&aRingBuffer1, 0)
+	_, ts2 := readRing(&aRingBuffer2, 0)
+	if (ts1 != dpMap1["ts"].(string) && ts2 != dpMap2["ts"].(string) && dpMap1["ts"].(string) == dpMap2["ts"].(string)) {
+	    writeRing(&aRingBuffer1, dpMap1["value"].(string), dpMap1["ts"].(string))
+	    writeRing(&aRingBuffer2, dpMap2["value"].(string), dpMap2["ts"].(string))
+	}
+	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer1)
+	if (currentBufSize == bufSize) || (closeClSession == true) {
+	    data1, data2, updatedTail := clAnalyze2dim(&aRingBuffer1, &aRingBuffer2, currentBufSize, maxError)
+            var clPack CLPack
+            clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + data1 + "}," + `{"path":"`+ paths.Path2 + `","data":` + data2 + "}]"
+            clPack.SubscriptionId = subscriptionId
+            clChan <- clPack
+	    setRingTail(&aRingBuffer1, updatedTail)
+	    setRingTail(&aRingBuffer2, updatedTail)
+	}
+	if (closeClSession == true) {
+	    break
+	}
+    }
+    returnSingleDp2(clChan, subscriptionId, paths)
+}
+
+func clAnalyze2dim(aRingBuffer1 *RingBuffer, aRingBuffer2 *RingBuffer, bufSize int, maxError float64) (string, string, int) {
+    clBuffer1 := make([]CLBufElement, bufSize)
+    clBuffer2 := make([]CLBufElement, bufSize)
+    clBuffer1 = transformDataPoints(aRingBuffer1, clBuffer1, bufSize)
+    clBuffer2 = transformDataPoints(aRingBuffer2, clBuffer2, bufSize)
+    savedIndex := clReduction2Dim(clBuffer1, clBuffer2, 0, bufSize-1, maxError)
+    dataPoint1 := ""
+    dataPoint2 := ""
+    updatedTail := 0
+    if (savedIndex != nil) {
+        sort.Sort(sort.Reverse(sort.IntSlice(savedIndex)))
+        updatedTail = savedIndex[len(savedIndex)-1]
+        if (len(savedIndex) > 1) {
+            dataPoint1 += "["
+            dataPoint2 += "["
+        }
+        for i := 0 ; i < len(savedIndex) ; i++ {
+            val1, ts1 := readRing(aRingBuffer1, savedIndex[i])
+            dataPoint1 += `{"value":"` + val1 + `","ts":"` + ts1 + `"},`
+            val2, ts2 := readRing(aRingBuffer2, savedIndex[i])
+            dataPoint2 += `{"value":"` + val2 + `","ts":"` + ts2 + `"},`
+        }
+        dataPoint1 = dataPoint1[:len(dataPoint1)-1]
+        dataPoint2 = dataPoint2[:len(dataPoint2)-1]
+        if (len(savedIndex) > 1) {
+            dataPoint1 += "]"
+            dataPoint2 += "]"
+        }
+    } else {
+            val1, ts1 := readRing(aRingBuffer1, 0)
+            dataPoint1 += `{"value":"` + val1 + `","ts":"` + ts1 + `"}`
+            val2, ts2 := readRing(aRingBuffer2, 0)
+            dataPoint2 += `{"value":"` + val2 + `","ts":"` + ts2 + `"}`
+    }
+    return dataPoint1, dataPoint2, updatedTail
+}
+
+func clReduction2Dim(clBuffer1 []CLBufElement, clBuffer2 []CLBufElement, firstIndex int, lastIndex int, maxError float64) []int {
+    if (lastIndex - firstIndex <= 1) {
+        return nil
+    }
+    var maxMeasuredError float64 = 0.0
+    indexOfMaxMeasuredError := firstIndex
+    var measuredError float64
+    
+    linearSlope1 := (clBuffer1[lastIndex].Value - clBuffer1[firstIndex].Value) / (float64)(clBuffer1[lastIndex].Timestamp - clBuffer1[firstIndex].Timestamp)
+    linearSlope2 := (clBuffer2[lastIndex].Value - clBuffer2[firstIndex].Value) / (float64)(clBuffer2[lastIndex].Timestamp - clBuffer2[firstIndex].Timestamp)
+    
+    for i := 0 ; i <= lastIndex - firstIndex ; i++ {
+        errorDim1 := clBuffer1[firstIndex+i].Value - (clBuffer1[firstIndex].Value + linearSlope1 * (float64)(clBuffer1[firstIndex+i].Timestamp - clBuffer1[firstIndex].Timestamp))
+        errorDim2 := clBuffer2[firstIndex+i].Value - (clBuffer2[firstIndex].Value + linearSlope2 * (float64)(clBuffer2[firstIndex+i].Timestamp - clBuffer2[firstIndex].Timestamp))
+        measuredError = math.Sqrt(errorDim1*errorDim1 + errorDim2*errorDim2)
+        if (measuredError < 0) {
+            measuredError = -measuredError
+        }
+        if (measuredError > maxMeasuredError) {
+            maxMeasuredError = measuredError
+            indexOfMaxMeasuredError = firstIndex + i
+        }
+    }
+    
+    if (maxMeasuredError > maxError) {
+        var savedIndex1, savedIndex2 []int
+        savedIndex1 = append(savedIndex1, clReduction2Dim(clBuffer1, clBuffer2, firstIndex, indexOfMaxMeasuredError, maxError)...)
+        savedIndex2 = append(savedIndex2, clReduction2Dim(clBuffer1, clBuffer2, indexOfMaxMeasuredError, lastIndex, maxError)...)
+        savedIndex1 = append(savedIndex1, savedIndex2...)
+        return append(savedIndex1, indexOfMaxMeasuredError)
+    }
+    return nil
+}
+
+func clCapture3dim(clChan chan CLPack, subscriptionId int, paths Dim3Elem, bufSize int, maxError float64) {
+    aRingBuffer1 := createRingBuffer(bufSize+1)
+    aRingBuffer2 := createRingBuffer(bufSize+1)
+    aRingBuffer3 := createRingBuffer(bufSize+1)
+    var dpMap1 = make(map[string]interface{})
+    var dpMap2 = make(map[string]interface{})
+    var dpMap3 = make(map[string]interface{})
+    closeClSession := false
+    oldTime := getCurrentUtcTime()
+    for {
+        newTime := getCurrentUtcTime()
+        sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
+        if (sleepPeriod < 0) {
+            utils.Warning.Printf("Curve logging may have missed to capture.")
+        }
+	time.Sleep(sleepPeriod)
+	oldTime = getCurrentUtcTime()
+	mcloseClSubId.Lock()
+	if (closeClSubId == subscriptionId) {
+	    closeClSession = true
+	}
+	mcloseClSubId.Unlock()
+        dp1 := getVehicleData(paths.Path1)
+        dp2 := getVehicleData(paths.Path2)
+        dp3 := getVehicleData(paths.Path3)
+	utils.ExtractPayload(dp1, &dpMap1)
+	utils.ExtractPayload(dp2, &dpMap2)
+	utils.ExtractPayload(dp3, &dpMap3)
+	_, ts1 := readRing(&aRingBuffer1, 0)
+	_, ts2 := readRing(&aRingBuffer2, 0)
+	_, ts3 := readRing(&aRingBuffer3, 0)
+	if (ts1 != dpMap1["ts"].(string) && ts2 != dpMap2["ts"].(string) && ts3 != dpMap3["ts"].(string) && 
+	    dpMap1["ts"].(string) == dpMap2["ts"].(string) && dpMap2["ts"].(string) == dpMap3["ts"].(string)) {
+	    writeRing(&aRingBuffer1, dpMap1["value"].(string), dpMap1["ts"].(string))
+	    writeRing(&aRingBuffer2, dpMap2["value"].(string), dpMap2["ts"].(string))
+	    writeRing(&aRingBuffer3, dpMap3["value"].(string), dpMap3["ts"].(string))
+	}
+	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer1)
+	if (currentBufSize == bufSize) || (closeClSession == true) {
+	    data1, data2, data3, updatedTail := clAnalyze3dim(&aRingBuffer1, &aRingBuffer2, &aRingBuffer3, currentBufSize, maxError)
+            var clPack CLPack
+            clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + data1 + `},{"path":"`+ paths.Path2 + `","data":` + data2 + `},{"path":"`+ paths.Path3 + `","data":` + data3 + "}]"
+            clPack.SubscriptionId = subscriptionId
+            clChan <- clPack
+	    setRingTail(&aRingBuffer1, updatedTail)
+	    setRingTail(&aRingBuffer2, updatedTail)
+	    setRingTail(&aRingBuffer3, updatedTail)
+	}
+	if (closeClSession == true) {
+	    break
+	}
+    }
+    returnSingleDp3(clChan, subscriptionId, paths)
+}
+
+func clAnalyze3dim(aRingBuffer1 *RingBuffer, aRingBuffer2 *RingBuffer, aRingBuffer3 *RingBuffer, bufSize int, maxError float64) (string, string, string, int) {
+    clBuffer1 := make([]CLBufElement, bufSize)
+    clBuffer2 := make([]CLBufElement, bufSize)
+    clBuffer3 := make([]CLBufElement, bufSize)
+    clBuffer1 = transformDataPoints(aRingBuffer1, clBuffer1, bufSize)
+    clBuffer2 = transformDataPoints(aRingBuffer2, clBuffer2, bufSize)
+    clBuffer3 = transformDataPoints(aRingBuffer3, clBuffer3, bufSize)
+    savedIndex := clReduction3Dim(clBuffer1, clBuffer2, clBuffer3, 0, bufSize-1, maxError)
+    dataPoint1 := ""
+    dataPoint2 := ""
+    dataPoint3 := ""
+    updatedTail := 0
+    if (savedIndex != nil) {
+        sort.Sort(sort.Reverse(sort.IntSlice(savedIndex)))
+        updatedTail = savedIndex[len(savedIndex)-1]
+        if (len(savedIndex) > 1) {
+            dataPoint1 += "["
+            dataPoint2 += "["
+            dataPoint3 += "["
+        }
+        for i := 0 ; i < len(savedIndex) ; i++ {
+            val1, ts1 := readRing(aRingBuffer1, savedIndex[i])
+            dataPoint1 += `{"value":"` + val1 + `","ts":"` + ts1 + `"},`
+            val2, ts2 := readRing(aRingBuffer2, savedIndex[i])
+            dataPoint2 += `{"value":"` + val2 + `","ts":"` + ts2 + `"},`
+            val3, ts3 := readRing(aRingBuffer3, savedIndex[i])
+            dataPoint3 += `{"value":"` + val3 + `","ts":"` + ts3 + `"},`
+        }
+        dataPoint1 = dataPoint1[:len(dataPoint1)-1]
+        dataPoint2 = dataPoint2[:len(dataPoint2)-1]
+        dataPoint3 = dataPoint3[:len(dataPoint3)-1]
+        if (len(savedIndex) > 1) {
+            dataPoint1 += "]"
+            dataPoint2 += "]"
+            dataPoint3 += "]"
+        }
+    } else {
+            val1, ts1 := readRing(aRingBuffer1, 0)
+            dataPoint1 += `{"value":"` + val1 + `","ts":"` + ts1 + `"}`
+            val2, ts2 := readRing(aRingBuffer2, 0)
+            dataPoint2 += `{"value":"` + val2 + `","ts":"` + ts2 + `"}`
+            val3, ts3 := readRing(aRingBuffer3, 0)
+            dataPoint3 += `{"value":"` + val3 + `","ts":"` + ts3 + `"}`
+    }
+    return dataPoint1, dataPoint2, dataPoint3, updatedTail
+}
+
+func clReduction3Dim(clBuffer1 []CLBufElement, clBuffer2 []CLBufElement, clBuffer3 []CLBufElement, firstIndex int, lastIndex int, maxError float64) []int {
+    if (lastIndex - firstIndex <= 1) {
+        return nil
+    }
+    var maxMeasuredError float64 = 0.0
+    indexOfMaxMeasuredError := firstIndex
+    var measuredError float64
+    
+    linearSlope1 := (clBuffer1[lastIndex].Value - clBuffer1[firstIndex].Value) / (float64)(clBuffer1[lastIndex].Timestamp - clBuffer1[firstIndex].Timestamp)
+    linearSlope2 := (clBuffer2[lastIndex].Value - clBuffer2[firstIndex].Value) / (float64)(clBuffer2[lastIndex].Timestamp - clBuffer2[firstIndex].Timestamp)
+    linearSlope3 := (clBuffer3[lastIndex].Value - clBuffer3[firstIndex].Value) / (float64)(clBuffer3[lastIndex].Timestamp - clBuffer3[firstIndex].Timestamp)
+    
+    for i := 0 ; i <= lastIndex - firstIndex ; i++ {
+        errorDim1 := clBuffer1[firstIndex+i].Value - (clBuffer1[firstIndex].Value + linearSlope1 * (float64)(clBuffer1[firstIndex+i].Timestamp - clBuffer1[firstIndex].Timestamp))
+        errorDim2 := clBuffer2[firstIndex+i].Value - (clBuffer2[firstIndex].Value + linearSlope2 * (float64)(clBuffer2[firstIndex+i].Timestamp - clBuffer2[firstIndex].Timestamp))
+        errorDim3 := clBuffer3[firstIndex+i].Value - (clBuffer3[firstIndex].Value + linearSlope3 * (float64)(clBuffer3[firstIndex+i].Timestamp - clBuffer3[firstIndex].Timestamp))
+        measuredError = math.Sqrt(errorDim1*errorDim1 + errorDim2*errorDim2  + errorDim3*errorDim3)
+        if (measuredError < 0) {
+            measuredError = -measuredError
+        }
+        if (measuredError > maxMeasuredError) {
+            maxMeasuredError = measuredError
+            indexOfMaxMeasuredError = firstIndex + i
+        }
+    }
+    
+    if (maxMeasuredError > maxError) {
+        var savedIndex1, savedIndex2 []int
+        savedIndex1 = append(savedIndex1, clReduction3Dim(clBuffer1, clBuffer2, clBuffer3, firstIndex, indexOfMaxMeasuredError, maxError)...)
+        savedIndex2 = append(savedIndex2, clReduction3Dim(clBuffer1, clBuffer2, clBuffer3, indexOfMaxMeasuredError, lastIndex, maxError)...)
+        savedIndex1 = append(savedIndex1, savedIndex2...)
+        return append(savedIndex1, indexOfMaxMeasuredError)
+    }
+    return nil
 }
 
