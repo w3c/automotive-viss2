@@ -18,10 +18,10 @@ If a request contains an array of paths, then the response/notification will inc
 
 The service manager will do its best to interpret subscription filter expressions, but if unsuccessful it will return an error response without activating a subscription session.
 
-The figure shows the internal architecture of the service manager when it comes to handling of request for historic data and use of curve logic.
+The figure shows the internal architecture of the service manager when it comes to handling of request for historic data and use of curve logging.
 ![Service manager time-series architecure](servicemgr-timeseries-architecture.jpg)<br>
 
-Each request for a curve logic subscription instantiates a Go routine that handles the request. An unsubscribe request kills the Go routine.<br>
+Each request for a curve logging subscription instantiates a Go routine that handles the request. An unsubscribe request kills the Go routine.<br>
 
 A Go routine for handling of historic data is spawned at server start up. The vehicle system can via the History control interface control the saving of data for one o more signals via a Unix Domain Socket command with the socket address /tmp/vissv2/histctrlserver.sock.<br>
 The write commands available are:<br>
@@ -46,4 +46,14 @@ Another use case could be that the vehicle temporarily loses its connection, may
 The saving of data will automatically stop at some max limit if no stop command is issued before that.
 
 A third use case could be that data related to electrical charging shall be saved, the vehicle system then uses the start and stop commands to record the appropriate signals during the charging session.
+
+## Curve logging
+Geotab has opened up the curve logging patents for public use, see <a href="https://github.com/Geotab/curve">Curve logging library</a>.
+This curve logging implementation can be applied to one through three dimensional signals, where signal dimensionality is defined in the file signaldimensions.json. This file is prepopulated with the following content:
+{"dim2":[{"path1":"Vehicle.Cabin.Infotainment.Navigation.CurrentLocation.Latitude", "path2":"Vehicle.Cabin.Infotainment.Navigation.CurrentLocation.Longitude"}], 
+ "dim3":[{"path1":"Vehicle.Acceleration.Lateral", "path2":"Vehicle.Acceleration.Longitudinal", "path3":"Vehicle.Acceleration.Vertical"}]}
+ 
+If a curve logging request contains multiple signals, and they match a set that is defined in this file, then the curve logging implementation treats them as two- or three-dimensional signals, else they are treated as one-dimensional. If two signals of a 3-dimensional definition are found, they are treated as 2-dimensional. 
+For an N dimensional signal, the curve logging algorithm processes the signals in an N+1 dimensional space (time is the additional dimension). The max acceptable error is then the distance between the sample point and the linear curve in the N dimensional space, for the same time value ("vertical distance"). 
+
 
