@@ -519,6 +519,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		if err != nil {
 			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 		}
+		defer rows.Close()
 		value := ""
 		timestamp := ""
 
@@ -527,7 +528,6 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		if err != nil {
 			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 		}
-		rows.Close()
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	} else {
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -541,6 +541,7 @@ func setVehicleData(path string, value string) string {
 			utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
 			return ""
 		}
+		defer stmt.Close()
 
 		ts := utils.GetRfcTime()
 		_, err = stmt.Exec(value, ts, path[1:len(path)-1]) // remove quotes surrounding path
@@ -548,7 +549,6 @@ func setVehicleData(path string, value string) string {
 			utils.Error.Printf("Could not update statestorage, err = %s", err)
 			return ""
 		}
-		stmt.Close()
 		return ts
 	}
 	return ""
@@ -844,7 +844,7 @@ func main() {
 			utils.Error.Printf("Could not open DB file = %s, err = %s", os.Args[1], dbErr)
 			os.Exit(1)
 		}
-		//            defer db.Close()
+		defer db.Close()
 		isStateStorage = true
 	}
 
