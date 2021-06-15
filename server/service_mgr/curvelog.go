@@ -485,7 +485,7 @@ func transformDataPoints(aRingBuffer *RingBuffer, clBuffer []CLBufElement, bufSi
 		utils.Error.Printf("Curve log failed to convert time to Unix time err=%s", err)
 		return nil
 	}
-        clBuffer[i].Timestamp = t.Unix()
+        clBuffer[i].Timestamp = t.Unix()  // sets the resolution to one sec, i. e. max sample freq to 1Hz. TODO: support for sample freq higher than 1Hz
     }
     return clBuffer
 }

@@ -13,6 +13,10 @@ service-mgr-log.txt
 http-mgr-log.txt
 servercore-log.txt
 
+#helper files
+vsspathlist.json
+vss_vissv2.binary
+
 # Test binary, built with `go test -c`
 *.test
 *.DS_store
