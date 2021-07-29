@@ -147,8 +147,8 @@ func getVehicleBusData(){
 
 func TestVissMqttProtocol(t *testing.T){
 	done := make(chan bool, 1)
-	go getVehicleBusData()
 
+	go getVehicleBusData()
 	go cloudSimClient(&done,t)
 	go vehicleSimClient(&done,t)
 
