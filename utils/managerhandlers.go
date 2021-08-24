@@ -15,16 +15,33 @@ import (
 	"flag"
 	"io/ioutil"
 
-	//	"log"
 	"net/http"
 	"net/url"
-	"strconv"
+	"crypto/tls"
+	"crypto/x509"
 
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+func ReadTransportSecConfig() {
+	data, err := ioutil.ReadFile(trSecConfigPath + "transportSec.json")
+	if err != nil {
+	    Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", trSecConfigPath, err)
+	    secConfig.TransportSec = "no"
+	    return
+	}
+	err = json.Unmarshal(data, &secConfig)
+	if err != nil {
+	    Error.Printf("ReadTransportSecConfig():Error unmarshal transportSec.json=%s", err)
+	    secConfig.TransportSec = "no"
+	    return
+	}
+        Info.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
+}
 
 func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	Info.Printf("backendHttpAppSession(): Message received=%s", message)
@@ -295,14 +312,74 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 
 	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	Info.Println(http.ListenAndServe(":8888", muxServer))
+//	Info.Println(http.ListenAndServe(":8888", muxServer))
+Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
+	if (secConfig.TransportSec == "yes") {
+	    server := http.Server{
+	        Addr: ":8888", 
+	        TLSConfig: getTLSConfig("localhost", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt",
+	                                 tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
+	        Handler: muxServer,
+	    }
+ 	    Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
+	    Error.Fatal(server.ListenAndServeTLS(trSecConfigPath + secConfig.ServerSecPath + "server.crt", trSecConfigPath + secConfig.ServerSecPath + "server.key"))
+	} else {
+	    Error.Fatal(http.ListenAndServe(":8888", muxServer))
+	}
 }
 
 func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *int) {
 	*serverIndex = 0
 	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	Error.Fatal(http.ListenAndServe(":8080", muxServer))
+Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
+	if (secConfig.TransportSec == "yes") {
+	    server := http.Server{
+	        Addr: ":8080", 
+	        TLSConfig: getTLSConfig("localhost", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt",
+	                                 tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
+	        Handler: muxServer,
+	    }
+ 	    Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
+	    Error.Fatal(server.ListenAndServeTLS(trSecConfigPath + secConfig.ServerSecPath + "server.crt", trSecConfigPath + secConfig.ServerSecPath + "server.key"))
+	} else {
+	    Error.Fatal(http.ListenAndServe(":8080", muxServer))
+	}
+}
+
+func certOptToInt(serverCertOpt string) int {
+    if (serverCertOpt == "NoClientCert") {
+        return 0
+    }
+    if (serverCertOpt == "ClientCertNoVerification") {
+        return 2
+    }
+    if (serverCertOpt == "ClientCertVerification") {
+        return 4
+    }
+    return 4 // if unclear, apply max security
+}
+
+func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
+	var caCert []byte
+	var err error
+	var caCertPool *x509.CertPool
+	if certOpt > tls.RequestClientCert {
+		caCert, err = ioutil.ReadFile(caCertFile)
+		if err != nil {
+			Error.Printf("Error opening cert file", caCertFile, ", error ", err)
+			return nil
+		}
+		caCertPool = x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	return &tls.Config{
+		ServerName: host,
+		ClientAuth: certOpt,
+		ClientCAs:  caCertPool,
+		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
+	}
 }
 
 func RemoveInternalData(response string) (string, int) {  // "RouterId" : "mgrId?clientId", 

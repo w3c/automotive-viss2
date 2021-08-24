@@ -26,12 +26,15 @@ import (
       - spawn a WS server for every connecting app client
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
+
 func main() {
 	utils.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("http-mgr-log.txt", "./logs")
 
 	regData := utils.RegData{}
 	utils.RegisterAsTransportMgr(&regData, "HTTP")
+
+	utils.ReadTransportSecConfig()
 
 	go utils.HttpServer{}.InitClientServer(utils.MuxServer[0]) // go routine needed due to listenAndServe call...
 	dataConn := utils.InitDataSession(utils.MuxServer[1], regData)
