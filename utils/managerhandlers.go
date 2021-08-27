@@ -312,11 +312,11 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 
 	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-//	Info.Println(http.ListenAndServe(":8888", muxServer))
 Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if (secConfig.TransportSec == "yes") {
+	    secPortNum, _ := strconv.Atoi(secConfig.SecPort)
 	    server := http.Server{
-	        Addr: ":8888", 
+	        Addr: ":" + strconv.Itoa(secPortNum + 1),   // to diff from WSS portno
 	        TLSConfig: getTLSConfig("localhost", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt",
 	                                 tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
 	        Handler: muxServer,
@@ -335,7 +335,7 @@ func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *i
 Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if (secConfig.TransportSec == "yes") {
 	    server := http.Server{
-	        Addr: ":8080", 
+	        Addr: ":" + secConfig.SecPort, 
 	        TLSConfig: getTLSConfig("localhost", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt",
 	                                 tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
 	        Handler: muxServer,
