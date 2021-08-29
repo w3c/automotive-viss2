@@ -19,13 +19,16 @@ COMPANY=""                  # company name
 
 The script must first be started for generation of the CA credentials, as they are needed for the server and client generation. 
 $ ./testCredGen ca
+The script, or rather openSSL, will ask for a password for the CA credentials. 
+This will be asked for again in the generation of the server and client credentials, so make a note of it.
 
-Before the generation of the server credentials, the file server/server.ext SAN entry likely needs an update. 
-If your environment does not launch your server with localhost as the IP address of the computer, 
-you need to declare the computer IP address being used by updating the row:
+Before the generation of the server credentials, the SAN entry in the file server/server.ext likely needs an update. 
+If your environment does not launch the VISSv2 server with localhost as the IP address of the computer, 
+you need to declare the computer IP address being used, by updating the row:
 IP.1 = 192.168.x.x
 with the correct IP address. 
 If localhost is defined, this row might need to be removed instead.
+
 You can then generate the server credentials
 $ ./testCredGen server
 and then credentials for a client
@@ -39,8 +42,13 @@ and the server credentials
 server/server.crt
 server/server.key
 must be copied to the ./server/transport_sec/server directory.
-To switch the server from using the unsecure HTTP and WS trnasport protocols to the secure versions HTTPS and WSS, 
+To switch the server from using the unsecure HTTP and WS transport protocols to the secure versions HTTPS and WSS, 
 the config parameter "transportSec" in the ./server/transport_sec/transportSec.json file must be changed from "no" to "yes". 
+
+If the HTTPS or WSS transport manager crashes, you might find the following in the log:
+listen tcp :443: bind: permission denied
+To resolve that, this link may help.
+https://superuser.com/questions/710253/allow-non-root-process-to-bind-to-port-80-and-443/892391#892391
 
 A client for testing this can be found in the https://github.com/GENIVI/ccs-w3c-client repo, where the ovds/client/ccs-client.go
 can be configured to use HTTPS/WSS towards the VISSv2 server. 
