@@ -1,4 +1,4 @@
-The testCredGen script can be used to generate credentials for server and client(s) communication over HTTPS or WSS. 
+The testCredGen script can be used to generate credentials for server and client(s) communication over HTTPS and WSS. 
 
 It uses openSSL for the generation, so this package must be installed on the computer if not there already.
 The script contains the following dummy data that is supplied to openSSL for credential population. 
@@ -17,13 +17,13 @@ CHALLENGE=""                # challenge password
 COMPANY=""                  # company name
 
 
-The script must first be started for generation of the CA credentials, as they are needed for the server and client generation. 
+The script must first be started for generation of the CA credentials, as they are needed for the server and client credential generation. 
 $ ./testCredGen ca
 The script, or rather openSSL, will ask for a password for the CA credentials. 
 This will be asked for again in the generation of the server and client credentials, so make a note of it.
 
 Before the generation of the server credentials, the SAN entry in the file server/server.ext likely needs an update. 
-If your environment does not launch the VISSv2 server with localhost as the IP address of the computer, 
+If your environment does not launch the VISSv2 server with localhost as the computer IP address, 
 you need to declare the computer IP address being used, by updating the row:
 IP.1 = 192.168.x.x
 with the correct IP address. 
@@ -38,7 +38,7 @@ The CA credentials
 ca/Root.CA.crt
 ca/Root.CA.key
 must then be copied to the ./server/transport_sec/ca directory,
-and the server credentials
+and the server credentials:
 server/server.crt
 server/server.key
 must be copied to the ./server/transport_sec/server directory.
@@ -52,7 +52,7 @@ https://superuser.com/questions/710253/allow-non-root-process-to-bind-to-port-80
 
 A client for testing this can be found in the https://github.com/GENIVI/ccs-w3c-client repo, where the ovds/client/ccs-client.go
 can be configured to use HTTPS/WSS towards the VISSv2 server. 
-It is then necessary to copy the CA credentials (see above) and client credentials
+It is then necessary to copy the CA cert (see above) and client cert and key:
 client/client.ctr
 client/client.key
 to the corresponding ca and client directories in that repo, 
