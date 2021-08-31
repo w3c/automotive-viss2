@@ -4,17 +4,18 @@ It uses openSSL for the generation, so this package must be installed on the com
 The script contains the following dummy data that is supplied to openSSL for credential population. 
 This can be modified if so desired.
 
-COUNTRY="DK"                # 2 letter country-code
-STATE="Zealand"             # state or province name
-LOCALITY="Helsingor"        # Locality Name (e.g. city)
-ORGNAME="Example Inc"       # Organization Name (eg, company)
-ORGUNIT="VISSv2-dev"        # Organizational Unit Name (eg. section)
-CAEMAIL="ca@example.com"    # certificate's email address
-SRVEMAIL="srv@example.com"  # certificate's email address
-CLTEMAIL="clt@example.com"  # certificate's email address
-# optional extra details
-CHALLENGE=""                # challenge password
-COMPANY=""                  # company name
+COUNTRY="DK"                # 2 letter country-code<br>
+STATE="Zealand"             # state or province name<br>
+LOCALITY="Helsingor"        # Locality Name (e.g. city)<br>
+ORGNAME="Example Inc"       # Organization Name (eg, company)<br>
+ORGUNIT="VISSv2-dev"        # Organizational Unit Name (eg. section)<br>
+CAEMAIL="ca@example.com"    # certificate's email address<br>
+SRVEMAIL="srv@example.com"  # certificate's email address<br>
+CLTEMAIL="clt@example.com"  # certificate's email address<br>
+
+optional extra details<br>
+CHALLENGE=""                # challenge password<br>
+COMPANY=""                  # company name<br>
 
 
 The script must first be started for generation of the CA credentials, as they are needed for the server and client credential generation. 
