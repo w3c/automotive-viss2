@@ -1,6 +1,7 @@
 version: '3.7'
 services:
     server_core:
+        container_name: server_core
         build:
             context: .  # context set to repo root
             target: server_core
@@ -8,12 +9,13 @@ services:
         environment:
             - GEN2MODULEIP=atserver
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         networks:
             internal:
                 aliases:
                     - srvcore
     mgr_service:
+        container_name: mgr_service
         build:
             context: .  # context set to repo root
             target: service_mgr
@@ -21,15 +23,15 @@ services:
         depends_on:
             - "server_core"
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
         networks:
             internal:
                 aliases:
-                    - servicemgr
-           
+                    - servicemgr         
     server_at:
+        container_name: server_at
         build:
             context: .  # context set to repo root
             target: at_server
@@ -37,7 +39,7 @@ services:
         depends_on:
             - "server_core"
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
         ports:
@@ -50,6 +52,7 @@ services:
                 aliases:
                     - atserver
     server_agt:
+        container_name: server_agt
         build:
             context: .  # context set to repo root
             target: agt_server
@@ -57,7 +60,7 @@ services:
         depends_on:
             - "server_core"
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
         ports:
@@ -69,25 +72,28 @@ services:
             external:
                 aliases:
                     - agtserver
-                
     mgr_http:
+        container_name: mgr_http
         build:
             context: .  # context set to repo root
             target: http_mgr
         entrypoint: /app/http_mgr
+        working_dir: /app
         depends_on:
             - "server_core"
+            - "mgr_ws"
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         ports:
             - "8888:8888"
+            - "444:444"
         environment:
             - GEN2MODULEIP=srvcore
         networks:
             - internal
             - external
-
     mgr_ws:
+        container_name: mgr_ws
         build:
             context: .  # context set to repo root
             target: ws_mgr
@@ -95,16 +101,17 @@ services:
         depends_on:
             - "server_core"
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
         ports:
             - "8080:8080"
+            - "443:443"
         networks:
             - internal
             - external
-
     mgr_mqtt:
+        container_name: mgr_mqtt
         build:
             context: .  # context set to repo root
             target: mqtt_mgr
@@ -112,7 +119,7 @@ services:
         depends_on:
             - "server_core"
         volumes:
-            - logdata:/app/logs
+            - ./logs:/app/logs
         environment:
             - GEN2MODULEIP=srvcore
         ports: 
@@ -120,8 +127,15 @@ services:
         networks:
             - internal
             - external
-
+    tls_client:
+        container_name: tls_client
+        build:
+            context: .  # context set to repo root
+            target: tls_client
+        networks:
+            - external
     server_web:
+        container_name: server_web
         image: 'httpd:2.4-alpine'
         depends_on:
             - "server_core"
@@ -131,9 +145,6 @@ services:
             - "10080:80"
         networks:
             - external
-
 networks:
     internal:
     external:
-volumes:
-    logdata:
