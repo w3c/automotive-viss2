@@ -40,6 +40,10 @@ replace example.com/original/import/path => /your/forked/import/path
 replace example.com/project/foo => ../foo
 ```
 
+Testing if your fix builds is often easiest to do by the command
+$ go build 
+in the directory of the fixed go file.
+
 For more information see https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive
 
 Make sure not to push modified go.mod, go.sum files since that would probably break the master branch.

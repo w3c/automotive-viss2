@@ -14,7 +14,7 @@ class W3CRestClient extends W3CClient{
     send_get_request(request){
         $.ajax({
             type: "GET",
-            url: "http://192.168.150.131:8888/" + request,
+            url: "http://localhost:8888/" + request,
 
             success: this.message_success,
             error: function()
@@ -28,7 +28,7 @@ class W3CRestClient extends W3CClient{
     send_post_request(request, value){
         $.ajax({
             type: "POST",
-            url: "http://192.168.150.131:8888/" + request,
+            url: "http://localhost:8888/" + request,
             data: "123",
             success: this.message_success,
             error: function()

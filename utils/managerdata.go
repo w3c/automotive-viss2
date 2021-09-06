@@ -17,6 +17,17 @@ import (
 
 var requestTag int
 
+var trSecConfigPath string = "../transport_sec/"  // relative path to the directory containing the transportSec.json file
+type SecConfig struct {
+    TransportSec string  `json:"transportSec"`// "yes" or "no"
+    SecPort string       `json:"secPort"`// port number
+    CaSecPath string     `json:"caSecPath"`// relative path from the directory containing the transportSec.json file
+    ServerSecPath string `json:"serverSecPath"`// relative path from the directory containing the transportSec.json file
+    ServerCertOpt string `json:"serverCertOpt"`// one of  "NoClientCert"/"ClientCertNoVerification"/"ClientCertVerification"
+    ClientSecPath string `json:"clientSecPath"`// relative path from the directory containing the transportSec.json file
+}
+var secConfig SecConfig
+
 var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for app client HTTP sessions
 	http.NewServeMux(), // for data session with core server on port number provided at registration

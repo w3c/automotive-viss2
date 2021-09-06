@@ -9,13 +9,13 @@ Get request for historic data:
 
 Get request with search:
 {"action":"get","path":"Vehicle/Cabin/Door","filter":{"op-type":"paths","op-value":"*.*.IsOpen"},"requestId":"235"}
-{"action":"get","path":"Vehicle/ADAS/ABS","filter":{"op-type":"paths","op-value":"*"},"requestId":"236"}
+{"action":"get","path":"Vehicle.ADAS.ABS","filter":{"op-type":"paths","op-value":"*"},"requestId":"236"}
 {"action":"get","path":"Vehicle/ADAS","filter":{"op-type":"paths","op-value":["ABS/*","CruiseControl/Error"]},"requestId":"237"}
 
 
 Get request with AT token (XXX must be replaced with actual token):
 {"action":"get","path":"Vehicle/ADAS/CruiseControl/Error","authorization":"XXX","requestId":"241"}
-{"action":"get","path":"Vehicle/Body/BodyType","authorization":"XXX","requestId":"243"}
+{"action":"get","path":"Vehicle.Body.BodyType","authorization":"XXX","requestId":"243"}
 
 Service discovery request:
 {"action":"get","path":"Vehicle/ADAS/ABS","metadata":"static","requestId":"244"}
@@ -25,10 +25,11 @@ Set request:
 
 Subscribe request:
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"op-type":"capture","op-value":"time-based","op-extra":{"period":"3"}},"requestId":"246"}
-{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"op-type":"capture","op-value":"change","op-extra":{"logic-op":"gt", "diff":"10"}},"requestId":"247"}
+{"action":"subscribe","path":"Vehicle.Cabin.Door.Row1.Right.IsOpen","filter":{"op-type":"capture","op-value":"change","op-extra":{"logic-op":"gt", "diff":"10"}},"requestId":"247"}
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"op-type":"capture","op-value":"range","op-extra":{"logic-op":"gt","boundary":"500"}},"requestId":"255"}
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"op-type":"capture","op-value":"range","op-extra":[{"logic-op":"gt","boundary":"500"},{"logic-op":"lt","boundary":"510"}]},"requestId":"265"}
-{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"op-type":"capture","op-value":"curve-logic","op-extra":{"max-err":"5","buf-size":"100"}},"requestId":"275"}
+{"action":"subscribe","path":"Vehicle.Powertrain.Transmission.Speed","filter":{"op-type":"capture","op-value":"curve-logic","op-extra":{"max-err":"2","buf-size":"100"}},"requestId":"275"}
+{"action":"subscribe","path":"Vehicle","filter":[{"op-type":"paths","op-value":["Cabin.Infotainment.Navigation.CurrentLocation.Latitude", "Cabin.Infotainment.Navigation.CurrentLocation.Longitude"]}, {"op-type":"capture","op-value":"curve-logic","op-extra":{"max-err":"0.00001","buf-size":"100"}}],"requestId":"285"}
 
 Unsubscribe request:
 {"action":"unsubscribe","subscriptionId":"1","requestId":"240"}
@@ -45,7 +46,7 @@ URL: Vehicle.Acceleration.Longitudinal
 Get request with search:
 HTTP GET 
 URL: Vehicle/Cabin?filter={"op-type":"paths", "op-value":["Door/*/*/IsOpen", "Convertible/Status"]}
-URL: Vehicle/ADAS?filter={"op-type":"paths", "op-value":["ABS/*", "CruiseControl/Error"]}
+URL: Vehicle.ADAS?filter={"op-type":"paths", "op-value":["ABS.*", "CruiseControl.Error"]}
 
 Get request for historic data:
 HTTP GET 

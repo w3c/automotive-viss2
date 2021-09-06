@@ -8,7 +8,7 @@ usage() {
 }
 
 startme() {
-	for service in ${services[@]}; do
+	for service in "${services[@]}"; do
 		echo "Starting $service"
 		mkdir -p logs
 		if [ $service == "service_mgr" ]; then
@@ -24,7 +24,7 @@ startme() {
 }
 
 stopme() {
-	for service in ${services[@]}; do
+	for service in "${services[@]}"; do
 		echo "Stopping $service"
 		screen -X -S $service quit
 		killall -9 $service	

@@ -73,6 +73,8 @@ func main() {
 
 	utils.RegisterAsTransportMgr(&regData, "WebSocket")
 
+	utils.ReadTransportSecConfig()
+
 	go utils.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(utils.MuxServer[0], &serverIndex) // go routine needed due to listenAndServe call...
 
 	utils.Info.Printf("initClientServer() done")

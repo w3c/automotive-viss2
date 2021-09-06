@@ -17,6 +17,11 @@ import (
 	"strings"
 )
 
+
+func urlToPath(url string) string{
+	return strings.ReplaceAll(url,"/",".")
+}
+
 type UuidListElem struct {
 	Path string  `json:"path"`
 	Uuid string  `json:"uuid"`
