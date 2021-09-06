@@ -1,3 +1,8 @@
-
-{"transportSec" : "yes", "secPort": "443", "caSecPath": "ca/", "serverSecPath": "server/", "serverCertOpt": "ClientCertVerification", "clientSecPath": ""}
-
+{
+    "transportSec": "yes",
+    "secPort": "443",
+    "caSecPath": "ca/",
+    "serverSecPath": "server/",
+    "serverCertOpt": "ClientCertVerification",
+    "clientSecPath": "client/"
+}
