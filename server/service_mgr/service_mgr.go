@@ -13,17 +13,19 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"flag"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
-//	"sync"
+
+	//	"sync"
 	"time"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/akamensky/argparse"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -396,10 +398,10 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
 	case clPack := <-CLChan: // curve logic notification
-	        index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
+		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		subscriptionState := subscriptionList[index]
-		if (clPack.SubscriptionId == closeClSubId) {
-		    removeFromsubscriptionList(subscriptionList, index)
+		if clPack.SubscriptionId == closeClSubId {
+			removeFromsubscriptionList(subscriptionList, index)
 		}
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
@@ -483,7 +485,7 @@ func getCurveLogicParams(opExtra string) (float64, int) { // {"max-err": "X", "b
 		utils.Error.Printf("getIntervalPeriod: Unmarshal failed, err=%s", err)
 		return 0.0, 0
 	}
-        maxErr, err := strconv.ParseFloat(cLData.MaxErr, 64)
+	maxErr, err := strconv.ParseFloat(cLData.MaxErr, 64)
 	if err != nil {
 		utils.Error.Printf("getIntervalPeriod: MaxErr invalid integer, maxErr=%s", cLData.MaxErr)
 		maxErr = 0.0
@@ -826,14 +828,33 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 }
 
 func main() {
-	udsPath := flag.String("uds", "/tmp/vissv2/histctrlserver.sock", "Set UDS path and file")
-	vssPathList := flag.String("vssPathList", "../vsspathlist.json", "Set the path to vsspathlist file")
-	flag.Parse()
+	// Create new parser object
+	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	// Create string flag
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+		Required: false,
+		Help:     "changes log output level",
+		Default:  "info"})
+	udsPath := parser.String("", "uds", &argparse.Options{
+		Required: false,
+		Help:     "Set UDS path and file",
+		Default:  "/tmp/vissv2/histctrlserver.sock"})
+	vssPathList := parser.String("", "vssPathList", &argparse.Options{
+		Required: false,
+		Help:     "Set the path to vsspathlist file",
+		Default:  "../vsspathlist.json"})
+
+	// Parse input
+	err := parser.Parse(os.Args)
+	if err != nil {
+		fmt.Print(parser.Usage(err))
+	}
 
 	//os.Remove("/tmp/vissv2/histctrlserver.sock")
 	//listExists := createHistoryList("../vsspathlist.json") // file is created by core-server at startup
 
-	utils.InitLog("service-mgr-log.txt", "./logs")
+	utils.InitLog("service-mgr-log.txt", "./logs", *logFile, *logLevel)
 	dbFile := "statestorage.db"
 	if len(os.Args) == 2 {
 		dbFile = os.Args[1]
@@ -855,7 +876,7 @@ func main() {
 	regRequest := RegRequest{Rootnode: "Vehicle"}
 	subscriptionChan := make(chan int)
 	historyAccessChannel = make(chan string)
-	CLChannel = make(chan CLPack, 5)  // allow some buffering...
+	CLChannel = make(chan CLPack, 5) // allow some buffering...
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
 

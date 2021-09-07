@@ -13,8 +13,11 @@ package main
 import (
 	//   "fmt"
 	"flag"
+	"fmt"
+	"os"
 	"regexp"
 
+	"github.com/akamensky/argparse"
 	"github.com/gorilla/websocket"
 
 	"bytes"
@@ -396,7 +399,7 @@ func searchTree(rootNode *gomodel.Node_t, path string, anyDepth bool, leafNodesO
 		var searchData []golib.SearchData_t
 		var matches int
 		searchData, matches = golib.VSSsearchNodes(path, rootNode, MAXFOUNDNODES, anyDepth, leafNodesOnly, listSize, noScopeList, validation)
-//		searchData, matches = golib.VSSsearchNodes(path, rootNode, MAXFOUNDNODES, anyDepth, leafNodesOnly, validation)
+		//		searchData, matches = golib.VSSsearchNodes(path, rootNode, MAXFOUNDNODES, anyDepth, leafNodesOnly, validation)
 		return matches, searchData
 	}
 	return 0, nil
@@ -720,7 +723,7 @@ func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]string, int) {
 		switch vv := v.(type) {
 		case string:
 			utils.Info.Println(k, "is string", vv)
-				noScopeList[i] = vv
+			noScopeList[i] = vv
 		default:
 			utils.Info.Println(k, "is of an unknown type")
 		}
@@ -945,10 +948,22 @@ func createPathListFile(listFname string) {
 }
 
 func main() {
-	pathList := flag.Bool("p", false, "dry run to generate vsspathlist file")
-	flag.Parse()
+	// Create new parser object
+	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	// Create string flag
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+		Required: false,
+		Help:     "changes log output level",
+		Default:  "info"})
+	pathList := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
+	// Parse input
+	err := parser.Parse(os.Args)
+	if err != nil {
+		fmt.Print(parser.Usage(err))
+	}
 
-	utils.InitLog("servercore-log.txt", "./logs")
+	utils.InitLog("servercore-log.txt", "./logs", *logFile, *logLevel)
 
 	if !initVssFile() {
 		utils.Error.Fatal(" Tree file not found")

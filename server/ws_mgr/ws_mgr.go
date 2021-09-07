@@ -9,11 +9,14 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	utils "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 
+	"github.com/akamensky/argparse"
 	"github.com/gorilla/websocket"
 )
 
@@ -63,8 +66,23 @@ func messageUpdateAndForward(reqMessage string, regData utils.RegData, dataConn 
       - forward data between app clients and core server, injecting mgr Id (and appClient Id?) into payloads
 **/
 func main() {
+	// Create new parser object
+	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	// Create flags
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+		Required: false,
+		Help:     "changes log output level",
+		Default:  "info"})
+
+	// Parse input
+	err := parser.Parse(os.Args)
+	if err != nil {
+		fmt.Print(parser.Usage(err))
+	}
+
 	utils.TransportErrorMessage = "WS transport mgr-finalizeResponse: JSON encode failed."
-	utils.InitLog("ws-mgr-log.txt", "./logs")
+	utils.InitLog("ws-mgr-log.txt", "./logs", *logFile, *logLevel)
 	//ip := utils.GetServerIP()
 
 	utils.Info.Printf("WSMGR serverIP:%s", utils.GetServerIP())
