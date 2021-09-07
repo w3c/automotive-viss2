@@ -5,7 +5,7 @@ services:
         build:
             context: .  # context set to repo root
             target: server_core
-        entrypoint: /app/server_core
+        entrypoint: [/app/server_core, --logfile]
         environment:
             - GEN2MODULEIP=atserver
         volumes:
@@ -19,7 +19,7 @@ services:
         build:
             context: .  # context set to repo root
             target: service_mgr
-        entrypoint: [/app/service_mgr, -uds, /app/uds.sock, -vssPathList, vsspathlist.json]
+        entrypoint: [/app/service_mgr, --uds, /app/uds.sock, --vssPathList, vsspathlist.json, --logfile]
         depends_on:
             - "server_core"
         volumes:
@@ -35,7 +35,7 @@ services:
         build:
             context: .  # context set to repo root
             target: at_server
-        entrypoint: /app/at_server
+        entrypoint: [/app/at_server, --logfile]
         depends_on:
             - "server_core"
         volumes:
@@ -56,7 +56,7 @@ services:
         build:
             context: .  # context set to repo root
             target: agt_server
-        entrypoint: /app/agt_server
+        entrypoint: [/app/agt_server, --logfile]
         depends_on:
             - "server_core"
         volumes:
@@ -77,7 +77,7 @@ services:
         build:
             context: .  # context set to repo root
             target: http_mgr
-        entrypoint: /app/http_mgr
+        entrypoint: [/app/http_mgr, --logfile]
         working_dir: /app
         depends_on:
             - "server_core"
@@ -97,7 +97,7 @@ services:
         build:
             context: .  # context set to repo root
             target: ws_mgr
-        entrypoint: /app/ws_mgr
+        entrypoint: [/app/ws_mgr, --logfile]
         depends_on:
             - "server_core"
         volumes:
@@ -115,7 +115,7 @@ services:
         build:
             context: .  # context set to repo root
             target: mqtt_mgr
-        entrypoint: /app/mqtt_mgr
+        entrypoint: [/app/mqtt_mgr, --logfile]
         depends_on:
             - "server_core"
         volumes:

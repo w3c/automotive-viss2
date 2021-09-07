@@ -63,7 +63,7 @@ ARG VSSTREE_NAME
 WORKDIR /app
 COPY --from=builder /build/bin/server_core .
 COPY --from=builder /build/server_core/${VSSTREE_NAME} .
-RUN ["/bin/bash","-c","/app/server_core -p"]
+RUN ["/bin/bash","-c","/app/server_core --dryrun"]
 ENTRYPOINT ["/app/server_core"]
 #----------------------DONE with server_core-----------------------
 
