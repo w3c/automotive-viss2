@@ -1,5 +1,12 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210330175945-c29206fbef71/go.mod h1:VRT/QMYx8uITtYrznV79Nd4XLM8rAUptFciaexTZLaI=
+github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210401175906-ae9043606d97 h1:/TTUfTswgpyDQwwaAqOFuBJaUA1aX6gmsINlVGDhDRM=
+github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210401175906-ae9043606d97/go.mod h1:VRT/QMYx8uITtYrznV79Nd4XLM8rAUptFciaexTZLaI=
+github.com/GENIVI/vss-tools/binary/go_parser/parserlib v0.0.0-20210401175906-ae9043606d97 h1:l4dZTkk13DRWQpde8S8jCYcfdS9aZ4UmkuaOr8moaZ0=
+github.com/GENIVI/vss-tools/binary/go_parser/parserlib v0.0.0-20210401175906-ae9043606d97/go.mod h1:HxTrANpa35tr+/8vdG5Ef7iHfhVI99TG8PiGXCQIn1g=
+github.com/akamensky/argparse v1.3.1 h1:kP6+OyvR0fuBH6UhbE6yh/nskrDEIQgEA1SUXDPjx4g=
+github.com/akamensky/argparse v1.3.1/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20191209042840-269d4d468f6f/go.mod h1:M8M6+tZqaGXZJjfX53e64911xZQV5JYwmTeXPW+k8Sc=
