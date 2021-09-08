@@ -9,10 +9,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/akamensky/argparse"
 	"github.com/gorilla/websocket"
 )
 
@@ -28,8 +31,23 @@ import (
 **/
 
 func main() {
+	// Create new parser object
+	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	// Create string flag
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+		Required: false,
+		Help:     "changes log output level",
+		Default:  "info"})
+
+	// Parse input
+	err := parser.Parse(os.Args)
+	if err != nil {
+		fmt.Print(parser.Usage(err))
+	}
+
 	utils.TransportErrorMessage = "HTTP transport mgr-finalizeResponse: JSON encode failed.\n"
-	utils.InitLog("http-mgr-log.txt", "./logs")
+	utils.InitLog("http-mgr-log.txt", "./logs", *logFile, *logLevel)
 
 	regData := utils.RegData{}
 	utils.RegisterAsTransportMgr(&regData, "HTTP")

@@ -6,6 +6,11 @@
 *.dylib
 .DS_Store
 
+# cert files
+*.crt
+*.srl
+*.key
+*.csr
 
 #log files
 ws-mgr-log.txt
@@ -51,3 +56,7 @@ mqtt_mgr
 vendor/
 logs/
 
+
+.gitignore
+***workspace.code-workspace
+***.vscode

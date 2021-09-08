@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"path"
-//	"path/filepath"
+	"path/filepath"
+
+	//	"path/filepath"
 	"runtime"
 
 	"github.com/sirupsen/logrus"
@@ -30,7 +32,7 @@ var (
 // const LOG_FILE = "servercore-log.txt"
 var Logfile *os.File
 
-func InitLog(filename string, logdir string) {
+func InitLog(filename string, logdir string, logFile bool, logLevel string) {
 
 	logger := logrus.New()
 	logger.SetReportCaller(true)
@@ -46,22 +48,37 @@ func InitLog(filename string, logdir string) {
 		},
 		//PrettyPrint: true,
 	}
+	switch logLevel {
+	case "trace":
+		logger.SetLevel(logrus.TraceLevel)
+	case "debug":
+		logger.SetLevel(logrus.DebugLevel)
+	case "info":
+		logger.SetLevel(logrus.InfoLevel)
+	case "warn":
+		logger.SetLevel(logrus.WarnLevel)
+	case "error":
+		logger.SetLevel(logrus.ErrorLevel)
+	case "fatal":
+		logger.SetLevel(logrus.FatalLevel)
+	case "panic":
+		logger.SetLevel(logrus.PanicLevel)
+	}
 
-	iow := io.Writer(os.Stdout)
-	logger.SetOutput(iow)
-//        logger.SetLevel(logrus.ErrorLevel)  // change to InfoLevel if all logs to be saved
-        logger.SetLevel(logrus.InfoLevel)
+	if logFile {
+		os.MkdirAll(logdir, 0755)
+		path := filepath.Join(logdir, filename)
+		Logfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
+		if err != nil {
+			logger.Fatal(err)
+		}
 
-	// os.MkdirAll(logdir, 0700)
-	// path := filepath.Join(logdir, filename)
-	// Logfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0755)
-	// if err != nil {
-	// 	logger.Fatal(err)
-	// }
-
-	// logger.SetOutput(Logfile)
-	// logrus.RegisterExitHandler(CloseLogFile)
-
+		logger.SetOutput(Logfile)
+		logrus.RegisterExitHandler(CloseLogFile)
+	} else {
+		iow := io.Writer(os.Stdout)
+		logger.SetOutput(iow)
+	}
 	Info, Warning, Error = logger, logger, logger
 }
 

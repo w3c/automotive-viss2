@@ -1,6 +1,6 @@
 module github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
 
-go 1.13
+go 1.16
 
 //example on how to use replace to point to fork or local path
 //replace github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils => github.com/MagnusGun/W3C_VehicleSignalInterfaceImpl/utils master
@@ -13,6 +13,7 @@ go 1.13
 require (
 	github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210401175906-ae9043606d97
 	github.com/GENIVI/vss-tools/binary/go_parser/parserlib v0.0.0-20210401175906-ae9043606d97
+	github.com/akamensky/argparse v1.3.1
 	github.com/eclipse/paho.mqtt.golang v1.3.2
 	github.com/golang/protobuf v1.4.1
 	github.com/gorilla/websocket v1.4.2
