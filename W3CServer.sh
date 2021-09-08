@@ -12,7 +12,7 @@ startme() {
 		echo "Starting $service"
 		mkdir -p logs
 		if [ $service == "service_mgr" ]; then
-			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service -uds -vssPathList &> ./logs/$service-log.txt && popd"
+			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service --uds --vssPathList &> ./logs/$service-log.txt && popd"
 		else
 			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
 		fi
