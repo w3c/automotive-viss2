@@ -1,5 +1,5 @@
 {
-    "transportSec": "yes",
+    "transportSec": "no",
     "secPort": "443",
     "caSecPath": "ca/",
     "serverSecPath": "server/",
