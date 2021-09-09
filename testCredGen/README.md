@@ -46,6 +46,12 @@ must be copied to the ./server/transport_sec/server directory.
 To switch the server from using the unsecure HTTP and WS transport protocols to the secure versions HTTPS and WSS, 
 the config parameter "transportSec" in the ./server/transport_sec/transportSec.json file must be changed from "no" to "yes". 
 
+When "transportSec" is set to "yes", for testing the "serverCertOpt" key can be set to either of the values:<br>
+"NoClientCert"// server does not require client to provide a certificate<br>
+"ClientCertNoVerification"// server requires client to have a certificate, but it is not verified<br>
+"ClientCertVerification" //server requires client to have a certificate that verifies successfully<br>
+The access control model in the VISSv2 standard requires "ClientCertVerification" to be set.
+
 If the HTTPS or WSS transport manager crashes, you might find the following in the log:
 listen tcp :443: bind: permission denied
 To resolve that, this link may help.
