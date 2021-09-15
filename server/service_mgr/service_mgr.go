@@ -397,7 +397,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
-	case clPack := <-CLChan: // curve logic notification
+	case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		subscriptionState := subscriptionList[index]
 		if clPack.SubscriptionId == closeClSubId {
@@ -429,7 +429,7 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 		return -1, subscriptionList
 	}
 	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, time-based)=%d", getOpType(subscriptionList[index].filterList, "time-based"))
-	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, curve-logic)=%d", getOpType(subscriptionList[index].filterList, "curve-logic"))
+	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, curve-logging)=%d", getOpType(subscriptionList[index].filterList, "curve-logic"))
 	if getOpType(subscriptionList[index].filterList, "time-based") == true {
 		deactivateInterval(subscriptionList[index].subscriptionId)
 		removeFromsubscriptionList(subscriptionList, index)
@@ -474,7 +474,7 @@ func getIntervalPeriod(opExtra string) int { // {"period":"X"}
 	return period
 }
 
-func getCurveLogicParams(opExtra string) (float64, int) { // {"max-err": "X", "buf-size":"Y"}
+func getCurveLoggingParams(opExtra string) (float64, int) { // {"max-err": "X", "buf-size":"Y"}
 	type CLData struct {
 		MaxErr  string `json:"max-err"`
 		BufSize string `json:"buf-size"`
@@ -509,7 +509,7 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 			break
 		}
 		if filterList[i].OpValue == "curve-logic" {
-			go curveLogicServer(CLChan, subscriptionId, filterList[i].OpExtra, paths)
+			go curveLoggingServer(CLChan, subscriptionId, filterList[i].OpExtra, paths)
 			break
 		}
 	}

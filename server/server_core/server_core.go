@@ -761,19 +761,58 @@ func getTokenContext(reqMap map[string]interface{}) string {
 	return ""
 }
 
-func validAction(action string) bool {
-	if action == "get" || action == "set" || action == "subscribe" || action == "unsubscribe" {
-		return true
+func validRequest(request string, action string) bool {
+	switch (action) {
+	  case "get": return isValidGetParams(request)
+	  case "set": return isValidSetParams(request)
+	  case "subscribe": return isValidSubscribeParams(request)
+	  case "unsubscribe": return isValidUnsubscribeParams(request)
 	}
 	return false
+}
+
+func isValidGetParams(request string) bool {
+	if (strings.Contains(request, "path") == false) {
+	    return false
+	}
+	if (strings.Contains(request, "filter") == true) {
+	    return isValidGetFilter(request)  
+	}
+	return true
+}
+
+func isValidGetFilter(request string) bool { // TODO: after filter syntax refactoring, switch on type, verify value params
+    return true
+}
+
+func isValidSetParams(request string) bool {
+	return strings.Contains(request, "path") && strings.Contains(request, "value")
+}
+
+func isValidSubscribeParams(request string) bool {
+	if (strings.Contains(request, "path") == false) {
+	    return false
+	}
+	if (strings.Contains(request, "filter") == true) {
+	    return isValidSubscribeFilter(request)  
+	}
+	return true
+}
+
+func isValidSubscribeFilter(request string) bool { // TODO: after filter syntax refactoring, switch on type, verify value params
+    return true
+}
+
+func isValidUnsubscribeParams(request string) bool {
+	return strings.Contains(request, "subscriptionId")
 }
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
-	if validAction(requestMap["action"].(string)) == false {
-		utils.Error.Printf("serveRequest():invalid action=%s", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid action", "See VISSv2 spec for valid request actions.")
+	if validRequest(request, requestMap["action"].(string)) == false {
+		utils.Error.Printf("serveRequest():invalid action params=%s", requestMap["action"])
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "incorrect action", "See VISSv2 spec for valid requests.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}

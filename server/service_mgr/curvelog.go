@@ -15,7 +15,6 @@ import (
     "sync"
     "encoding/json"
     "io/ioutil"
-    "math"
 
     "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
     _ "github.com/mattn/go-sqlite3"
@@ -336,15 +335,15 @@ func getSleepDuration(newTime time.Time, oldTime time.Time, wantedDuration int) 
     return sleepDuration - workDuration
 }
 
-func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, paths []string) {
-	maxError, bufSize := getCurveLogicParams(opExtra)
+func curveLoggingServer(clChan chan CLPack, subscriptionId int, opExtra string, paths []string) {
+	maxError, bufSize := getCurveLoggingParams(opExtra)
 	if (bufSize > MAXCLBUFSIZE) {
 	    bufSize = MAXCLBUFSIZE
 	}
 	dim1List, dim2List, dim3List := populateDimLists(paths)
 	for i := 0 ; i < len(dim1List) ; i++ {
 	    if (numOfClSessions > MAXCLSESSIONS) {
-	        utils.Error.Printf("Curve logic: All resources are utilized.")
+	        utils.Error.Printf("Curve logging: All resources are utilized.")
 	        break
 	    }
 	    returnSingleDp(clChan, subscriptionId, dim1List[i])
@@ -353,7 +352,7 @@ func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, pa
 	}
 	for i := 0 ; i < len(dim2List) ; i++ {
 	    if (numOfClSessions > MAXCLSESSIONS) {
-	        utils.Error.Printf("Curve logic: All resources are utilized.")
+	        utils.Error.Printf("Curve logging: All resources are utilized.")
 	        break
 	    }
 	    returnSingleDp2(clChan, subscriptionId, dim2List[i])
@@ -362,7 +361,7 @@ func curveLogicServer(clChan chan CLPack, subscriptionId int, opExtra string, pa
 	}
 	for i := 0 ; i < len(dim3List) ; i++ {
 	    if (numOfClSessions > MAXCLSESSIONS) {
-	        utils.Error.Printf("Curve logic: All resources are utilized.")
+	        utils.Error.Printf("Curve logging: All resources are utilized.")
 	        break
 	    }
 	    returnSingleDp3(clChan, subscriptionId, dim3List[i])
@@ -476,13 +475,13 @@ func transformDataPoints(aRingBuffer *RingBuffer, clBuffer []CLBufElement, bufSi
         val, ts := readRing(aRingBuffer, i)
         value, err := strconv.ParseFloat(val, 64)
 	if err != nil {
-		utils.Error.Printf("Curve log failed to convert value=%s to float err=%s", val, err)
+		utils.Error.Printf("Curve logging failed to convert value=%s to float err=%s", val, err)
 		return nil
 	}
         clBuffer[i].Value = (float64)(value)
         t, err := time.Parse(time.RFC3339, ts)
 	if err != nil {
-		utils.Error.Printf("Curve log failed to convert time to Unix time err=%s", err)
+		utils.Error.Printf("Curve logging failed to convert time to Unix time err=%s", err)
 		return nil
 	}
         clBuffer[i].Timestamp = t.Unix()  // sets the resolution to one sec, i. e. max sample freq to 1Hz. TODO: support for sample freq higher than 1Hz
@@ -616,17 +615,14 @@ func clReduction2Dim(clBuffer1 []CLBufElement, clBuffer2 []CLBufElement, firstIn
     for i := 0 ; i <= lastIndex - firstIndex ; i++ {
         errorDim1 := clBuffer1[firstIndex+i].Value - (clBuffer1[firstIndex].Value + linearSlope1 * (float64)(clBuffer1[firstIndex+i].Timestamp - clBuffer1[firstIndex].Timestamp))
         errorDim2 := clBuffer2[firstIndex+i].Value - (clBuffer2[firstIndex].Value + linearSlope2 * (float64)(clBuffer2[firstIndex+i].Timestamp - clBuffer2[firstIndex].Timestamp))
-        measuredError = math.Sqrt(errorDim1*errorDim1 + errorDim2*errorDim2)
-        if (measuredError < 0) {
-            measuredError = -measuredError
-        }
+        measuredError = errorDim1*errorDim1 + errorDim2*errorDim2 // sqrt omitted, instead maxError squared below
         if (measuredError > maxMeasuredError) {
             maxMeasuredError = measuredError
             indexOfMaxMeasuredError = firstIndex + i
         }
     }
     
-    if (maxMeasuredError > maxError) {
+    if (maxMeasuredError > maxError*maxError) { // squared as sqrt omitted above
         var savedIndex1, savedIndex2 []int
         savedIndex1 = append(savedIndex1, clReduction2Dim(clBuffer1, clBuffer2, firstIndex, indexOfMaxMeasuredError, maxError)...)
         savedIndex2 = append(savedIndex2, clReduction2Dim(clBuffer1, clBuffer2, indexOfMaxMeasuredError, lastIndex, maxError)...)
@@ -754,17 +750,14 @@ func clReduction3Dim(clBuffer1 []CLBufElement, clBuffer2 []CLBufElement, clBuffe
         errorDim1 := clBuffer1[firstIndex+i].Value - (clBuffer1[firstIndex].Value + linearSlope1 * (float64)(clBuffer1[firstIndex+i].Timestamp - clBuffer1[firstIndex].Timestamp))
         errorDim2 := clBuffer2[firstIndex+i].Value - (clBuffer2[firstIndex].Value + linearSlope2 * (float64)(clBuffer2[firstIndex+i].Timestamp - clBuffer2[firstIndex].Timestamp))
         errorDim3 := clBuffer3[firstIndex+i].Value - (clBuffer3[firstIndex].Value + linearSlope3 * (float64)(clBuffer3[firstIndex+i].Timestamp - clBuffer3[firstIndex].Timestamp))
-        measuredError = math.Sqrt(errorDim1*errorDim1 + errorDim2*errorDim2  + errorDim3*errorDim3)
-        if (measuredError < 0) {
-            measuredError = -measuredError
-        }
+        measuredError = errorDim1*errorDim1 + errorDim2*errorDim2  + errorDim3*errorDim3 // sqrt omitted, instead maxError squared below
         if (measuredError > maxMeasuredError) {
             maxMeasuredError = measuredError
             indexOfMaxMeasuredError = firstIndex + i
         }
     }
     
-    if (maxMeasuredError > maxError) {
+    if (maxMeasuredError > maxError*maxError) {  // squared as sqrt omitted above
         var savedIndex1, savedIndex2 []int
         savedIndex1 = append(savedIndex1, clReduction3Dim(clBuffer1, clBuffer2, clBuffer3, firstIndex, indexOfMaxMeasuredError, maxError)...)
         savedIndex2 = append(savedIndex2, clReduction3Dim(clBuffer1, clBuffer2, clBuffer3, indexOfMaxMeasuredError, lastIndex, maxError)...)
