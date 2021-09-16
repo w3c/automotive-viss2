@@ -868,10 +868,10 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		var filterList []utils.FilterObject
 		utils.UnpackFilter(requestMap["filter"], &filterList)
 		for i := 0; i < len(filterList); i++ {
-			utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
-			if filterList[i].OpType == "paths" {
-				if strings.Contains(filterList[i].OpValue, "[") == true {
-					err := json.Unmarshal([]byte(filterList[i].OpValue), &searchPath)
+			utils.Info.Printf("filterList[%d].Type=%s, filterList[%d].Value=%s", i, filterList[i].Type, i, filterList[i].Value)
+			if filterList[i].Type == "paths" {
+				if strings.Contains(filterList[i].Value, "[") == true {
+					err := json.Unmarshal([]byte(filterList[i].Value), &searchPath)
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
 						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
@@ -883,7 +883,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					}
 				} else {
 					searchPath = make([]string, 1)
-					searchPath[0] = rootPath + "." + filterList[i].OpValue
+					searchPath[0] = rootPath + "." + filterList[i].Value
 				}
 				break // only one paths object is allowed
 			}

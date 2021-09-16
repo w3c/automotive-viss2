@@ -194,9 +194,9 @@ func FileExists(filename string) bool {
 }
 
 type FilterObject struct {
-    OpType string
-    OpValue string
-    OpExtra string
+    Type string
+    Value string
+//    OpExtra string
 }
 
 func UnpackFilter(filter interface{}, fList *[]FilterObject) {  // See VISSv CORE, Filtering chapter for filter structure
@@ -233,28 +233,28 @@ func unpackFilterLevel2(index int, purposeElem map[string]interface{}, fList *[]
         switch vv := v.(type) {
           case string:
             Info.Println(k, "is string", vv)
-            if (k == "op-type") {
-                (*fList)[index].OpType = vv
-            } else if (k == "op-value") {
-                (*fList)[index].OpValue = vv
+            if (k == "type") {
+                (*fList)[index].Type = vv
+            } else if (k == "value") {
+                (*fList)[index].Value = vv
             }
           case []interface{}:
             Info.Println(k, "is an array:, len=",strconv.Itoa(len(vv)))
             arrayVal, err := json.Marshal(vv)
             if err != nil {
 		Error.Print("UnpackFilter(): JSON array encode failed. ", err)
-	    } else if (k == "op-value") {
-	        (*fList)[index].OpValue = string(arrayVal)
-	    } else {
+	    } else if (k == "value") {
+	        (*fList)[index].Value = string(arrayVal)
+	    } /*else {
 	        (*fList)[index].OpExtra = string(arrayVal)
-	    }
+	    }*/
           case map[string]interface{}:
             Info.Println(k, "is a map:")
-            opExtra, err := json.Marshal(vv)
+            opValue, err := json.Marshal(vv)
             if err != nil {
 		Error.Print("UnpackFilter(): JSON map encode failed. ", err)
 	    } else {
-	        (*fList)[index].OpExtra = string(opExtra)
+	        (*fList)[index].Value = string(opValue)
 	    }
           default:
             Info.Println(k, "is of an unknown type")

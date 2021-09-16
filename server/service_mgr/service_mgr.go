@@ -224,14 +224,14 @@ func getSubcriptionStateIndex(subscriptionId int, subscriptionList []Subscriptio
 
 func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) bool {
 	for i := 0; i < len(filterList); i++ {
-		if filterList[i].OpType == "paths" || filterList[i].OpValue == "time-based" || filterList[i].OpValue == "curve-logic" {
+		if filterList[i].Type == "paths" || filterList[i].Type == "timebased" || filterList[i].Type == "curvelog" {
 			continue
 		}
-		if filterList[i].OpValue == "range" {
-			return evaluateRangeFilter(filterList[i].OpExtra, getDPValue(currentDataPoint))
+		if filterList[i].Type == "range" {
+			return evaluateRangeFilter(filterList[i].Value, getDPValue(currentDataPoint))
 		}
-		if filterList[i].OpValue == "change" {
-			return evaluateChangeFilter(filterList[i].OpExtra, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
+		if filterList[i].Type == "change" {
+			return evaluateChangeFilter(filterList[i].Value, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
 		}
 	}
 	return false
@@ -261,22 +261,22 @@ func unpackDataPoint(dp string) (string, string) { // {"value":"Y", "ts":"Z"}
 	return dataPoint.Value, dataPoint.Ts
 }
 
-func evaluateRangeFilter(opExtra string, currentValue string) bool {
-	//utils.Info.Printf("evaluateRangeFilter: opExtra=%s", opExtra)
+func evaluateRangeFilter(opValue string, currentValue string) bool {
+	utils.Info.Printf("evaluateRangeFilter: opValue=%s", opValue)
 	type ChangeFilter struct {
 		LogicOp  string `json:"logic-op"`
 		Boundary string `json:"boundary"`
 	}
 	var changeFilter []ChangeFilter
 	var err error
-	if strings.Contains(opExtra, "[") == false {
+	if strings.Contains(opValue, "[") == false {
 		changeFilter = make([]ChangeFilter, 1)
-		err = json.Unmarshal([]byte(opExtra), &(changeFilter[0]))
+		err = json.Unmarshal([]byte(opValue), &(changeFilter[0]))
 	} else {
-		err = json.Unmarshal([]byte(opExtra), &changeFilter)
+		err = json.Unmarshal([]byte(opValue), &changeFilter)
 	}
 	if err != nil {
-		utils.Error.Printf("evaluateChangeFilter: Unmarshal error=%s", err)
+		utils.Error.Printf("evaluateRangeFilter: Unmarshal error=%s", err)
 		return false
 	}
 	evaluation := true
@@ -286,14 +286,14 @@ func evaluateRangeFilter(opExtra string, currentValue string) bool {
 	return evaluation
 }
 
-func evaluateChangeFilter(opExtra string, latestValue string, currentValue string) bool {
-	//utils.Info.Printf("evaluateChangeFilter: opExtra=%s", opExtra)
+func evaluateChangeFilter(opValue string, latestValue string, currentValue string) bool {
+	//utils.Info.Printf("evaluateChangeFilter: opValue=%s", opValue)
 	type ChangeFilter struct {
 		LogicOp string `json:"logic-op"`
 		Diff    string `json:"diff"`
 	}
 	var changeFilter ChangeFilter
-	err := json.Unmarshal([]byte(opExtra), &changeFilter)
+	err := json.Unmarshal([]byte(opValue), &changeFilter)
 	if err != nil {
 		utils.Error.Printf("evaluateChangeFilter: Unmarshal error=%s", err)
 		return false
@@ -429,11 +429,11 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 		return -1, subscriptionList
 	}
 	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, time-based)=%d", getOpType(subscriptionList[index].filterList, "time-based"))
-	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, curve-logging)=%d", getOpType(subscriptionList[index].filterList, "curve-logic"))
+	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, curve logging)=%d", getOpType(subscriptionList[index].filterList, "curvelog"))
 	if getOpType(subscriptionList[index].filterList, "time-based") == true {
 		deactivateInterval(subscriptionList[index].subscriptionId)
 		removeFromsubscriptionList(subscriptionList, index)
-	} else if getOpType(subscriptionList[index].filterList, "curve-logic") == true {
+	} else if getOpType(subscriptionList[index].filterList, "curvelog") == true {
 		mcloseClSubId.Lock()
 		closeClSubId = subscriptionList[index].subscriptionId
 		utils.Info.Printf("deactivateSubscription: closeClSubId set to %d", closeClSubId)
@@ -449,19 +449,19 @@ func removeFromsubscriptionList(subscriptionList []SubscriptionState, index int)
 
 func getOpType(filterList []utils.FilterObject, opType string) bool {
 	for i := 0; i < len(filterList); i++ {
-		if filterList[i].OpValue == opType {
+		if filterList[i].Type == opType {
 			return true
 		}
 	}
 	return false
 }
 
-func getIntervalPeriod(opExtra string) int { // {"period":"X"}
+func getIntervalPeriod(opValue string) int { // {"period":"X"}
 	type IntervalData struct {
 		Period string `json:"period"`
 	}
 	var intervalData IntervalData
-	err := json.Unmarshal([]byte(opExtra), &intervalData)
+	err := json.Unmarshal([]byte(opValue), &intervalData)
 	if err != nil {
 		utils.Error.Printf("getIntervalPeriod: Unmarshal failed, err=%s", err)
 		return -1
@@ -474,13 +474,13 @@ func getIntervalPeriod(opExtra string) int { // {"period":"X"}
 	return period
 }
 
-func getCurveLoggingParams(opExtra string) (float64, int) { // {"max-err": "X", "buf-size":"Y"}
+func getCurveLoggingParams(opValue string) (float64, int) { // {"maxerr": "X", "bufsize":"Y"}
 	type CLData struct {
-		MaxErr  string `json:"max-err"`
-		BufSize string `json:"buf-size"`
+		MaxErr  string `json:"maxerr"`
+		BufSize string `json:"bufsize"`
 	}
 	var cLData CLData
-	err := json.Unmarshal([]byte(opExtra), &cLData)
+	err := json.Unmarshal([]byte(opValue), &cLData)
 	if err != nil {
 		utils.Error.Printf("getIntervalPeriod: Unmarshal failed, err=%s", err)
 		return 0.0, 0
@@ -500,16 +500,16 @@ func getCurveLoggingParams(opExtra string) (float64, int) { // {"max-err": "X", 
 
 func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan chan int, CLChan chan CLPack, subscriptionId int, paths []string) {
 	for i := 0; i < len(filterList); i++ {
-		if filterList[i].OpValue == "time-based" {
-			interval := getIntervalPeriod(filterList[i].OpExtra)
+		if filterList[i].Type == "timebased" {
+			interval := getIntervalPeriod(filterList[i].Value)
 			utils.Info.Printf("interval activated, period=%d", interval)
 			if interval > 0 {
 				activateInterval(subscriptionChan, subscriptionId, interval)
 			}
 			break
 		}
-		if filterList[i].OpValue == "curve-logic" {
-			go curveLoggingServer(CLChan, subscriptionId, filterList[i].OpExtra, paths)
+		if filterList[i].Type == "curvelog" {
+			go curveLoggingServer(CLChan, subscriptionId, filterList[i].Value, paths)
 			break
 		}
 	}
@@ -797,8 +797,8 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	period := ""
 	if filterList != nil {
 		for i := 0; i < len(filterList); i++ {
-			if filterList[i].OpType == "history" {
-				period = filterList[i].OpValue
+			if filterList[i].Type == "history" {
+				period = filterList[i].Value
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
 				break

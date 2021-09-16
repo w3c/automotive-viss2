@@ -335,8 +335,8 @@ func getSleepDuration(newTime time.Time, oldTime time.Time, wantedDuration int) 
     return sleepDuration - workDuration
 }
 
-func curveLoggingServer(clChan chan CLPack, subscriptionId int, opExtra string, paths []string) {
-	maxError, bufSize := getCurveLoggingParams(opExtra)
+func curveLoggingServer(clChan chan CLPack, subscriptionId int, opValue string, paths []string) {
+	maxError, bufSize := getCurveLoggingParams(opValue)
 	if (bufSize > MAXCLBUFSIZE) {
 	    bufSize = MAXCLBUFSIZE
 	}
