@@ -196,7 +196,6 @@ func FileExists(filename string) bool {
 type FilterObject struct {
     Type string
     Value string
-//    OpExtra string
 }
 
 func UnpackFilter(filter interface{}, fList *[]FilterObject) {  // See VISSv CORE, Filtering chapter for filter structure

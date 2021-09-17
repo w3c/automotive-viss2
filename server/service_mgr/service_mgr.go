@@ -262,7 +262,7 @@ func unpackDataPoint(dp string) (string, string) { // {"value":"Y", "ts":"Z"}
 }
 
 func evaluateRangeFilter(opValue string, currentValue string) bool {
-	utils.Info.Printf("evaluateRangeFilter: opValue=%s", opValue)
+	//utils.Info.Printf("evaluateRangeFilter: opValue=%s", opValue)
 	type ChangeFilter struct {
 		LogicOp  string `json:"logic-op"`
 		Boundary string `json:"boundary"`
@@ -428,23 +428,22 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 	if index == -1 {
 		return -1, subscriptionList
 	}
-	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, time-based)=%d", getOpType(subscriptionList[index].filterList, "time-based"))
-	utils.Info.Printf("deactivateSubscription: getOpType(subscriptionList[index].filterList, curve logging)=%d", getOpType(subscriptionList[index].filterList, "curvelog"))
-	if getOpType(subscriptionList[index].filterList, "time-based") == true {
+	if getOpType(subscriptionList[index].filterList, "timebased") == true {
 		deactivateInterval(subscriptionList[index].subscriptionId)
-		removeFromsubscriptionList(subscriptionList, index)
 	} else if getOpType(subscriptionList[index].filterList, "curvelog") == true {
 		mcloseClSubId.Lock()
 		closeClSubId = subscriptionList[index].subscriptionId
 		utils.Info.Printf("deactivateSubscription: closeClSubId set to %d", closeClSubId)
 		mcloseClSubId.Unlock()
 	}
+	subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 	return 1, subscriptionList
 }
 
-func removeFromsubscriptionList(subscriptionList []SubscriptionState, index int) {
+func removeFromsubscriptionList(subscriptionList []SubscriptionState, index int) []SubscriptionState {
 	subscriptionList[index] = subscriptionList[len(subscriptionList)-1] // Copy last element to index i.
 	subscriptionList = subscriptionList[:len(subscriptionList)-1]       // Truncate slice.
+	return subscriptionList
 }
 
 func getOpType(filterList []utils.FilterObject, opType string) bool {

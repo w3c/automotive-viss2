@@ -781,8 +781,28 @@ func isValidGetParams(request string) bool {
 	return true
 }
 
-func isValidGetFilter(request string) bool { // TODO: after filter syntax refactoring, switch on type, verify value params
-    return true
+func isValidGetFilter(request string) bool { // paths, history,static-metadata, dynamic-metadata supported
+	if (strings.Contains(request, "paths") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "history") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "static-metadata") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "dynamic-metadata") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	return false
 }
 
 func isValidSetParams(request string) bool {
@@ -799,8 +819,34 @@ func isValidSubscribeParams(request string) bool {
 	return true
 }
 
-func isValidSubscribeFilter(request string) bool { // TODO: after filter syntax refactoring, switch on type, verify value params
-    return true
+func isValidSubscribeFilter(request string) bool { // paths, history, timebased, range, change, curvelog, static-metadata, dynamic-metadata supported
+	if (isValidGetFilter(request) == true) {
+	    return true
+	}
+	if (strings.Contains(request, "timebased") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "period") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "range") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "logic-op") == true && 
+	        strings.Contains(request, "boundary") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "change") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "logic-op") == true && 
+	        strings.Contains(request, "diff") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "curvelog") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "maxerr") == true && 
+	        strings.Contains(request, "bufsize") == true) {
+	        return true
+	    }
+	}
+	return false
 }
 
 func isValidUnsubscribeParams(request string) bool {
@@ -812,7 +858,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	utils.ExtractPayload(request, &requestMap)
 	if validRequest(request, requestMap["action"].(string)) == false {
 		utils.Error.Printf("serveRequest():invalid action params=%s", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "incorrect action", "See VISSv2 spec for valid requests.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "See VISSv2 spec for valid requests.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
