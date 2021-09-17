@@ -761,19 +761,104 @@ func getTokenContext(reqMap map[string]interface{}) string {
 	return ""
 }
 
-func validAction(action string) bool {
-	if action == "get" || action == "set" || action == "subscribe" || action == "unsubscribe" {
-		return true
+func validRequest(request string, action string) bool {
+	switch (action) {
+	  case "get": return isValidGetParams(request)
+	  case "set": return isValidSetParams(request)
+	  case "subscribe": return isValidSubscribeParams(request)
+	  case "unsubscribe": return isValidUnsubscribeParams(request)
 	}
 	return false
+}
+
+func isValidGetParams(request string) bool {
+	if (strings.Contains(request, "path") == false) {
+	    return false
+	}
+	if (strings.Contains(request, "filter") == true) {
+	    return isValidGetFilter(request)  
+	}
+	return true
+}
+
+func isValidGetFilter(request string) bool { // paths, history,static-metadata, dynamic-metadata supported
+	if (strings.Contains(request, "paths") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "history") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "static-metadata") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "dynamic-metadata") == true) {
+	    if (strings.Contains(request, "value") == true) {
+	        return true
+	    }
+	}
+	return false
+}
+
+func isValidSetParams(request string) bool {
+	return strings.Contains(request, "path") && strings.Contains(request, "value")
+}
+
+func isValidSubscribeParams(request string) bool {
+	if (strings.Contains(request, "path") == false) {
+	    return false
+	}
+	if (strings.Contains(request, "filter") == true) {
+	    return isValidSubscribeFilter(request)  
+	}
+	return true
+}
+
+func isValidSubscribeFilter(request string) bool { // paths, history, timebased, range, change, curvelog, static-metadata, dynamic-metadata supported
+	if (isValidGetFilter(request) == true) {
+	    return true
+	}
+	if (strings.Contains(request, "timebased") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "period") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "range") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "logic-op") == true && 
+	        strings.Contains(request, "boundary") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "change") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "logic-op") == true && 
+	        strings.Contains(request, "diff") == true) {
+	        return true
+	    }
+	}
+	if (strings.Contains(request, "curvelog") == true) {
+	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "maxerr") == true && 
+	        strings.Contains(request, "bufsize") == true) {
+	        return true
+	    }
+	}
+	return false
+}
+
+func isValidUnsubscribeParams(request string) bool {
+	return strings.Contains(request, "subscriptionId")
 }
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	utils.ExtractPayload(request, &requestMap)
-	if validAction(requestMap["action"].(string)) == false {
-		utils.Error.Printf("serveRequest():invalid action=%s", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid action", "See VISSv2 spec for valid request actions.")
+	if validRequest(request, requestMap["action"].(string)) == false {
+		utils.Error.Printf("serveRequest():invalid action params=%s", requestMap["action"])
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "See VISSv2 spec for valid requests.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -829,10 +914,10 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		var filterList []utils.FilterObject
 		utils.UnpackFilter(requestMap["filter"], &filterList)
 		for i := 0; i < len(filterList); i++ {
-			utils.Info.Printf("filterList[%d].OpType=%s, filterList[%d].OpValue=%s", i, filterList[i].OpType, i, filterList[i].OpValue)
-			if filterList[i].OpType == "paths" {
-				if strings.Contains(filterList[i].OpValue, "[") == true {
-					err := json.Unmarshal([]byte(filterList[i].OpValue), &searchPath)
+			utils.Info.Printf("filterList[%d].Type=%s, filterList[%d].Value=%s", i, filterList[i].Type, i, filterList[i].Value)
+			if filterList[i].Type == "paths" {
+				if strings.Contains(filterList[i].Value, "[") == true {
+					err := json.Unmarshal([]byte(filterList[i].Value), &searchPath)
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
 						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
@@ -844,7 +929,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					}
 				} else {
 					searchPath = make([]string, 1)
-					searchPath[0] = rootPath + "." + filterList[i].OpValue
+					searchPath[0] = rootPath + "." + filterList[i].Value
 				}
 				break // only one paths object is allowed
 			}
