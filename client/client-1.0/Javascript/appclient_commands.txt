@@ -67,6 +67,8 @@ Service discovery request:
 HTTP GET 
 URL: Vehicle/ADAS/ABS?filter={"type":"static-metadata", "value":""}
 
+// ********* Access control testing *************
+// requires that a binary VSS file has been generated with "validate" tags added into vspec file(s).
 
 //  AGTserver POST input:
 <Gen2 server IP address>
