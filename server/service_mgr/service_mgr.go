@@ -843,6 +843,10 @@ func main() {
 		Required: false,
 		Help:     "Set the path to vsspathlist file",
 		Default:  "../vsspathlist.json"})
+	dbFile := parser.String("", "dbfile", &argparse.Options{
+		Required: false,
+		Help:     "statestorage database filename",
+		Default:  "statestorage.db"})
 
 	// Parse input
 	err := parser.Parse(os.Args)
@@ -854,12 +858,8 @@ func main() {
 	//listExists := createHistoryList("../vsspathlist.json") // file is created by core-server at startup
 
 	utils.InitLog("service-mgr-log.txt", "./logs", *logFile, *logLevel)
-	dbFile := "statestorage.db"
-	if len(os.Args) == 2 {
-		dbFile = os.Args[1]
-	}
-	if utils.FileExists(dbFile) == true {
-		db, dbErr = sql.Open("sqlite3", dbFile)
+	if utils.FileExists(*dbFile) {
+		db, dbErr = sql.Open("sqlite3", *dbFile)
 		if dbErr != nil {
 			utils.Error.Printf("Could not open DB file = %s, err = %s", os.Args[1], dbErr)
 			os.Exit(1)

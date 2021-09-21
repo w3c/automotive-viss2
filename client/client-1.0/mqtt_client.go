@@ -83,17 +83,21 @@ func main() {
 		Required: false,
 		Help:     "changes log output level",
 		Default:  "info"})
+	vin := parser.String("", "vin", &argparse.Options{
+		Required: true,
+		Help:     "VIN Number",
+		Default:  "ULFB0"})
 	// Parse input
 	err := parser.Parse(os.Args)
 	if err != nil {
 		fmt.Print(parser.Usage(err))
 	}
 
-	if len(os.Args) != 2 {
-		fmt.Printf("MQTT client command line: ./mqtt_client vin\n")
-		os.Exit(1)
-	}
-	vin := os.Args[1]
+	//if len(os.Args) != 2 {
+	//		fmt.Printf("MQTT client command line: ./mqtt_client vin\n")
+	//	os.Exit(1)
+	//}
+	//vin := os.Args[1]
 	utils.TransportErrorMessage = "MQTT client-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("mqtt-client-log.txt", "./logs", *logFile, *logLevel)
 
@@ -112,7 +116,7 @@ func main() {
 		case 'q':
 			continueLoop = false
 		default:
-			publishVissV2Request(brokerSocket, vin, request)
+			publishVissV2Request(brokerSocket, *vin, request)
 		}
 		i++
 		if i == 25 {
