@@ -175,7 +175,6 @@ func getPathLen(path string) int {
 
 func validateRequestAccess(scope string, action string, paths []string) int {
 	numOfPaths := len(paths)
-utils.Info.Printf("validateRequestAccess: paths=%s, numOfPaths=%d", paths, numOfPaths)
 	var pathSubList []string
 	for i := 0; i < numOfPaths; i++ {
 		numOfWildcardPaths := 1
@@ -206,10 +205,8 @@ utils.Info.Printf("validateRequestAccess: paths=%s, numOfPaths=%d", paths, numOf
 
 func validateScopeAndAccessMode(scope string, action string, path string) int {
 	for i := 0; i < len(pList); i++ {
-utils.Info.Printf("validateScopeAndAccessMode: scope=%s, pList[%d].Short=%s", scope, i, pList[i].Short)
 		if pList[i].Short == scope {
 			for j := 0; j < len(pList[i].Access); j++ {
-utils.Info.Printf("validateScopeAndAccessMode: path=%s, pList[i].Access[j].Path=%s", path, pList[i].Access[j].Path)
 				if pList[i].Access[j].Path == path {
 					if action == "set" && pList[i].Access[j].Mode == "read-only" {
 						return -16

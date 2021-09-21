@@ -453,11 +453,7 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 	url := "http://" + hostIp + ":8600/atserver"
 	utils.Info.Printf("accessTokenServerValidation::url = %s", url)
 
-	quote := ""
-	if (strings.Contains(paths, "[") == false) {
-	    quote = "" //`"`
-	}
-	data := []byte(`{"token":"` + token + `","paths":` + quote + paths + quote + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`)
+	data := []byte(`{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
@@ -500,7 +496,6 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 
 func verifyToken(token string, action string, paths string, validation int) int {
 	validateResult := accessTokenServerValidation(token, paths, action, validation)
-utils.Info.Printf("verifyToken:token=%s, validateResult=%d", token, validateResult)
 	iatStr := utils.ExtractFromToken(token, "iat")
 	iat, err := strconv.Atoi(iatStr)
 	if err != nil {
@@ -988,7 +983,6 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			errorCode = -1
 		} else {
 			if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
-//				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), maxValidation)
 				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), paths, maxValidation)
 			}
 		}

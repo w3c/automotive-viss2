@@ -95,7 +95,6 @@ func VerifyTokenSignature(token string, key string) bool { // compatible with re
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(message))
 	expectedMAC := mac.Sum(nil)
-Info.Printf("messageMAC=%s, expectedMAC=%s", messageMAC, base64.RawURLEncoding.EncodeToString(expectedMAC))
 	if strings.Compare(messageMAC, base64.RawURLEncoding.EncodeToString(expectedMAC)) == 0 {
 		return true
 	}
