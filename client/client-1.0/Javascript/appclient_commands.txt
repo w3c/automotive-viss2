@@ -1,5 +1,11 @@
-// Websocket request examples
+// Five HTML clients are available for testing purposes
+ - httpclient.html  // HTTP(S) requests to VISSv2 server
+ - wsclient_uncompressed.html // WS(S) requests to VISSv2 server
+ - wsclient_compressed.html // WS(S) requests to VISSv2 server, using an experimental compression algorithm
+ - agtclient.html // HTTP requests to Access Grant Token server
+ - agclient.html // HTTP requests to Access Token server
 
+ // Websocket request examples
 Get request:
 {"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}
 {"action":"get","path":"Vehicle.Acceleration.Longitudinal","requestId":"233"}
@@ -18,7 +24,7 @@ Get request with AT token (XXX must be replaced with actual token):
 {"action":"get","path":"Vehicle.Body.BodyType","authorization":"XXX","requestId":"243"}
 
 Service discovery request:
-{"action":"get","path":"Vehicle/ADAS/ABS","metadata":"static","requestId":"244"}
+{"action":"get","path":"Vehicle/ADAS/ABS","filter":{"type":"static-metadata","value":""},"requestId":"244"}
 
 Set request:
 {"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}
@@ -59,8 +65,10 @@ Payload: 0.123
 
 Service discovery request:
 HTTP GET 
-URL: Vehicle/ADAS/ABS?metadata=static
+URL: Vehicle/ADAS/ABS?filter={"type":"static-metadata", "value":""}
 
+// ********* Access control testing *************
+// requires that a binary VSS file has been generated with "validate" tags added into vspec file(s).
 
 //  AGTserver POST input:
 <Gen2 server IP address>
@@ -72,4 +80,12 @@ agtserver
 <Gen2 server IP address>
 atserver
 {"token":"ag-token", "purpose":"fuel-status", "pop":"GHI"}  // pop included only if a key was present in AGT request, token value must be replaced by the AG token, purpose must be on the Purpose list
+
+//VISSv2 server request for fuel-status use case: 
+wsclient_uncompressed.html:
+{"action":"get","path":"Vehicle.Powertrain.FuelSystem","filter":{"type":"paths","value":["Level","Range"]},"authorization":"at","requestId":"235"}
+// where "at" is the Access Token from ATS request
+http_client.html:
+URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
+Access token: from ATS request
 

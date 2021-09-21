@@ -451,13 +451,13 @@ func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 func accessTokenServerValidation(token string, paths string, action string, validation int) int {
 	hostIp := utils.GetServerIP()
 	url := "http://" + hostIp + ":8600/atserver"
-	utils.Info.Printf("verifyTokenSignature::url = %s", url)
+	utils.Info.Printf("accessTokenServerValidation::url = %s", url)
 
-	data := []byte(`{"token":"` + token + `"paths":"` + paths + `", "action":"` + action + `"validation":"` + strconv.Itoa(validation) + `"}`)
+	data := []byte(`{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		utils.Error.Print("verifyTokenSignature: Error reading request. ", err)
+		utils.Error.Print("accessTokenServerValidation: Error reading request. ", err)
 		return -128
 	}
 
@@ -472,7 +472,7 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 	// Send request
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.Error.Print("verifyTokenSignature: Error reading response. ", err)
+		utils.Error.Print("accessTokenServerValidation: Error reading response. ", err)
 		return -128
 	}
 	defer resp.Body.Close()
@@ -983,7 +983,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			errorCode = -1
 		} else {
 			if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
-				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), requestMap["path"].(string), maxValidation)
+				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), paths, maxValidation)
 			}
 		}
 		if errorCode < 0 {

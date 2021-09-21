@@ -51,7 +51,7 @@ type NoScopePayload struct {
 
 type AtValidatePayload struct {
 	Token      string `json:"token"`
-	Paths      string `json:"paths"`
+	Paths      []string `json:"paths"`
 	Action     string `json:"action"`
 	Validation string `json:"validation"`
 }
@@ -131,7 +131,7 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 			if err != nil {
 				http.Error(w, "400 request unreadable.", 400)
 			} else {
-				utils.Info.Printf("atServer:received POST request=%s\n", string(bodyBytes))
+				utils.Info.Printf("atServer:received POST request=%s", string(bodyBytes))
 				serverChannel <- string(bodyBytes)
 				response := <-serverChannel
 				utils.Info.Printf("atServer:POST response=%s", response)
@@ -155,7 +155,7 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 }
 
 func generateResponse(input string) string {
-	if strings.Contains(input, "action") == true {
+	if strings.Contains(input, "purpose") == true {
 		return accessTokenResponse(input)
 	} else if strings.Contains(input, "context") == true {
 		return noScopeResponse(input)
@@ -173,28 +173,15 @@ func getPathLen(path string) int {
 	return len(path)
 }
 
-func validateRequestAccess(scope string, action string, paths string) int {
-	numOfPaths := 1
-	type stringArray []string
-	var pathList stringArray
-	if strings.Contains(paths, "[") == true {
-		err := json.Unmarshal([]byte(paths), &pathList)
-		if err != nil {
-			utils.Error.Printf("validateScopeAndAccessMode:Unmarshal error=%s", err)
-			return -128
-		}
-		numOfPaths = len(pathList)
-	} else {
-		pathList = make([]string, 1)
-		pathList[0] = paths
-	}
+func validateRequestAccess(scope string, action string, paths []string) int {
+	numOfPaths := len(paths)
 	var pathSubList []string
 	for i := 0; i < numOfPaths; i++ {
 		numOfWildcardPaths := 1
-		if strings.Contains(paths, "*") == true {
+		if strings.Contains(paths[i], "*") == true {
 			searchData := [MAXFOUNDNODES]searchData_t{}
 			// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
-			cpath := C.CString(pathList[i])
+			cpath := C.CString(paths[i])
 			numOfWildcardPaths := int(C.VSSSearchNodes(cpath, VSSTreeRoot, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(&searchData)), true, true, 0, nil, nil))
 			C.free(unsafe.Pointer(cpath))
 			pathSubList = make([]string, numOfWildcardPaths)
@@ -204,7 +191,7 @@ func validateRequestAccess(scope string, action string, paths string) int {
 			}
 		} else {
 			pathSubList = make([]string, 1)
-			pathSubList[0] = pathList[i]
+			pathSubList[0] = paths[i]
 		}
 		for j := 0; j < numOfWildcardPaths; j++ {
 			status := validateScopeAndAccessMode(scope, action, pathSubList[j])
@@ -287,23 +274,64 @@ func noScopeResponse(input string) string {
 }
 
 func tokenValidationResponse(input string) string {
-	var payload AtValidatePayload
-	err := json.Unmarshal([]byte(input), &payload)
+	var inputMap map[string]interface{}
+	err := json.Unmarshal([]byte(input), &inputMap)
 	if err != nil {
 		utils.Error.Printf("tokenValidationResponse:error input=%s", input)
 		return `{"validation":"-128"}`
 	}
-	if utils.VerifyTokenSignature(payload.Token, theAtSecret) == false {
-		utils.Info.Printf("tokenValidationResponse:invalid signature=%s", payload.Token)
+	var atValidatePayload AtValidatePayload
+	extractAtValidatePayloadLevel1(inputMap, &atValidatePayload)
+	if utils.VerifyTokenSignature(atValidatePayload.Token, theAtSecret) == false {
+		utils.Info.Printf("tokenValidationResponse:invalid signature=%s", atValidatePayload.Token)
 		return `{"validation":"-2"}`
 	}
-	scope := utils.ExtractFromToken(payload.Token, "scp")
-	res := validateRequestAccess(scope, payload.Action, payload.Paths)
+	scope := utils.ExtractFromToken(atValidatePayload.Token, "scp")
+	res := validateRequestAccess(scope, atValidatePayload.Action, atValidatePayload.Paths)
 	if res != 0 {
 		utils.Info.Printf("validateRequestAccess fails with result=%d", res)
 		return `{"validation":"` + strconv.Itoa(res) + `"}`
 	}
 	return `{"validation":"0"}`
+}
+
+func extractAtValidatePayloadLevel1(atValidateMap map[string]interface{}, atValidatePayload *AtValidatePayload) {
+	for k, v := range atValidateMap {
+		switch vv := v.(type) {
+		case []interface{}:
+			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+			extractAtValidatePayloadLevel2(vv, atValidatePayload)
+		case string:
+			utils.Info.Println(k, "is a string:")
+			if (k == "token") {
+			    atValidatePayload.Token = v.(string)
+			} else if (k == "action") {
+			    atValidatePayload.Action = v.(string)
+			} else if (k == "validation") {
+			    atValidatePayload.Validation = v.(string)
+			} else if (k == "paths") {
+			    atValidatePayload.Paths = make([]string, 1)
+			    atValidatePayload.Paths[0] = v.(string)
+			}
+		default:
+			utils.Info.Println(k, "is of an unknown type")
+		}
+	}
+}
+
+func extractAtValidatePayloadLevel2(pathList []interface{}, atValidatePayload *AtValidatePayload) {
+	atValidatePayload.Paths = make([]string, len(pathList))
+	i := 0
+	for k, v := range pathList {
+		switch v.(type) {
+		case string:
+			utils.Info.Println(k, "is a string:")
+			atValidatePayload.Paths[i] = v.(string)
+		default:
+			utils.Info.Println(k, "is of an unknown type")
+		}
+		i++
+	}
 }
 
 func accessTokenResponse(input string) string {
@@ -444,8 +472,8 @@ func generateAt(payload AtGenPayload, context string) string {
 	iat := int(time.Now().Unix())
 	exp := iat + 1*60*60 // 1 hour
 	jwtHeader := `{"alg":"ES256","typ":"JWT"}`
-	jwtPayload := `{"iat":` + strconv.Itoa(iat) + `,"exp":` + strconv.Itoa(exp) + `"scp":"` + payload.Purpose + `"` + `"clx":"` + context +
-		`", "aud": "w3.org/gen2", "jti":"` + string(uuid) + `"}`
+	jwtPayload := `{"iat":` + strconv.Itoa(iat) + `,"exp":` + strconv.Itoa(exp) + `,"scp":"` + payload.Purpose + `"` + `,"clx":"` + context +
+		`","aud": "w3.org/gen2","jti":"` + string(uuid) + `"}`
 	utils.Info.Printf("generateAt:jwtHeader=%s", jwtHeader)
 	utils.Info.Printf("generateAt:jwtPayload=%s", jwtPayload)
 	encodedJwtHeader := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
