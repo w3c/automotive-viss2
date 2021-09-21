@@ -76,7 +76,7 @@ func publishVissV2Request(brokerSocket string, vin string, request string) {
 }
 
 func main() {
-	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	parser := argparse.NewParser("print", "mqtt client")
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
@@ -93,11 +93,6 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	//if len(os.Args) != 2 {
-	//		fmt.Printf("MQTT client command line: ./mqtt_client vin\n")
-	//	os.Exit(1)
-	//}
-	//vin := os.Args[1]
 	utils.TransportErrorMessage = "MQTT client-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("mqtt-client-log.txt", "./logs", *logFile, *logLevel)
 
