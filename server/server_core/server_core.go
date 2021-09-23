@@ -799,8 +799,8 @@ func isValidGetFilter(request string) bool { // paths, history,static-metadata, 
 	}
 	if (strings.Contains(request, "dynamic-metadata") == true) {
 	    if (strings.Contains(request, "value") == true) {
-	        return true
-	    }
+			return true
+		}
 	}
 	return false
 }
@@ -843,8 +843,8 @@ func isValidSubscribeFilter(request string) bool { // paths, history, timebased,
 	if (strings.Contains(request, "curvelog") == true) {
 	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "maxerr") == true && 
 	        strings.Contains(request, "bufsize") == true) {
-	        return true
-	    }
+			return true
+		}
 	}
 	return false
 }
@@ -1034,7 +1034,7 @@ func createPathListFile(listFname string) {
 
 func main() {
 	// Create new parser object
-	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	parser := argparse.NewParser("print", "Server Core")
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{

@@ -9,17 +9,18 @@
 package main
 
 import (
-//    "fmt"
-    "os"
-    "os/exec"
-    "flag"
-//    "net/http"
-    "net/url"
-    "github.com/gorilla/websocket"
-    "strconv"
-    "time"
+	//    "fmt"
+	"os"
+	"os/exec"
+	"flag"
+	//    "net/http"
+	"net/url"
+	"github.com/gorilla/websocket"
+	"strconv"
+	"time"
 
-    "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/akamensky/argparse"
+	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
 const portNum  = 8080 // WS mgr portnum
@@ -200,38 +201,54 @@ func restartServer(addr *string, triggerChannel chan string) (*websocket.Conn, *
         return dataConn, wdTimer
 }
 
-func main () {
-        ipAddr := os.Args[1]
-        if (len(ipAddr) < 10) {
-            utils.Error.Println("Program must be provided server IP address as input.")
-            return
-        }
+func main() {
+	// Create new parser object
+	parser := argparse.NewParser("print", "watchdog")
+	// Create string flag
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+		Required: false,
+		Help:     "changes log output level",
+		Default:  "info"})
+	ipAddr := parser.String("", "ip", &argparse.Options{
+		Required: true,
+		Help:     "Ip adress "})
+
+	// Parse input
+	err := parser.Parse(os.Args)
+	if err != nil {
+		fmt.Print(parser.Usage(err))
+	}
+
+	if len(*ipAddr) < 10 {
+		utils.Error.Println("Program must be provided server IP address as input.")
+		return
+	}
 	triggerChan := make(chan string)
-	utils.InitLog("watchdog-log.txt", "./logs")
-	addr = flag.String("addr", ipAddr+":"+strconv.Itoa(portNum), "http service address")
+	utils.InitLog("watchdog-log.txt", "./logs", *logFile, *logLevel)
+	addr = flag.String("addr", *ipAddr+":"+strconv.Itoa(portNum), "http service address")
 	dataConn := initSubscribeSession(addr)
 	if dataConn == nil {
-                return
+		return
 	}
-        go receiveSubscriptions(dataConn, triggerChan)
-        wdTimer := time.NewTimer(2*subscribePeriod * time.Second)
-        for {
-            select {
-            case <- triggerChan:
-                wdTimer.Stop()
-                wdTimer = time.NewTimer(2*subscribePeriod * time.Second)
-            case <- wdTimer.C:
-//fmt.Println("Gen2 server crashed, restart initiated.")
-                utils.Error.Println("Gen2 server crashed, restart initiated.")
-                dataConn.Close()
-  	        dataConn, wdTimer = restartServer(addr, triggerChan)
-	        if dataConn == nil {
-                    utils.Error.Println("Gen2 server failed to restart.")
-                    return
-	        }
-            default: 
-                time.Sleep(1 * time.Second)
-            }
-        }
+	go receiveSubscriptions(dataConn, triggerChan)
+	wdTimer := time.NewTimer(2 * subscribePeriod * time.Second)
+	for {
+		select {
+		case <-triggerChan:
+			wdTimer.Stop()
+			wdTimer = time.NewTimer(2 * subscribePeriod * time.Second)
+		case <-wdTimer.C:
+			//fmt.Println("Gen2 server crashed, restart initiated.")
+			utils.Error.Println("Gen2 server crashed, restart initiated.")
+			dataConn.Close()
+			dataConn, wdTimer = restartServer(addr, triggerChan)
+			if dataConn == nil {
+				utils.Error.Println("Gen2 server failed to restart.")
+				return
+			}
+		default:
+			time.Sleep(1 * time.Second)
+		}
+	}
 }
-

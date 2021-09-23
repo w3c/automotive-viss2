@@ -136,7 +136,7 @@ services:
             - external
     server_web:
         container_name: server_web
-        image: 'httpd:2.4-alpine'
+        image: 'httpd:2.4.48-buster'
         depends_on:
             - "server_core"
         volumes:

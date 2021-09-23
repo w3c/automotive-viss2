@@ -8,11 +8,11 @@ usage() {
 }
 
 startme() {
-	for service in ${services[@]}; do
+	for service in "${services[@]}"; do
 		echo "Starting $service"
 		mkdir -p logs
 		if [ $service == "service_mgr" ]; then
-		        screen -S service_mgr -dm bash -c "pushd server/service_mgr && go build && mkdir -p logs && ./service_mgr statestorage.db &> ./logs/service_mgr-log.txt && popd"
+		        screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service --dbfile statestorage.db &> ./logs/$service-log.txt && popd"
 		else
  		        screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
 		fi
@@ -25,7 +25,7 @@ startme() {
 }
 
 stopme() {
-	for service in ${services[@]}; do
+	for service in "${services[@]}"; do
 		echo "Stopping $service"
 		screen -X -S $service quit
 		killall -9 $service	

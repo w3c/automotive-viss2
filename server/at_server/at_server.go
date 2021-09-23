@@ -788,7 +788,7 @@ func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
 
 func main() {
 	// Create new parser object
-	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	parser := argparse.NewParser("print", "AT Server")
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{

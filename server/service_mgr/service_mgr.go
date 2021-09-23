@@ -397,7 +397,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
-	case clPack := <-CLChan: // curve logging notification
+		case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		subscriptionState := subscriptionList[index]
 		if clPack.SubscriptionId == closeClSubId {
@@ -828,7 +828,7 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 
 func main() {
 	// Create new parser object
-	parser := argparse.NewParser("print", "Prints provided string to stdout")
+	parser := argparse.NewParser("print", "Service Manager service")
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
@@ -843,6 +843,10 @@ func main() {
 		Required: false,
 		Help:     "Set the path to vsspathlist file",
 		Default:  "../vsspathlist.json"})
+	dbFile := parser.String("", "dbfile", &argparse.Options{
+		Required: false,
+		Help:     "statestorage database filename",
+		Default:  "statestorage.db"})
 
 	// Parse input
 	err := parser.Parse(os.Args)
@@ -854,14 +858,10 @@ func main() {
 	//listExists := createHistoryList("../vsspathlist.json") // file is created by core-server at startup
 
 	utils.InitLog("service-mgr-log.txt", "./logs", *logFile, *logLevel)
-	dbFile := "statestorage.db"
-	if len(os.Args) == 2 {
-		dbFile = os.Args[1]
-	}
-	if utils.FileExists(dbFile) == true {
-		db, dbErr = sql.Open("sqlite3", dbFile)
+	if utils.FileExists(*dbFile) {
+		db, dbErr = sql.Open("sqlite3", *dbFile)
 		if dbErr != nil {
-			utils.Error.Printf("Could not open DB file = %s, err = %s", os.Args[1], dbErr)
+			utils.Error.Printf("Could not open DB file = %s, err = %s", *dbFile, dbErr)
 			os.Exit(1)
 		}
 		defer db.Close()
