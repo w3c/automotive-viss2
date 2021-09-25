@@ -1,1 +1,1 @@
-{"dim2":[{"path1":"Vehicle.Cabin.Infotainment.Navigation.CurrentLocation.Latitude", "path2":"Vehicle.Cabin.Infotainment.Navigation.CurrentLocation.Longitude"}], "dim3":[{"path1":"Vehicle.Acceleration.Lateral", "path2":"Vehicle.Acceleration.Longitudinal", "path3":"Vehicle.Acceleration.Vertical"}]}
+{"dim2":[{"path1":"Vehicle.CurrentLocation.Latitude", "path2":"Vehicle.CurrentLocation.Longitude"}], "dim3":[{"path1":"Vehicle.Acceleration.Lateral", "path2":"Vehicle.Acceleration.Longitudinal", "path3":"Vehicle.Acceleration.Vertical"}]}

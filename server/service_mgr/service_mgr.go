@@ -41,11 +41,12 @@ type RegResponse struct {
 }
 
 type SubscriptionState struct {
-	subscriptionId  int
-	routerId        string
-	path            []string
-	filterList      []utils.FilterObject
-	latestDataPoint string
+	subscriptionId      int
+	SubscriptionThreads int  //only used by subs that spawn multiple threads that return notifications
+	routerId            string
+	path                []string
+	filterList          []utils.FilterObject
+	latestDataPoint     string
 }
 
 var subscriptionId int
@@ -222,6 +223,12 @@ func getSubcriptionStateIndex(subscriptionId int, subscriptionList []Subscriptio
 	return -1
 }
 
+func setSubscriptionListThreads(subscriptionList []SubscriptionState, subThreads SubThreads) []SubscriptionState {
+	index := getSubcriptionStateIndex(subThreads.SubscriptionId, subscriptionList)
+	subscriptionList[index].SubscriptionThreads = subThreads.NumofThreads
+	return subscriptionList
+}
+
 func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) bool {
 	for i := 0; i < len(filterList); i++ {
 		if filterList[i].Type == "paths" || filterList[i].Type == "timebased" || filterList[i].Type == "curvelog" {
@@ -388,7 +395,7 @@ func addDataPackage(incompleteMessage string, dataPack string) string {
 	return incompleteMessage[:len(incompleteMessage)-1] + ", \"data\":" + dataPack + "}"
 }
 
-func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backendChannel chan string, subscriptionList []SubscriptionState) {
+func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backendChannel chan string, subscriptionList []SubscriptionState) []SubscriptionState {
 	var subscriptionMap = make(map[string]interface{})
 	subscriptionMap["action"] = "subscription"
 	select {
@@ -399,12 +406,14 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
 		case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
-		subscriptionState := subscriptionList[index]
-		if clPack.SubscriptionId == closeClSubId {
-			removeFromsubscriptionList(subscriptionList, index)
+		//subscriptionState := subscriptionList[index]
+		subscriptionList[index].SubscriptionThreads--
+		if (clPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0) {
+			subscriptionList = removeFromsubscriptionList(subscriptionList, index)
+			closeClSubId = -1
 		}
-		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-		subscriptionMap["RouterId"] = subscriptionState.routerId
+		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionList[index].subscriptionId)
+		subscriptionMap["RouterId"] = subscriptionList[index].routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), clPack.DataPack)
 	default:
 		// check if range or change notification triggered
@@ -420,6 +429,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 			}
 		}
 	}
+	return subscriptionList
 }
 
 func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId string) (int, []SubscriptionState) {
@@ -436,7 +446,9 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 		utils.Info.Printf("deactivateSubscription: closeClSubId set to %d", closeClSubId)
 		mcloseClSubId.Unlock()
 	}
-	subscriptionList = removeFromsubscriptionList(subscriptionList, index)
+	if getOpType(subscriptionList[index].filterList, "curvelog") == false {
+	    subscriptionList = removeFromsubscriptionList(subscriptionList, index)
+	}
 	return 1, subscriptionList
 }
 
@@ -508,7 +520,7 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 			break
 		}
 		if filterList[i].Type == "curvelog" {
-			go curveLoggingServer(CLChan, subscriptionId, filterList[i].Value, paths)
+			go curveLoggingServer(CLChan, threadsChan, subscriptionId, filterList[i].Value, paths)
 			break
 		}
 	}
@@ -986,8 +998,10 @@ func main() {
 			if dummyValue > 999 {
 				dummyValue = 0
 			}
+		case subThreads := <- threadsChan:
+			subscriptionList = setSubscriptionListThreads(subscriptionList, subThreads)
 		default:
-			checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
+			subscriptionList = checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
 			time.Sleep(50 * time.Millisecond)
 		} // select
 	} // for

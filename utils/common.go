@@ -227,8 +227,8 @@ func unpackFilterLevel1(filterArray []interface{}, fList *[]FilterObject) {
     }
 }
 
-func unpackFilterLevel2(index int, purposeElem map[string]interface{}, fList *[]FilterObject) {
-    for k, v := range purposeElem {
+func unpackFilterLevel2(index int, filterExpression map[string]interface{}, fList *[]FilterObject) {
+    for k, v := range filterExpression {
         switch vv := v.(type) {
           case string:
             Info.Println(k, "is string", vv)
@@ -244,9 +244,7 @@ func unpackFilterLevel2(index int, purposeElem map[string]interface{}, fList *[]
 		Error.Print("UnpackFilter(): JSON array encode failed. ", err)
 	    } else if (k == "value") {
 	        (*fList)[index].Value = string(arrayVal)
-	    } /*else {
-	        (*fList)[index].OpExtra = string(arrayVal)
-	    }*/
+	    }
           case map[string]interface{}:
             Info.Println(k, "is a map:")
             opValue, err := json.Marshal(vv)
