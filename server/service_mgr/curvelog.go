@@ -24,8 +24,13 @@ type CLPack struct {
 	DataPack       string
 	SubscriptionId int
 }
+type SubThreads struct {
+	NumofThreads   int
+	SubscriptionId int
+}
 
 var CLChannel chan CLPack
+var threadsChan chan SubThreads
 
 var closeClSubId int = -1
 var mcloseClSubId = &sync.Mutex{}
@@ -335,7 +340,7 @@ func getSleepDuration(newTime time.Time, oldTime time.Time, wantedDuration int) 
     return sleepDuration - workDuration
 }
 
-func curveLoggingServer(clChan chan CLPack, subscriptionId int, opValue string, paths []string) {
+func curveLoggingServer(clChan chan CLPack, threadsChan chan SubThreads, subscriptionId int, opValue string, paths []string) {
 	maxError, bufSize := getCurveLoggingParams(opValue)
 	if (bufSize > MAXCLBUFSIZE) {
 	    bufSize = MAXCLBUFSIZE
@@ -368,6 +373,11 @@ func curveLoggingServer(clChan chan CLPack, subscriptionId int, opValue string, 
 	    go clCapture3dim(clChan, subscriptionId, dim3List[i], bufSize, maxError)
 	    numOfClSessions++
 	}
+	var subThreads SubThreads
+	subThreads.NumofThreads = len(dim1List) + len(dim2List) + len(dim3List)
+	subThreads.SubscriptionId = subscriptionId
+	threadsChan <- subThreads
+	
 }
 
 func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize int, maxError float64) {
@@ -375,6 +385,7 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
     var dpMap = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
+    var finalDp bool
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -401,13 +412,20 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
             clPack.DataPack = `{"path":"`+ path + `","data":` + data + "}"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
-	    setRingTail(&aRingBuffer, updatedTail)
+            if (updatedTail > 0) {
+	        setRingTail(&aRingBuffer, updatedTail)
+	        finalDp = true
+	    } else {
+	        finalDp = false
+	    }
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    returnSingleDp(clChan, subscriptionId, path)
+    if (finalDp == true) {
+        returnSingleDp(clChan, subscriptionId, path)
+    }
 }
 
 func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
@@ -524,6 +542,7 @@ func clCapture2dim(clChan chan CLPack, subscriptionId int, paths Dim2Elem, bufSi
     var dpMap2 = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
+    var finalDp bool
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -554,14 +573,21 @@ func clCapture2dim(clChan chan CLPack, subscriptionId int, paths Dim2Elem, bufSi
             clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + data1 + "}," + `{"path":"`+ paths.Path2 + `","data":` + data2 + "}]"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
-	    setRingTail(&aRingBuffer1, updatedTail)
-	    setRingTail(&aRingBuffer2, updatedTail)
+            if (updatedTail > 0) {
+	        setRingTail(&aRingBuffer1, updatedTail)
+	        setRingTail(&aRingBuffer2, updatedTail)
+	        finalDp = true
+	    } else {
+	        finalDp = false
+	    }
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    returnSingleDp2(clChan, subscriptionId, paths)
+    if (finalDp == true) {
+        returnSingleDp2(clChan, subscriptionId, paths)
+    }
 }
 
 func clAnalyze2dim(aRingBuffer1 *RingBuffer, aRingBuffer2 *RingBuffer, bufSize int, maxError float64) (string, string, int) {
@@ -641,6 +667,7 @@ func clCapture3dim(clChan chan CLPack, subscriptionId int, paths Dim3Elem, bufSi
     var dpMap3 = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
+    var finalDp bool
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -676,15 +703,22 @@ func clCapture3dim(clChan chan CLPack, subscriptionId int, paths Dim3Elem, bufSi
             clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + data1 + `},{"path":"`+ paths.Path2 + `","data":` + data2 + `},{"path":"`+ paths.Path3 + `","data":` + data3 + "}]"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
-	    setRingTail(&aRingBuffer1, updatedTail)
-	    setRingTail(&aRingBuffer2, updatedTail)
-	    setRingTail(&aRingBuffer3, updatedTail)
+            if (updatedTail > 0) {
+	        setRingTail(&aRingBuffer1, updatedTail)
+	        setRingTail(&aRingBuffer2, updatedTail)
+	        setRingTail(&aRingBuffer3, updatedTail)
+	        finalDp = true
+	    } else {
+	        finalDp = false
+	    }
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    returnSingleDp3(clChan, subscriptionId, paths)
+    if (finalDp == true) {
+        returnSingleDp3(clChan, subscriptionId, paths)
+    }
 }
 
 func clAnalyze3dim(aRingBuffer1 *RingBuffer, aRingBuffer2 *RingBuffer, aRingBuffer3 *RingBuffer, bufSize int, maxError float64) (string, string, string, int) {
