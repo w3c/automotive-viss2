@@ -520,7 +520,7 @@ func verifyToken(token string, action string, paths string, validation int) int 
 
 func isDataMatch(queryData string, response string) bool { // deprecated when new query syntax is introduced, range=x may be supported by service-mgr, but in a different way
 	var responsetMap = make(map[string]interface{})
-	utils.ExtractPayload(response, &responsetMap)
+	utils.MapRequest(response, &responsetMap)
 	utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
 	if responsetMap["value"].(string) == queryData {
 		return true
@@ -855,10 +855,15 @@ func isValidUnsubscribeParams(request string) bool {
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
-	utils.ExtractPayload(request, &requestMap)
-	if validRequest(request, requestMap["action"].(string)) == false {
+	if utils.MapRequest(request, &requestMap) != 0 {
+		utils.Error.Printf("serveRequest():invalid JSON format=%s", request)
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "See VISSv2 spec and JSON RFC for valid request syntax.")
+		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
+		return
+	}
+	if requestMap["action"] == nil || validRequest(request, requestMap["action"].(string)) == false {
 		utils.Error.Printf("serveRequest():invalid action params=%s", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "See VISSv2 spec for valid requests.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "Request parameter invalid.")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}

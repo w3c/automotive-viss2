@@ -47,7 +47,7 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	Info.Printf("backendHttpAppSession(): Message received=%s", message)
 
 	var responseMap = make(map[string]interface{})
-	ExtractPayload(message, &responseMap)
+	MapRequest(message, &responseMap)
 	if responseMap["action"] != nil {
             delete(responseMap, "action")
         }
