@@ -400,7 +400,7 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
 	}
 	mcloseClSubId.Unlock()
         dp := getVehicleData(path)
-	utils.ExtractPayload(dp, &dpMap)
+	utils.MapRequest(dp, &dpMap)
 	_, ts := readRing(&aRingBuffer, 0)  // read latest written
 	if (ts != dpMap["ts"].(string)) {
 	    writeRing(&aRingBuffer, dpMap["value"].(string), dpMap["ts"].(string))
@@ -558,8 +558,8 @@ func clCapture2dim(clChan chan CLPack, subscriptionId int, paths Dim2Elem, bufSi
 	mcloseClSubId.Unlock()
         dp1 := getVehicleData(paths.Path1)
         dp2 := getVehicleData(paths.Path2)
-	utils.ExtractPayload(dp1, &dpMap1)
-	utils.ExtractPayload(dp2, &dpMap2)
+	utils.MapRequest(dp1, &dpMap1)
+	utils.MapRequest(dp2, &dpMap2)
 	_, ts1 := readRing(&aRingBuffer1, 0)
 	_, ts2 := readRing(&aRingBuffer2, 0)
 	if (ts1 != dpMap1["ts"].(string) && ts2 != dpMap2["ts"].(string) && dpMap1["ts"].(string) == dpMap2["ts"].(string)) {
@@ -684,9 +684,9 @@ func clCapture3dim(clChan chan CLPack, subscriptionId int, paths Dim3Elem, bufSi
         dp1 := getVehicleData(paths.Path1)
         dp2 := getVehicleData(paths.Path2)
         dp3 := getVehicleData(paths.Path3)
-	utils.ExtractPayload(dp1, &dpMap1)
-	utils.ExtractPayload(dp2, &dpMap2)
-	utils.ExtractPayload(dp3, &dpMap3)
+	utils.MapRequest(dp1, &dpMap1)
+	utils.MapRequest(dp2, &dpMap2)
+	utils.MapRequest(dp3, &dpMap3)
 	_, ts1 := readRing(&aRingBuffer1, 0)
 	_, ts2 := readRing(&aRingBuffer2, 0)
 	_, ts3 := readRing(&aRingBuffer3, 0)

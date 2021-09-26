@@ -194,7 +194,7 @@ func extractVin(response string) string {
 
 func decomposeMqttPayload(mqttPayload string) (string, string) { // {"topic":"X", "request":"{...}"}
 	var payloadMap = make(map[string]interface{})
-	utils.ExtractPayload(mqttPayload, &payloadMap)
+	utils.MapRequest(mqttPayload, &payloadMap)
 	payload, err := json.Marshal(payloadMap["request"])
 	if err != nil {
 		utils.Error.Printf("decomposeMqttPayload: cannot marshal request in response=%s", mqttPayload)

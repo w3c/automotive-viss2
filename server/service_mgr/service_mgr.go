@@ -639,7 +639,7 @@ func processHistoryCtrl(histCtrlReq string, historyChan chan int, listExists boo
 		return "500 Internal Server Error"
 	}
 	var requestMap = make(map[string]interface{})
-	utils.ExtractPayload(histCtrlReq, &requestMap)
+	utils.MapRequest(histCtrlReq, &requestMap)
 	if requestMap["action"] == nil || requestMap["path"] == nil {
 		utils.Error.Printf("processHistoryCtrl:Missing command param")
 		return "400 Bad Request"
@@ -710,7 +710,7 @@ func convertFromIsoTime(isoTime string) (time.Time, error) {
 
 func processHistoryGet(request string) string { // {"path":"X", "period":"Y"}
 	var requestMap = make(map[string]interface{})
-	utils.ExtractPayload(request, &requestMap)
+	utils.MapRequest(request, &requestMap)
 	index := getHistoryListIndex(requestMap["path"].(string))
 	currentTs := getCurrentUtcTime()
 	periodTime, _ := convertFromIsoTime(requestMap["period"].(string))
@@ -905,7 +905,7 @@ func main() {
 			// TODO: interact with underlying subsystem to get the value
 			var requestMap = make(map[string]interface{})
 			var responseMap = make(map[string]interface{})
-			utils.ExtractPayload(request, &requestMap)
+			utils.MapRequest(request, &requestMap)
 			responseMap["RouterId"] = requestMap["RouterId"]
 			responseMap["action"] = requestMap["action"]
 			responseMap["requestId"] = requestMap["requestId"]
