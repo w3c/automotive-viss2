@@ -1,5 +1,6 @@
 **(C) 2019 Volvo Cars**<br>
 **(C) 2019 Geotab Inc**<br>
+**(C) 2019 Mitsubishi Electric Automotive**<br>
 
 All files and artifacts in this repository are licensed under the provisions of the license provided by the LICENSE file in this repository.
 
