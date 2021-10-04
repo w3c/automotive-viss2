@@ -4,7 +4,7 @@
 
 All files and artifacts in this repository are licensed under the provisions of the license provided by the LICENSE file in this repository.
 
-# W3C_VehicleSignalInterfaceImpl
+# W3C Automotive Interface Implementation - WAII (pronounced wy-ee)
 This project implements the W3C VISS v2 specification under development at <a href="https://github.com/w3c/automotive">W3C Automotive Working Group</a>.<br>
 
 
@@ -12,14 +12,33 @@ This project implements the W3C VISS v2 specification under development at <a hr
 
 This project requires Go version 1.13 or above, make sure your GOROOT and GOPATH are correctly configured. Since this project uses Go modules all dependencies will automatically download when building the project the first time.
 
-launch core-server and all managers by running
-
+The server can be built and started by running the script below. This will build and start the following components, see Fig. 1.
+ - Core server
+ - HTTP manager
+ - Websocket manager
+ - MQTT manager
+ - Vehicle service manager
+ - Access Grant token server
+ - Access Token server 
+ 
+ A subset of these can be started by e. g. removing components from the line below in the W3CServer.sh.
+```
+ services=(server_core service_mgr at_server agt_server http_mgr ws_mgr mqtt_mgr)
+```
+Script start / stop commands:
 ```bash
 #start the servers
 $ ./W3CServer.sh startme
 #stop the servers
 $ ./W3CServer.sh stopme
 ```
+Components can be built separately by issuing
+$ go build 
+in their respective directory.
+Some of them may be possible to start together with a flag set on the command line. 
+To find out about possible flags, they can be started together with the --help flag, e.g.:
+$ ./server_core --help
+
 
 To speed up the first time build you can run the command below in ./ and ./server directory
 

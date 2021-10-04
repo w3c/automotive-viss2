@@ -1046,7 +1046,7 @@ func main() {
 		Required: false,
 		Help:     "changes log output level",
 		Default:  "info"})
-	pathList := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
+	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	// Parse input
 	err := parser.Parse(os.Args)
 	if err != nil {
@@ -1060,7 +1060,7 @@ func main() {
 		return
 	}
 	createPathListFile("../vsspathlist.json") // save in server directory, where transport managers will expect it to be
-	if *pathList {
+	if *dryRun {
 		return
 	}
 
