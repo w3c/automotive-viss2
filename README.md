@@ -32,11 +32,11 @@ $ ./W3CServer.sh startme
 #stop the servers
 $ ./W3CServer.sh stopme
 ```
-Components can be built separately by issuing
-$ go build 
-in their respective directory.
+Components can be built separately by issuing<br>
+$ go build<br>
+in their respective directory.<br>
 Some of them may be possible to start together with a flag set on the command line. 
-To find out about possible flags, they can be started together with the --help flag, e.g.:
+To find out about possible flags, they can be started together with the --help flag, e.g.:<br>
 $ ./server_core --help
 
 
