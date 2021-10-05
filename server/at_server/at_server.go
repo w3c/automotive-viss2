@@ -92,8 +92,8 @@ type RoleElement struct {
 }
 
 type AccessElement struct {
-	Path string
-	Mode string
+	Path       string
+	Permission string
 }
 
 var scopeList map[string]interface{}
@@ -173,7 +173,7 @@ func getPathLen(path string) int {
 	return len(path)
 }
 
-func validateRequestAccess(scope string, action string, paths []string) int {
+func validateRequestAccess(purpose string, action string, paths []string) int {
 	numOfPaths := len(paths)
 	var pathSubList []string
 	for i := 0; i < numOfPaths; i++ {
@@ -194,7 +194,7 @@ func validateRequestAccess(scope string, action string, paths []string) int {
 			pathSubList[0] = paths[i]
 		}
 		for j := 0; j < numOfWildcardPaths; j++ {
-			status := validateScopeAndAccessMode(scope, action, pathSubList[j])
+			status := validatePurposeAndAccessPermission(purpose, action, pathSubList[j])
 			if status != 0 {
 				return status
 			}
@@ -203,12 +203,12 @@ func validateRequestAccess(scope string, action string, paths []string) int {
 	return 0
 }
 
-func validateScopeAndAccessMode(scope string, action string, path string) int {
+func validatePurposeAndAccessPermission(purpose string, action string, path string) int {
 	for i := 0; i < len(pList); i++ {
-		if pList[i].Short == scope {
+		if pList[i].Short == purpose {
 			for j := 0; j < len(pList[i].Access); j++ {
 				if pList[i].Access[j].Path == path {
-					if action == "set" && pList[i].Access[j].Mode == "read-only" {
+					if action == "set" && pList[i].Access[j].Permission == "read-only" {
 						return -16
 					} else {
 						return 0
@@ -286,8 +286,8 @@ func tokenValidationResponse(input string) string {
 		utils.Info.Printf("tokenValidationResponse:invalid signature=%s", atValidatePayload.Token)
 		return `{"validation":"-2"}`
 	}
-	scope := utils.ExtractFromToken(atValidatePayload.Token, "scp")
-	res := validateRequestAccess(scope, atValidatePayload.Action, atValidatePayload.Paths)
+	purpose := utils.ExtractFromToken(atValidatePayload.Token, "pur")
+	res := validateRequestAccess(purpose, atValidatePayload.Action, atValidatePayload.Paths)
 	if res != 0 {
 		utils.Info.Printf("validateRequestAccess fails with result=%d", res)
 		return `{"validation":"` + strconv.Itoa(res) + `"}`
@@ -472,7 +472,7 @@ func generateAt(payload AtGenPayload, context string) string {
 	iat := int(time.Now().Unix())
 	exp := iat + 1*60*60 // 1 hour
 	jwtHeader := `{"alg":"ES256","typ":"JWT"}`
-	jwtPayload := `{"iat":` + strconv.Itoa(iat) + `,"exp":` + strconv.Itoa(exp) + `,"scp":"` + payload.Purpose + `"` + `,"clx":"` + context +
+	jwtPayload := `{"iat":` + strconv.Itoa(iat) + `,"exp":` + strconv.Itoa(exp) + `,"pur":"` + payload.Purpose + `"` + `,"clx":"` + context +
 		`","aud": "w3.org/gen2","jti":"` + string(uuid) + `"}`
 	utils.Info.Printf("generateAt:jwtHeader=%s", jwtHeader)
 	utils.Info.Printf("generateAt:jwtPayload=%s", jwtPayload)
@@ -640,7 +640,7 @@ func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[str
 		if i == "path" {
 			pList[index].Access[k].Path = u.(string)
 		} else {
-			pList[index].Access[k].Mode = u.(string)
+			pList[index].Access[k].Permission = u.(string)
 		}
 	}
 }
