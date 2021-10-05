@@ -36,6 +36,18 @@ import (
 	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
 )
 
+/*
+* Core-server main tasks:
+    - server for transportmgr registrations
+    - server for servicemgr registrations
+    - server in transportmgr data channel requests
+    - client in servicemgr data channel requests
+    - router hub for request-response messages
+    - request message path verification
+    - request message access restriction control
+    - service discovery response synthesis
+*/
+
 var VSSTreeRoot *gomodel.Node_t
 
 // set to MAXFOUNDNODES in cparserlib.h
@@ -60,7 +72,7 @@ var backendChan = []chan string{
 /*
 * To add support for one more transport manager protocol:
 *    - add a map entry to supportedProtocols
-*    - add a komponent to the muxServer array
+*    - add a component to the muxServer array
 *    - add a component to the transportDataChan array
 *    - add a select case in the main loop
  */
@@ -77,20 +89,20 @@ var serviceDataPortNum int = 8200 // port number interval [8200-]
 // add element if support for new service manager is added
 var serviceDataChan = []chan string{
 	make(chan string),
-	make(chan string),
+//	make(chan string),
 }
 
 /** muxServer[0] is assigned to transport registration server,
 *   muxServer[1] is assigned to service registration server,
-*   of the following the first half is assigned for transport data servers,
-*   and the second half is assigned for service data clients
+*   of the following the first part is assigned for transport data servers,
+*   and the second part is assigned for service data servers
 **/
 var muxServer = []*http.ServeMux{
 	http.NewServeMux(), // 0 = transport reg
 	http.NewServeMux(), // 1 = service reg
 	http.NewServeMux(), // 2 = transport data
 	http.NewServeMux(), // 3 = transport data
-	http.NewServeMux(), // 4 = service data
+	http.NewServeMux(), // 4 = transport data
 	http.NewServeMux(), // 5 = service data
 }
 
@@ -113,18 +125,6 @@ var errorResponseMap = map[string]interface{}{
 	"error":     `{"number":AAA, "reason": "BBB", "message": "CCC"}`,
 	"ts":        1234,
 }
-
-/*
-* Core-server main tasks:
-    - server for transportmgr registrations
-    - server for servicemgr registrations
-    - server in transportmgr data channel requests
-    - client in servicemgr data channel requests
-    - router hub for request-response messages
-    - request message path verification
-    - request message access restriction control
-    - service discovery response synthesis
-*/
 
 func routerTableAdd(mgrId int, mgrIndex int) {
 	var tableElement RouterTable_t
@@ -245,7 +245,6 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendC
 	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/" + strconv.Itoa(serviceIndex)}
 	utils.Info.Printf("Connecting to:%s", dataSessionUrl.String())
 	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin": {"*"}})
-	//    dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 	if err != nil {
 		utils.Error.Fatal("Service data session dial error:", err)
 		return nil
@@ -255,8 +254,8 @@ func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendC
 }
 
 func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string, remoteIp string) {
-	time.Sleep(3 * time.Second)                               //wait for service data server to be initiated (initiate at first app-client request instead...)
-	muxIndex := (len(muxServer)-2)/2 + 1 + (serviceIndex + 1) //could be more intuitive...
+	time.Sleep(3 * time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
+	muxIndex := 2 + len(supportedProtocols) + serviceIndex
 	utils.Info.Printf("initServiceClientSession: muxIndex=%d", muxIndex)
 	dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel, remoteIp)
 	for {
@@ -287,14 +286,15 @@ func makeServiceRegisterHandler(serviceIndex *int, backendChannel []chan string)
 				panic(err)
 			}
 			utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s", *serviceIndex, payload.Rootnode)
-			if *serviceIndex < 2 { // communicate: port no + root node to server hub, port no + url path to transport mgr, and start a client session
-				*serviceIndex += 1
+			if *serviceIndex < len(serviceDataChan) { 
 				w.Header().Set("Content-Type", "application/json")
-				response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum+*serviceIndex-1) + " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex-1) + "\"" + " }"
+				response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum+*serviceIndex) + 
+				            " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex) + "\"" + " }"
 
 				utils.Info.Printf("serviceRegisterServer():POST response=%s", response)
 				w.Write([]byte(response))
-				go initServiceClientSession(serviceDataChan[*serviceIndex-1], *serviceIndex-1, backendChannel, remoteIp)
+				go initServiceClientSession(serviceDataChan[*serviceIndex], *serviceIndex, backendChannel, remoteIp)
+				*serviceIndex += 1
 			} else {
 				utils.Info.Printf("serviceRegisterServer():Max number of services already registered.")
 			}
@@ -509,16 +509,6 @@ func verifyToken(token string, action string, paths string, validation int) int 
 	return validateResult
 }
 
-func isDataMatch(queryData string, response string) bool { // deprecated when new query syntax is introduced, range=x may be supported by service-mgr, but in a different way
-	var responsetMap = make(map[string]interface{})
-	utils.MapRequest(response, &responsetMap)
-	utils.Info.Printf("isDataMatch:queryData=%s, value=%s", queryData, responsetMap["value"].(string))
-	if responsetMap["value"].(string) == queryData {
-		return true
-	}
-	return false
-}
-
 func nextQuoteMark(message string) int { // strings.Index() seems to have a problem with finding a quote char
 	for i := 0; i < len(message); i++ {
 		if message[i] == '"' {
@@ -526,28 +516,6 @@ func nextQuoteMark(message string) int { // strings.Index() seems to have a prob
 		}
 	}
 	return -1
-}
-
-func modifyResponse(resp string, aggregatedValue string) string { // "value":"xxx" OR "value":"["xxx","yyy",..]"
-	index := strings.Index(resp, "value") + 5
-	quoteIndex1 := nextQuoteMark(resp[index+1:])
-	utils.Info.Printf("quoteIndex1=%d", quoteIndex1)
-	quoteIndex2 := 0
-	if strings.Contains(resp[index+1:], "\"[") == false {
-		quoteIndex2 = nextQuoteMark(resp[index+1+quoteIndex1+1:])
-	} else {
-		quoteIndex2 = strings.Index(resp[index+1+quoteIndex1+1:], "]\"") + 1
-	}
-	utils.Info.Printf("quoteIndex2=%d", quoteIndex2)
-	return resp[:index+1+quoteIndex1] + aggregatedValue + resp[index+1+quoteIndex1+1+quoteIndex2+1:]
-}
-
-func addQuery(path string) string {
-	queryStart := strings.Index(path, "?")
-	if queryStart != -1 {
-		return path[queryStart:]
-	}
-	return ""
 }
 
 // nativeCnodeDef.h: nodeTypes_t;
