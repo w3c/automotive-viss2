@@ -41,7 +41,6 @@ var VSSTreeRoot *gomodel.Node_t
 // set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
 
-var transportRegChan chan int
 var transportRegPortNum int = 8081
 var transportDataPortNum int = 8100 // port number interval [8100-]
 
@@ -170,7 +169,7 @@ func getRouterId(response string) string { // "RouterId" : "mgrId?clientId",
 * If there is a need to support registering of multiple mgrs for the same protocol,
 * then caching assigned mgr data can be used to assign other unique portno + mgr ID. Currently not supported.
  */
-func maketransportRegisterHandler(transportRegChannel chan int) func(http.ResponseWriter, *http.Request) {
+func maketransportRegisterHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		utils.Info.Printf("transportRegisterServer():url=%s", req.URL.Path)
 		mgrIndex := -1
@@ -195,9 +194,7 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 				}
 			}
 			if mgrIndex != -1 { // communicate: port no + mgr Id to server hub, port no + url path + mgr Id to transport mgr
-				transportRegChannel <- transportDataPortNum + mgrIndex // port no
 				mgrId := rand.Intn(65535)                              // [0 -65535], 16-bit value
-				transportRegChannel <- mgrId                           // mgr id
 				w.Header().Set("Content-Type", "application/json")
 				response := "{ \"Portnum\" : " + strconv.Itoa(transportDataPortNum+mgrIndex) + " , \"Urlpath\" : \"/transport/data/" + strconv.Itoa(mgrIndex) + "\"" + " , \"Mgrid\" : " + strconv.Itoa(mgrId) + " }"
 
@@ -211,9 +208,9 @@ func maketransportRegisterHandler(transportRegChannel chan int) func(http.Respon
 	}
 }
 
-func initTransportRegisterServer(transportRegChannel chan int) {
+func initTransportRegisterServer() {
 	utils.Info.Printf("initTransportRegisterServer(): :8081/transport/reg")
-	transportRegisterHandler := maketransportRegisterHandler(transportRegChannel)
+	transportRegisterHandler := maketransportRegisterHandler()
 	muxServer[0].HandleFunc("/transport/reg", transportRegisterHandler)
 	utils.Error.Fatal(http.ListenAndServe(":8081", muxServer[0]))
 }
@@ -270,7 +267,7 @@ func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, 
 	}
 }
 
-func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) func(http.ResponseWriter, *http.Request) {
+func makeServiceRegisterHandler(serviceIndex *int, backendChannel []chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		var re = regexp.MustCompile(`^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`)
 		remoteIp := re.FindString(req.RemoteAddr)
@@ -291,8 +288,6 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 			}
 			utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s", *serviceIndex, payload.Rootnode)
 			if *serviceIndex < 2 { // communicate: port no + root node to server hub, port no + url path to transport mgr, and start a client session
-				serviceRegChannel <- strconv.Itoa(serviceDataPortNum + *serviceIndex)
-				serviceRegChannel <- payload.Rootnode
 				*serviceIndex += 1
 				w.Header().Set("Content-Type", "application/json")
 				response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum+*serviceIndex-1) + " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex-1) + "\"" + " }"
@@ -307,9 +302,9 @@ func makeServiceRegisterHandler(serviceRegChannel chan string, serviceIndex *int
 	}
 }
 
-func initServiceRegisterServer(serviceRegChannel chan string, serviceIndex *int, backendChannel []chan string) {
+func initServiceRegisterServer(serviceIndex *int, backendChannel []chan string) {
 	utils.Info.Printf("initServiceRegisterServer(): :8082/service/reg")
-	serviceRegisterHandler := makeServiceRegisterHandler(serviceRegChannel, serviceIndex, backendChannel)
+	serviceRegisterHandler := makeServiceRegisterHandler(serviceIndex, backendChannel)
 	muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
 	utils.Error.Fatal(http.ListenAndServe(":8082", muxServer[1]))
 }
@@ -375,10 +370,6 @@ func initTransportDataServers(transportDataChannel []chan string, backendChannel
 	for key, _ := range supportedProtocols {
 		go initTransportDataServer(key, muxServer[key+2], transportDataChannel, backendChannel) //muxelements 0 and one assigned to reg servers
 	}
-}
-
-func updateServiceRouting(portNo string, rootNode string) {
-	utils.Info.Printf("updateServiceRouting(): portnum=%s, rootNode=%s", portNo, rootNode)
 }
 
 func initVssFile() bool {
@@ -1005,10 +996,6 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 }
 
-func updateTransportRoutingTable(mgrId int, portNum int) {
-	utils.Info.Printf("Dummy updateTransportRoutingTable, mgrId=%d, portnum=%d", mgrId, portNum)
-}
-
 type PathList struct {
 	LeafPaths []string
 }
@@ -1061,34 +1048,26 @@ func main() {
 	}
 	createPathListFile("../vsspathlist.json") // save in server directory, where transport managers will expect it to be
 	if *dryRun {
+		utils.Info.Printf("vsspathlist.json created. Job done.")
 		return
 	}
 
 	initTransportDataServers(transportDataChan, backendChan)
 	utils.Info.Printf("main():initTransportDataServers() executed...")
-	transportRegChan := make(chan int, 2*2)
-	go initTransportRegisterServer(transportRegChan)
+	go initTransportRegisterServer()
 	utils.Info.Printf("main():initTransportRegisterServer() executed...")
-	serviceRegChan := make(chan string, 2)
 	serviceIndex := 0 // index assigned to registered services
-	go initServiceRegisterServer(serviceRegChan, &serviceIndex, backendChan)
+	go initServiceRegisterServer(&serviceIndex, backendChan)
 	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
 		select {
-		case portNum := <-transportRegChan: // save port no + transport mgr Id in routing table
-			mgrId := <-transportRegChan
-			updateTransportRoutingTable(mgrId, portNum)
-		case request := <-transportDataChan[0]: // request from transport0 (=HTTP), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
+		case request := <-transportDataChan[0]: // request from HTTP/HTTPS mgr
 			serveRequest(request, 0, 0)
-		case request := <-transportDataChan[1]: // request from transport1 (=WS), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
+		case request := <-transportDataChan[1]: // request from WS/WSS mgr
 			serveRequest(request, 1, 0)
-		case request := <-transportDataChan[2]: // request from transport2 (=MQTT), verify it, and route matches to servicemgr, or execute and respond if servicemgr not needed
+		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
-			//        case xxx := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
-		case portNo := <-serviceRegChan: // save service data portnum and root node in routing table
-			rootNode := <-serviceRegChan
-			updateServiceRouting(portNo, rootNode)
-			//        case xxx := <- serviceDataChan[0]:    // for asynchronous routing, instead of the synchronous above. ToDo?
+//             case xxx := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
 		default:
 			time.Sleep(10 * time.Millisecond)
 		}
