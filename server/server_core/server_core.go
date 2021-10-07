@@ -845,30 +845,6 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 		serviceDataChan[sDChanIndex] <- request
 		return
 	}
-/*	if (requestMap["action"] == "get" && requestMap["path"] != nil &&
-	   requestMap["filter"] != nil && strings.Contains(requestMap["filter"].(string), "static-metadata") == true) {
-		tokenContext := getTokenContext(requestMap)
-		if len(tokenContext) == 0 {
-			tokenContext = "Undefined+Undefined+Undefined"
-		}
-		metadata := ""
-		if requestMap["metadata"] == "static" {
-			metadata = synthesizeJsonTree(requestMap["path"].(string), 0, tokenContext) // TODO: depth setting via filtering?
-		} else {
-			// TODO: get dynamic metadata
-		}
-		if len(metadata) > 0 {
-			delete(requestMap, "path")
-			delete(requestMap, "metadata")
-			requestMap["ts"] = utils.GetRfcTime()
-			backendChan[tDChanIndex] <- utils.AddKeyValue(utils.FinalizeMessage(requestMap), "metadata", metadata)
-			return
-		}
-		utils.Error.Printf("Metadata not available.")
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Metadata not available.")
-		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
-		return
-	}*/
 	issueServiceRequest(requestMap, tDChanIndex, sDChanIndex)
 }
 
