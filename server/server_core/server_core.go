@@ -943,7 +943,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		if requestMap["authorization"] == nil {
 			errorCode = -1
 		} else {
-			if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
+			if requestMap["action"] == "set" || maxValidation == 2 { // no validation for get/subscribe when validation is 1 (write-only)
 				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), paths, maxValidation)
 			}
 		}
@@ -953,7 +953,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			return
 		}
 	default: // should not be possible...
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Access control tag invalid.", "See VISSv2 spec for access control tagging")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
