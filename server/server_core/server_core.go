@@ -309,7 +309,7 @@ func initServiceRegisterServer(serviceIndex *int, backendChannel []chan string) 
 	utils.Error.Fatal(http.ListenAndServe(":8082", muxServer[1]))
 }
 
-func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string) {
+func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string) {
 	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -348,7 +348,7 @@ func makeTransportDataHandler(transportDataChannel chan string, backendChannel c
 				return
 			}
 			utils.Info.Printf("WS data session initiated.")
-			go frontendWSDataSession(conn, transportDataChannel, backendChannel)
+			go frontendWSDataSession(conn, transportDataChannel)
 			go backendWSDataSession(conn, backendChannel)
 		} else {
 			http.Error(w, "400 protocol must be websocket.", 400)

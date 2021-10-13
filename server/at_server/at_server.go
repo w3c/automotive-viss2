@@ -818,6 +818,8 @@ func main() {
 			response := generateResponse(request)
 			utils.Info.Printf("atServer response=%s", response)
 			serverChan <- response
+		default:
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }
