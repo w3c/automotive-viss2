@@ -27,7 +27,7 @@ stopme() {
 	for service in "${services[@]}"; do
 		echo "Stopping $service"
 		screen -X -S $service quit
-		killall -9 $service	
+		#killall -9 $service	
 	done
 	screen -wipe
 }
