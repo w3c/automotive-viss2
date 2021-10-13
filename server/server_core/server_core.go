@@ -309,7 +309,7 @@ func initServiceRegisterServer(serviceIndex *int, backendChannel []chan string) 
 	utils.Error.Fatal(http.ListenAndServe(":8082", muxServer[1]))
 }
 
-func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string, backendChannel chan string) {
+func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string) {
 	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -348,7 +348,7 @@ func makeTransportDataHandler(transportDataChannel chan string, backendChannel c
 				return
 			}
 			utils.Info.Printf("WS data session initiated.")
-			go frontendWSDataSession(conn, transportDataChannel, backendChannel)
+			go frontendWSDataSession(conn, transportDataChannel)
 			go backendWSDataSession(conn, backendChannel)
 		} else {
 			http.Error(w, "400 protocol must be websocket.", 400)
@@ -943,7 +943,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		if requestMap["authorization"] == nil {
 			errorCode = -1
 		} else {
-			if requestMap["action"] != "get" || maxValidation != 1 { // no validation for read requests when validation is 1 (write-only)
+			if requestMap["action"] == "set" || maxValidation == 2 { // no validation for get/subscribe when validation is 1 (write-only)
 				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), paths, maxValidation)
 			}
 		}
@@ -953,7 +953,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			return
 		}
 	default: // should not be possible...
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "VSS access restriction tag invalid.", "See VSS2.0 spec for access restriction tagging")
+		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Access control tag invalid.", "See VISSv2 spec for access control tagging")
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
