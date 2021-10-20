@@ -286,7 +286,7 @@ func tokenValidationResponse(input string) string {
 		utils.Info.Printf("tokenValidationResponse:invalid signature=%s", atValidatePayload.Token)
 		return `{"validation":"-2"}`
 	}
-	purpose := utils.ExtractFromToken(atValidatePayload.Token, "pur")
+	purpose := utils.ExtractFromToken(atValidatePayload.Token, "scp")
 	res := validateRequestAccess(purpose, atValidatePayload.Action, atValidatePayload.Paths)
 	if res != 0 {
 		utils.Info.Printf("validateRequestAccess fails with result=%d", res)
@@ -472,7 +472,7 @@ func generateAt(payload AtGenPayload, context string) string {
 	iat := int(time.Now().Unix())
 	exp := iat + 1*60*60 // 1 hour
 	jwtHeader := `{"alg":"ES256","typ":"JWT"}`
-	jwtPayload := `{"iat":` + strconv.Itoa(iat) + `,"exp":` + strconv.Itoa(exp) + `,"pur":"` + payload.Purpose + `"` + `,"clx":"` + context +
+	jwtPayload := `{"iat":` + strconv.Itoa(iat) + `,"exp":` + strconv.Itoa(exp) + `,"scp":"` + payload.Purpose + `"` + `,"clx":"` + context +
 		`","aud": "w3.org/gen2","jti":"` + string(uuid) + `"}`
 	utils.Info.Printf("generateAt:jwtHeader=%s", jwtHeader)
 	utils.Info.Printf("generateAt:jwtPayload=%s", jwtPayload)
