@@ -1,4 +1,5 @@
 /**
+* (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
@@ -37,7 +38,7 @@ type RegRequest struct {
 
 type SubscriptionState struct {
 	subscriptionId      int
-	SubscriptionThreads int /only used by subs that spawn multiple threads that return notifications
+	SubscriptionThreads int //only used by subs that spawn multiple threads that return notifications
 	routerId            string
 	path                []string
 	filterList          []utils.FilterObject
@@ -402,11 +403,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
-	ase clPack := <-CLChan: // curve logging notification
+	case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		//subscriptionState := subscriptionList[index]
 		subscriptionList[index].SubscriptionThreads--
-		if lPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0 
+		if clPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0 {
 			subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 			closeClSubId = -1
 		}
@@ -445,7 +446,7 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 		mcloseClSubId.Unlock()
 	}
 	if getOpType(subscriptionList[index].filterList, "curvelog") == false {
-	    subscriptionList = removeFromsubscriptionList(subscriptionList, index)
+		subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 	}
 	return 1, subscriptionList
 }
@@ -592,7 +593,7 @@ func createHistoryList(vss_data []byte) bool {
 	}
 
 	utils.Info.Printf("createHistoryList: len(data.Vsspathlist)=%d, len(pathList.LeafPaths)=%d", len(vss_data), len(pathList.LeafPaths))
-	
+
 	historyList = make([]HistoryList, len(pathList.LeafPaths))
 	for i := 0; i < len(pathList.LeafPaths); i++ {
 		historyList[i].Path = pathList.LeafPaths[i]
@@ -1031,7 +1032,7 @@ func main() {
 			if dummyValue > 999 {
 				dummyValue = 0
 			}
-		case subThreads := <- threadsChan:
+		case subThreads := <-threadsChan:
 			subscriptionList = setSubscriptionListThreads(subscriptionList, subThreads)
 		default:
 			subscriptionList = checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
