@@ -1,7 +1,7 @@
 /**
 * (C) 2021 Geotab Inc
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -9,24 +9,29 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"encoding/binary"
-	"bytes"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
-	"strings"
+	"sort"
 	"strconv"
-	"io/ioutil"
-        "time"
-        "sort"
-        "fmt"
+	"strings"
+	"time"
 )
 
 const IpModel = 0 // IpModel = [0,1,2] = [localhost,extIP,envVarIP]
 const IpEnvVarName = "GEN2MODULEIP"
+
+type SvcRegResponse struct {
+	Portnum int
+	Urlpath string
+}
 
 func GetServerIP() string {
 	if value, ok := os.LookupEnv(IpEnvVarName); ok {

@@ -3,7 +3,7 @@
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -33,7 +33,7 @@ import (
 
 	gomodel "github.com/GENIVI/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/GENIVI/vss-tools/binary/go_parser/parserlib"
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/MEAE-GOT/WAII/utils"
 )
 
 /*
@@ -53,7 +53,6 @@ var VSSTreeRoot *gomodel.Node_t
 // set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
 
-var transportRegPortNum int = 8081
 var transportDataPortNum int = 8100 // port number interval [8100-]
 
 // add element to both channels if support for new transport protocol is added
@@ -89,7 +88,7 @@ var serviceDataPortNum int = 8200 // port number interval [8200-]
 // add element if support for new service manager is added
 var serviceDataChan = []chan string{
 	make(chan string),
-//	make(chan string),
+	//	make(chan string),
 }
 
 /** muxServer[0] is assigned to transport registration server,
@@ -159,6 +158,44 @@ func getRouterId(response string) string { // "RouterId" : "mgrId?clientId",
 	routerIdValStop := utils.NextQuoteMark([]byte(response), routerIdValStart)
 	utils.Info.Printf("getRouterId: %s", response[routerIdValStart:routerIdValStop])
 	return response[routerIdValStart:routerIdValStop]
+}
+
+/*
+* The initVssPathListServer shares the VSSPathList to any client requesting it via HTTP GET
+* the VssPathList is a flat list of the VSS nodes that is used by service manager and some
+* of the test client, this server removes the need for copying the vsspathlist.json file
+ */
+func initVssPathListServer(urlPattern string, port int) {
+	utils.Info.Printf("initVssPathListServer(): :%d%s", port, urlPattern)
+	vssPathListRegisterHandler := makeVssPathListRegisterHandler(urlPattern)
+	muxServer[0].HandleFunc(urlPattern, vssPathListRegisterHandler)
+	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), muxServer[0]))
+}
+
+/*
+* Handler for the vsspathlist server
+ */
+func makeVssPathListRegisterHandler(urlPattern string) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != urlPattern {
+			http.Error(w, "404 url path not found.", 404)
+		} else if req.Method != http.MethodGet {
+			http.Error(w, "400 bad request method.", 400)
+		} else {
+			w.Header().Set("Content-Type", "application/json")
+			bytes := readVSSPathList("../vsspathlist.json")
+			utils.Info.Printf("initVssPathListServer():GET response=%s...(truncated to 100 bytes)", bytes[0:101])
+			w.Write(bytes)
+		}
+	}
+}
+
+func readVSSPathList(fname string) []byte {
+	data, err := ioutil.ReadFile(fname)
+	if err != nil {
+		utils.Error.Printf("Error reading %s: %s\n", fname, err)
+	}
+	return data
 }
 
 /*
@@ -286,13 +323,20 @@ func makeServiceRegisterHandler(serviceIndex *int, backendChannel []chan string)
 				panic(err)
 			}
 			utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s", *serviceIndex, payload.Rootnode)
-			if *serviceIndex < len(serviceDataChan) { 
+			if *serviceIndex < len(serviceDataChan) {
 				w.Header().Set("Content-Type", "application/json")
-				response := "{ \"Portnum\" : " + strconv.Itoa(serviceDataPortNum+*serviceIndex) + 
-				            " , \"Urlpath\" : \"/service/data/" + strconv.Itoa(*serviceIndex) + "\"" + " }"
+
+				response, err := json.Marshal(utils.SvcRegResponse{
+					Portnum: serviceDataPortNum + *serviceIndex,
+					Urlpath: "/service/data/" + strconv.Itoa(*serviceIndex),
+				})
+
+				if err != nil {
+					utils.Error.Println(err)
+				}
 
 				utils.Info.Printf("serviceRegisterServer():POST response=%s", response)
-				w.Write([]byte(response))
+				w.Write(response)
 				go initServiceClientSession(serviceDataChan[*serviceIndex], *serviceIndex, backendChannel, remoteIp)
 				*serviceIndex += 1
 			} else {
@@ -1023,6 +1067,7 @@ func main() {
 	utils.Info.Printf("main():initTransportRegisterServer() executed...")
 	serviceIndex := 0 // index assigned to registered services
 	go initServiceRegisterServer(&serviceIndex, backendChan)
+	go initVssPathListServer("/vsspathlist", 16000)
 	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
 		select {

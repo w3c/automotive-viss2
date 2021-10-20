@@ -19,7 +19,7 @@ services:
         build:
             context: .  # context set to repo root
             target: service_mgr
-        entrypoint: [/app/service_mgr, --uds, /app/uds.sock, --vssPathList, vsspathlist.json, --logfile]
+        entrypoint: [/app/service_mgr, --uds, /app/uds.sock, --logfile]
         depends_on:
             - "server_core"
         volumes:

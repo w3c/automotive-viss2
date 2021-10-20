@@ -1,8 +1,9 @@
 /**
+* (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -24,7 +25,7 @@ import (
 	//	"sync"
 	"time"
 
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/MEAE-GOT/WAII/utils"
 	"github.com/akamensky/argparse"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -35,14 +36,9 @@ type RegRequest struct {
 	Rootnode string
 }
 
-type RegResponse struct {
-	Portnum int
-	Urlpath string
-}
-
 type SubscriptionState struct {
 	subscriptionId      int
-	SubscriptionThreads int  //only used by subs that spawn multiple threads that return notifications
+	SubscriptionThreads int //only used by subs that spawn multiple threads that return notifications
 	routerId            string
 	path                []string
 	filterList          []utils.FilterObject
@@ -63,7 +59,7 @@ type HistoryList struct {
 var historyList []HistoryList
 var historyAccessChannel chan string
 
-var hostIp string
+//var hostIp string
 
 var errorResponseMap = map[string]interface{}{
 	"RouterId":  "0?0",
@@ -79,7 +75,7 @@ var isStateStorage = false
 
 var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
 
-func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
+func registerAsServiceMgr(hostIp string, regRequest RegRequest, regResponse *utils.SvcRegResponse) int {
 	url := "http://" + hostIp + ":8082/service/reg"
 	utils.Info.Printf("ServerCore URL %s", url)
 
@@ -120,6 +116,9 @@ func registerAsServiceMgr(regRequest RegRequest, regResponse *RegResponse) int {
 	if err != nil {
 		utils.Error.Fatal("Service mgr: Error JSON decoding of response. ", err)
 	}
+
+	utils.Info.Printf("registerAsServiceMgr: response: port:%d, path=%s\n", regResponse.Portnum, regResponse.Urlpath)
+
 	if regResponse.Portnum <= 0 {
 		utils.Warning.Printf("Service registration denied.\n")
 		return 0
@@ -145,7 +144,7 @@ func makeServiceDataHandler(dataChannel chan string, backendChannel chan string)
 	}
 }
 
-func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendChannel chan string, regResponse RegResponse) {
+func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendChannel chan string, regResponse utils.SvcRegResponse) {
 	serviceDataHandler := makeServiceDataHandler(dataChannel, backendChannel)
 	muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
 	utils.Info.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
@@ -404,11 +403,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
 		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
-		case clPack := <-CLChan: // curve logging notification
+	case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		//subscriptionState := subscriptionList[index]
 		subscriptionList[index].SubscriptionThreads--
-		if (clPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0) {
+		if clPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0 {
 			subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 			closeClSubId = -1
 		}
@@ -447,7 +446,7 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 		mcloseClSubId.Unlock()
 	}
 	if getOpType(subscriptionList[index].filterList, "curvelog") == false {
-	    subscriptionList = removeFromsubscriptionList(subscriptionList, index)
+		subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 	}
 	return 1, subscriptionList
 }
@@ -581,23 +580,20 @@ func unpackPaths(paths string) []string {
 	return pathArray
 }
 
-func createHistoryList(fname string) bool {
+func createHistoryList(vss_data []byte) bool {
 	type PathList struct {
 		LeafPaths []string
 	}
 
 	var pathList PathList
+	err := json.Unmarshal(vss_data, &pathList)
+	if err != nil {
+		utils.Error.Printf("Error unmarshal json, err=%s\n", err)
+		return false
+	}
 
-	data, err := ioutil.ReadFile(fname)
-	if err != nil {
-		utils.Error.Printf("Error reading %s: %s\n", fname, err)
-		return false
-	}
-	err = json.Unmarshal([]byte(data), &pathList)
-	if err != nil {
-		utils.Error.Printf("Error unmarshal json=%s, err=%s\n", data, err)
-		return false
-	}
+	utils.Info.Printf("createHistoryList: len(data.Vsspathlist)=%d, len(pathList.LeafPaths)=%d", len(vss_data), len(pathList.LeafPaths))
+
 	historyList = make([]HistoryList, len(pathList.LeafPaths))
 	for i := 0; i < len(pathList.LeafPaths); i++ {
 		historyList[i].Path = pathList.LeafPaths[i]
@@ -610,8 +606,8 @@ func createHistoryList(fname string) bool {
 	return true
 }
 
-func historyServer(historyAccessChan chan string, udsPath string, vssPathList string) {
-	listExists := createHistoryList(vssPathList) // file is created by core-server at startup
+func historyServer(historyAccessChan chan string, udsPath string, vss_data []byte) {
+	listExists := createHistoryList(vss_data) // file is created by core-server at startup
 	histCtrlChannel := make(chan string)
 	go initHistoryControlServer(histCtrlChannel, udsPath)
 	historyChannel := make(chan int)
@@ -838,6 +834,42 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	return dataPack
 }
 
+func getVssPathList(host string, port int, path string) []byte {
+	url := "http://" + host + ":" + strconv.Itoa(port) + path
+	utils.Info.Printf("url = %s", url)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		utils.Error.Fatal("getVssPathList: Error creating request:: ", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Host", host+":"+strconv.Itoa(port))
+
+	// Set client timeout
+	client := &http.Client{Timeout: time.Second * 10}
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		utils.Error.Fatal("getVssPathList: Error reading response:: ", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		utils.Error.Fatal("getVssPathList::response Status: ", resp.Status)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		utils.Error.Fatal("getVssPathList::Error reading response. ", err)
+	}
+
+	utils.Info.Printf("getVssPathList fetched %d bytes", len(data))
+	return data
+}
+
 func main() {
 	// Create new parser object
 	parser := argparse.NewParser("print", "Service Manager service")
@@ -851,10 +883,6 @@ func main() {
 		Required: false,
 		Help:     "Set UDS path and file",
 		Default:  "/tmp/vissv2/histctrlserver.sock"})
-	vssPathList := parser.String("", "vssPathList", &argparse.Options{
-		Required: false,
-		Help:     "Set the path to vsspathlist file",
-		Default:  "../vsspathlist.json"})
 	dbFile := parser.String("", "dbfile", &argparse.Options{
 		Required: false,
 		Help:     "statestorage database filename",
@@ -880,8 +908,7 @@ func main() {
 		isStateStorage = true
 	}
 
-	hostIp = utils.GetModelIP(2)
-	var regResponse RegResponse
+	var regResponse utils.SvcRegResponse
 	dataChan := make(chan string)
 	backendChan := make(chan string)
 	regRequest := RegRequest{Rootnode: "Vehicle"}
@@ -891,13 +918,20 @@ func main() {
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
 
-	if registerAsServiceMgr(regRequest, &regResponse) == 0 {
+	var serverCoreIP string = utils.GetModelIP(2)
+
+	if registerAsServiceMgr(serverCoreIP, regRequest, &regResponse) == 0 {
 		return
 	}
+
+	vss_data := getVssPathList(serverCoreIP, 16000, "/vsspathlist")
+
 	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
-	go historyServer(historyAccessChannel, *udsPath, *vssPathList)
+
+	go historyServer(historyAccessChannel, *udsPath, vss_data)
+
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
-	utils.Info.Printf("initDataServer() done\n")
+
 	for {
 		select {
 		case request := <-dataChan: // request from server core
@@ -998,7 +1032,7 @@ func main() {
 			if dummyValue > 999 {
 				dummyValue = 0
 			}
-		case subThreads := <- threadsChan:
+		case subThreads := <-threadsChan:
 			subscriptionList = setSubscriptionListThreads(subscriptionList, subThreads)
 		default:
 			subscriptionList = checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
