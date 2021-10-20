@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/MEAE-GOT/WAII/utils"
 	"github.com/akamensky/argparse"
 	log "github.com/sirupsen/logrus"
-	//	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/signal_broker"
 )
 
 func main() {

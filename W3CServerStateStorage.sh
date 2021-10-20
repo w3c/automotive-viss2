@@ -34,7 +34,7 @@ stopme() {
 }
 
 #configureme() {
-#ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
+#ln -s <absolute-path-to-dir-of-git-root>/WAII/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
 #}
 
 if [ $# -ne 1 ]

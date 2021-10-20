@@ -2,7 +2,7 @@
 * (C) 2019 Geotab
 * (C) 2019 Volvo Cars
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	"github.com/MEAE-GOT/WAII/utils"
 	"github.com/akamensky/argparse"
 	"github.com/gorilla/websocket"
 )
