@@ -12,20 +12,19 @@ package main
 
 import (
 	//   "fmt"
-	"flag"
+
 	"fmt"
+	"log"
 	"os"
-	"regexp"
 
 	"github.com/akamensky/argparse"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -53,8 +52,6 @@ var VSSTreeRoot *gomodel.Node_t
 // set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
 
-var transportDataPortNum int = 8100 // port number interval [8100-]
-
 // add element to both channels if support for new transport protocol is added
 var transportDataChan = []chan string{
 	make(chan string),
@@ -68,21 +65,6 @@ var backendChan = []chan string{
 	make(chan string),
 }
 
-/*
-* To add support for one more transport manager protocol:
-*    - add a map entry to supportedProtocols
-*    - add a component to the muxServer array
-*    - add a component to the transportDataChan array
-*    - add a select case in the main loop
- */
-var supportedProtocols = map[int]string{
-	0: "HTTP",
-	1: "WebSocket",
-	2: "MQTT",
-}
-
-var serviceRegChan chan string
-var serviceRegPortNum int = 8082
 var serviceDataPortNum int = 8200 // port number interval [8200-]
 
 // add element if support for new service manager is added
@@ -103,11 +85,6 @@ var muxServer = []*http.ServeMux{
 	http.NewServeMux(), // 3 = transport data
 	http.NewServeMux(), // 4 = transport data
 	http.NewServeMux(), // 5 = service data
-}
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
 }
 
 type RouterTable_t struct {
@@ -160,98 +137,6 @@ func getRouterId(response string) string { // "RouterId" : "mgrId?clientId",
 	return response[routerIdValStart:routerIdValStop]
 }
 
-/*
-* The initVssPathListServer shares the VSSPathList to any client requesting it via HTTP GET
-* the VssPathList is a flat list of the VSS nodes that is used by service manager and some
-* of the test client, this server removes the need for copying the vsspathlist.json file
- */
-func initVssPathListServer(urlPattern string, port int) {
-	utils.Info.Printf("initVssPathListServer(): :%d%s", port, urlPattern)
-	vssPathListRegisterHandler := makeVssPathListRegisterHandler(urlPattern)
-	muxServer[0].HandleFunc(urlPattern, vssPathListRegisterHandler)
-	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(port), muxServer[0]))
-}
-
-/*
-* Handler for the vsspathlist server
- */
-func makeVssPathListRegisterHandler(urlPattern string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != urlPattern {
-			http.Error(w, "404 url path not found.", 404)
-		} else if req.Method != http.MethodGet {
-			http.Error(w, "400 bad request method.", 400)
-		} else {
-			w.Header().Set("Content-Type", "application/json")
-			bytes := readVSSPathList("../vsspathlist.json")
-			utils.Info.Printf("initVssPathListServer():GET response=%s...(truncated to 100 bytes)", bytes[0:101])
-			w.Write(bytes)
-		}
-	}
-}
-
-func readVSSPathList(fname string) []byte {
-	data, err := ioutil.ReadFile(fname)
-	if err != nil {
-		utils.Error.Printf("Error reading %s: %s\n", fname, err)
-	}
-	return data
-}
-
-/*
-* The transportRegisterServer assigns a requesting transport mgr the data channel port number to use,
-* the data channel URL path, and the transport mgr ID that shall be added to the server internal req/resp messages.
-* This is communicated to the coreserver that will save it in its router database.
-* The port number returned is unique per protocol supported.
-* If there is a need to support registering of multiple mgrs for the same protocol,
-* then caching assigned mgr data can be used to assign other unique portno + mgr ID. Currently not supported.
- */
-func maketransportRegisterHandler() func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		utils.Info.Printf("transportRegisterServer():url=%s", req.URL.Path)
-		mgrIndex := -1
-		if req.URL.Path != "/transport/reg" {
-			http.Error(w, "404 url path not found.", 404)
-		} else if req.Method != "POST" {
-			http.Error(w, "400 bad request method.", 400)
-		} else {
-			type Payload struct {
-				Protocol string
-			}
-			decoder := json.NewDecoder(req.Body)
-			var payload Payload
-			err := decoder.Decode(&payload)
-			if err != nil {
-				panic(err)
-			}
-			utils.Info.Printf("transportRegisterServer():POST request=%s", payload.Protocol)
-			for key, value := range supportedProtocols {
-				if payload.Protocol == value {
-					mgrIndex = key
-				}
-			}
-			if mgrIndex != -1 { // communicate: port no + mgr Id to server hub, port no + url path + mgr Id to transport mgr
-				mgrId := rand.Intn(65535)                              // [0 -65535], 16-bit value
-				w.Header().Set("Content-Type", "application/json")
-				response := "{ \"Portnum\" : " + strconv.Itoa(transportDataPortNum+mgrIndex) + " , \"Urlpath\" : \"/transport/data/" + strconv.Itoa(mgrIndex) + "\"" + " , \"Mgrid\" : " + strconv.Itoa(mgrId) + " }"
-
-				utils.Info.Printf("transportRegisterServer():POST response=%s", response)
-				w.Write([]byte(response)) // correct JSON?
-				routerTableAdd(mgrId, mgrIndex)
-			} else {
-				http.Error(w, "404 protocol not supported.", 404)
-			}
-		}
-	}
-}
-
-func initTransportRegisterServer() {
-	utils.Info.Printf("initTransportRegisterServer(): :8081/transport/reg")
-	transportRegisterHandler := maketransportRegisterHandler()
-	muxServer[0].HandleFunc("/transport/reg", transportRegisterHandler)
-	utils.Error.Fatal(http.ListenAndServe(":8081", muxServer[0]))
-}
-
 func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
 	err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
 	if err != nil {
@@ -271,86 +156,6 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 		utils.Info.Printf("mgrIndex=%d", mgrIndex)
 		backendChannel[mgrIndex] <- string(response)
 	}
-}
-
-/**
-* initServiceDataSession:
-* sets up the WS based communication (as client) with a service manager
-**/
-func initServiceDataSession(muxServer *http.ServeMux, serviceIndex int, backendChannel []chan string, remoteIp string) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", remoteIp+":"+strconv.Itoa(serviceDataPortNum+serviceIndex), "http service address")
-	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: "/service/data/" + strconv.Itoa(serviceIndex)}
-	utils.Info.Printf("Connecting to:%s", dataSessionUrl.String())
-	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), http.Header{"Access-Control-Allow-Origin": {"*"}})
-	if err != nil {
-		utils.Error.Fatal("Service data session dial error:", err)
-		return nil
-	}
-	go backendServiceDataComm(dataConn, backendChannel, serviceIndex)
-	return dataConn
-}
-
-func initServiceClientSession(serviceDataChannel chan string, serviceIndex int, backendChannel []chan string, remoteIp string) {
-	time.Sleep(3 * time.Second)  //wait for service data server to be initiated (initiate at first app-client request instead...)
-	muxIndex := 2 + len(supportedProtocols) + serviceIndex
-	utils.Info.Printf("initServiceClientSession: muxIndex=%d", muxIndex)
-	dataConn := initServiceDataSession(muxServer[muxIndex], serviceIndex, backendChannel, remoteIp)
-	for {
-		select {
-		case request := <-serviceDataChannel:
-			frontendServiceDataComm(dataConn, request)
-		}
-	}
-}
-
-func makeServiceRegisterHandler(serviceIndex *int, backendChannel []chan string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		var re = regexp.MustCompile(`^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`)
-		remoteIp := re.FindString(req.RemoteAddr)
-		utils.Info.Printf("serviceRegisterServer():remoteIp=%s, path=%s", remoteIp, req.URL.Path)
-		if req.URL.Path != "/service/reg" {
-			http.Error(w, "404 url path not found.", 404)
-		} else if req.Method != "POST" {
-			http.Error(w, "400 bad request method.", 400)
-		} else {
-			type Payload struct {
-				Rootnode string
-			}
-			decoder := json.NewDecoder(req.Body)
-			var payload Payload
-			err := decoder.Decode(&payload)
-			if err != nil {
-				panic(err)
-			}
-			utils.Info.Printf("serviceRegisterServer(index=%d):received POST request=%s", *serviceIndex, payload.Rootnode)
-			if *serviceIndex < len(serviceDataChan) {
-				w.Header().Set("Content-Type", "application/json")
-
-				response, err := json.Marshal(utils.SvcRegResponse{
-					Portnum: serviceDataPortNum + *serviceIndex,
-					Urlpath: "/service/data/" + strconv.Itoa(*serviceIndex),
-				})
-
-				if err != nil {
-					utils.Error.Println(err)
-				}
-
-				utils.Info.Printf("serviceRegisterServer():POST response=%s", response)
-				w.Write(response)
-				go initServiceClientSession(serviceDataChan[*serviceIndex], *serviceIndex, backendChannel, remoteIp)
-				*serviceIndex += 1
-			} else {
-				utils.Info.Printf("serviceRegisterServer():Max number of services already registered.")
-			}
-		}
-	}
-}
-
-func initServiceRegisterServer(serviceIndex *int, backendChannel []chan string) {
-	utils.Info.Printf("initServiceRegisterServer(): :8082/service/reg")
-	serviceRegisterHandler := makeServiceRegisterHandler(serviceIndex, backendChannel)
-	muxServer[1].HandleFunc("/service/reg", serviceRegisterHandler)
-	utils.Error.Fatal(http.ListenAndServe(":8082", muxServer[1]))
 }
 
 func frontendWSDataSession(conn *websocket.Conn, transportDataChannel chan string) {
@@ -378,41 +183,6 @@ func backendWSDataSession(conn *websocket.Conn, backendChannel chan string) {
 			utils.Error.Print("write error data WS protocol.", err)
 			break
 		}
-	}
-}
-
-func makeTransportDataHandler(transportDataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Header.Get("Upgrade") == "websocket" {
-			utils.Info.Printf("we are upgrading to a websocket connection.")
-			upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-			conn, err := upgrader.Upgrade(w, req, nil)
-			if err != nil {
-				utils.Error.Print("upgrade:", err)
-				return
-			}
-			utils.Info.Printf("WS data session initiated.")
-			go frontendWSDataSession(conn, transportDataChannel)
-			go backendWSDataSession(conn, backendChannel)
-		} else {
-			http.Error(w, "400 protocol must be websocket.", 400)
-		}
-	}
-}
-
-/**
-*  All transport data servers implement a WS server which communicates with a transport protocol manager.
-**/
-func initTransportDataServer(mgrIndex int, muxServer *http.ServeMux, transportDataChannel []chan string, backendChannel []chan string) {
-	utils.Info.Printf("initTransportDataServer():mgrIndex=%d", mgrIndex)
-	transportDataHandler := makeTransportDataHandler(transportDataChannel[mgrIndex], backendChannel[mgrIndex])
-	muxServer.HandleFunc("/transport/data/"+strconv.Itoa(mgrIndex), transportDataHandler)
-	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(transportDataPortNum+mgrIndex), muxServer))
-}
-
-func initTransportDataServers(transportDataChannel []chan string, backendChannel []chan string) {
-	for key, _ := range supportedProtocols {
-		go initTransportDataServer(key, muxServer[key+2], transportDataChannel, backendChannel) //muxelements 0 and one assigned to reg servers
 	}
 }
 
@@ -765,43 +535,47 @@ func getTokenContext(reqMap map[string]interface{}) string {
 }
 
 func validRequest(request string, action string) bool {
-	switch (action) {
-	  case "get": return isValidGetParams(request)
-	  case "set": return isValidSetParams(request)
-	  case "subscribe": return isValidSubscribeParams(request)
-	  case "unsubscribe": return isValidUnsubscribeParams(request)
+	switch action {
+	case "get":
+		return isValidGetParams(request)
+	case "set":
+		return isValidSetParams(request)
+	case "subscribe":
+		return isValidSubscribeParams(request)
+	case "unsubscribe":
+		return isValidUnsubscribeParams(request)
 	}
 	return false
 }
 
 func isValidGetParams(request string) bool {
-	if (strings.Contains(request, "path") == false) {
-	    return false
+	if strings.Contains(request, "path") == false {
+		return false
 	}
-	if (strings.Contains(request, "filter") == true) {
-	    return isValidGetFilter(request)  
+	if strings.Contains(request, "filter") == true {
+		return isValidGetFilter(request)
 	}
 	return true
 }
 
 func isValidGetFilter(request string) bool { // paths, history,static-metadata, dynamic-metadata supported
-	if (strings.Contains(request, "paths") == true) {
-	    if (strings.Contains(request, "value") == true) {
-	        return true
-	    }
+	if strings.Contains(request, "paths") == true {
+		if strings.Contains(request, "value") == true {
+			return true
+		}
 	}
-	if (strings.Contains(request, "history") == true) {
-	    if (strings.Contains(request, "value") == true) {
-	        return true
-	    }
+	if strings.Contains(request, "history") == true {
+		if strings.Contains(request, "value") == true {
+			return true
+		}
 	}
-	if (strings.Contains(request, "static-metadata") == true) {
-	    if (strings.Contains(request, "value") == true) {
-	        return true
-	    }
+	if strings.Contains(request, "static-metadata") == true {
+		if strings.Contains(request, "value") == true {
+			return true
+		}
 	}
-	if (strings.Contains(request, "dynamic-metadata") == true) {
-	    if (strings.Contains(request, "value") == true) {
+	if strings.Contains(request, "dynamic-metadata") == true {
+		if strings.Contains(request, "value") == true {
 			return true
 		}
 	}
@@ -813,39 +587,39 @@ func isValidSetParams(request string) bool {
 }
 
 func isValidSubscribeParams(request string) bool {
-	if (strings.Contains(request, "path") == false) {
-	    return false
+	if strings.Contains(request, "path") == false {
+		return false
 	}
-	if (strings.Contains(request, "filter") == true) {
-	    return isValidSubscribeFilter(request)  
+	if strings.Contains(request, "filter") == true {
+		return isValidSubscribeFilter(request)
 	}
 	return true
 }
 
 func isValidSubscribeFilter(request string) bool { // paths, history, timebased, range, change, curvelog, static-metadata, dynamic-metadata supported
-	if (isValidGetFilter(request) == true) {
-	    return true
+	if isValidGetFilter(request) == true {
+		return true
 	}
-	if (strings.Contains(request, "timebased") == true) {
-	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "period") == true) {
-	        return true
-	    }
+	if strings.Contains(request, "timebased") == true {
+		if strings.Contains(request, "value") == true && strings.Contains(request, "period") == true {
+			return true
+		}
 	}
-	if (strings.Contains(request, "range") == true) {
-	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "logic-op") == true && 
-	        strings.Contains(request, "boundary") == true) {
-	        return true
-	    }
+	if strings.Contains(request, "range") == true {
+		if strings.Contains(request, "value") == true && strings.Contains(request, "logic-op") == true &&
+			strings.Contains(request, "boundary") == true {
+			return true
+		}
 	}
-	if (strings.Contains(request, "change") == true) {
-	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "logic-op") == true && 
-	        strings.Contains(request, "diff") == true) {
-	        return true
-	    }
+	if strings.Contains(request, "change") == true {
+		if strings.Contains(request, "value") == true && strings.Contains(request, "logic-op") == true &&
+			strings.Contains(request, "diff") == true {
+			return true
+		}
 	}
-	if (strings.Contains(request, "curvelog") == true) {
-	    if (strings.Contains(request, "value") == true  && strings.Contains(request, "maxerr") == true && 
-	        strings.Contains(request, "bufsize") == true) {
+	if strings.Contains(request, "curvelog") == true {
+		if strings.Contains(request, "value") == true && strings.Contains(request, "maxerr") == true &&
+			strings.Contains(request, "bufsize") == true {
 			return true
 		}
 	}
@@ -1043,6 +817,8 @@ func main() {
 		Help:     "changes log output level",
 		Default:  "info"})
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
+	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
+
 	// Parse input
 	err := parser.Parse(os.Args)
 	if err != nil {
@@ -1055,19 +831,35 @@ func main() {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
-	createPathListFile("../vsspathlist.json") // save in server directory, where transport managers will expect it to be
+	createPathListFile(*vssJson) // save in server directory, where transport managers will expect it to be
 	if *dryRun {
 		utils.Info.Printf("vsspathlist.json created. Job done.")
 		return
 	}
 
-	initTransportDataServers(transportDataChan, backendChan)
-	utils.Info.Printf("main():initTransportDataServers() executed...")
-	go initTransportRegisterServer()
-	utils.Info.Printf("main():initTransportRegisterServer() executed...")
 	serviceIndex := 0 // index assigned to registered services
-	go initServiceRegisterServer(&serviceIndex, backendChan)
-	go initVssPathListServer("/vsspathlist", 16000)
+	router := mux.NewRouter()
+	router.HandleFunc("/vsspathlist", pathList.vssPathListHandler).Methods("GET")
+	router.HandleFunc("/service/reg", makeServiceRegisterHandler(&serviceIndex, backendChan)).Methods("POST")
+	router.HandleFunc("/transport/reg", transportRegisterHandler).Methods("POST")
+	router.HandleFunc("/transport/data/{protocol}", makeTransportDataHandler(transportDataChan, backendChan)).
+		Headers("Upgrade", "websocket")
+
+	srv := &http.Server{
+		Addr:         "0.0.0.0:8081",
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      router,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatal("ListenAndServe: ", err)
+		}
+		utils.Info.Printf("Server is listening on %s", srv.Addr)
+	}()
+
 	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
 		select {
@@ -1077,9 +869,7 @@ func main() {
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
-//             case xxx := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
-		default:
-			time.Sleep(10 * time.Millisecond)
+			//  case xxx := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
 		}
 	}
 }
