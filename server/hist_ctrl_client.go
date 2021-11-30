@@ -10,11 +10,11 @@
 package main
 
 import (
-	"net"
 	"fmt"
+	"net"
 	"os"
+
 	"github.com/MEAE-GOT/WAII/utils"
-	"github.com/mattn/go-sqlite3"
 )
 
 func main() {

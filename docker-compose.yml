@@ -10,8 +10,13 @@ services:
             - GEN2MODULEIP=atserver
         volumes:
             - ./logs:/app/logs
+        ports: # for testing can be removed 
+            - "8081:8081"
         networks:
             internal:
+                aliases:
+                    - srvcore
+            external: # for testing can be removed 
                 aliases:
                     - srvcore
     mgr_service:

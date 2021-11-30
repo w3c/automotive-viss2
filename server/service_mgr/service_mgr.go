@@ -76,7 +76,7 @@ var isStateStorage = false
 var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
 
 func registerAsServiceMgr(hostIp string, regRequest RegRequest, regResponse *utils.SvcRegResponse) int {
-	url := "http://" + hostIp + ":8082/service/reg"
+	url := "http://" + hostIp + ":8081/service/reg"
 	utils.Info.Printf("ServerCore URL %s", url)
 
 	data := []byte(`{"Rootnode": "` + regRequest.Rootnode + `"}`)
@@ -88,7 +88,7 @@ func registerAsServiceMgr(hostIp string, regRequest RegRequest, regResponse *uti
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", hostIp+":8082")
+	req.Header.Set("Host", hostIp+":8081")
 
 	// Set client timeout
 	client := &http.Client{Timeout: time.Second * 10}
@@ -924,12 +924,9 @@ func main() {
 		return
 	}
 
-	vss_data := getVssPathList(serverCoreIP, 16000, "/vsspathlist")
-
+	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
 	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
-
 	go historyServer(historyAccessChannel, *udsPath, vss_data)
-
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
 
 	for {
