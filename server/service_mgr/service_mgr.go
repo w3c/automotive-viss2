@@ -96,10 +96,16 @@ func registerAsServiceMgr(hostIp string, regRequest RegRequest, regResponse *uti
 	// Validate headers are attached
 	utils.Info.Println(req.Header)
 
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		utils.Error.Fatal("registerAsServiceMgr: Error reading response. ", err)
+	// Send request loop until connection succeeds
+	var resp *http.Response
+	for {
+		resp, err = client.Do(req)
+		if err != nil {
+			utils.Error.Error("registerAsServiceMgr: Error reading response. ", err)
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
 	defer resp.Body.Close()
 

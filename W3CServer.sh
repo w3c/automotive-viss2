@@ -16,9 +16,6 @@ startme() {
 		else
 			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
 		fi
-		if [ $service == "server_core" ]; then
-			sleep 10s
-		fi
 	done
 	screen -list
 }
