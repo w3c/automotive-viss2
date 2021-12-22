@@ -1,0 +1,236 @@
+syntax = "proto3";
+package protobufMessages;
+
+//import "google/protobuf/timestamp.proto";
+option go_package = "./";
+
+enum MessageMethod {
+    GET = 0;
+    SET = 1;
+    SUBSCRIBE = 2;
+    UNSUBSCRIBE = 3;
+}
+
+enum MessageType {
+    REQUEST = 0;
+    RESPONSE = 1;
+    NOTIFICATION = 2;
+}
+
+enum ResponseStatus {
+    SUCCESS = 0;
+    ERROR = 1;
+}
+
+message ErrorResponseMessage {
+    string Action = 1;
+    message ErrorMessage {
+        string Number = 1;
+        optional string Reason = 2;
+        optional string Message = 3;
+    }
+    ErrorMessage Err = 2;
+    optional string RequestId = 3;
+    optional string SubscriptionId = 4;  // used by notifications
+    string Ts = 5;
+}
+
+message FilterExpressions {
+  message FilterExpression {
+    enum FilterType {
+        PATHS = 0;
+        TIMEBASED = 1;
+        RANGE = 2;
+        CHANGE = 3;
+        CURVELOG = 4;
+        HISTORY = 5;
+        STATIC_METADATA = 6;
+        DYNAMIC_METADATA = 7;
+    }
+    FilterType FType = 1;
+
+    message FilterValue {
+        message PathsValue {
+            repeated string RelativePath = 1;
+        }
+        optional PathsValue ValuePaths = 1;
+
+        message TimebasedValue {
+            string Period = 1;
+        }
+        optional TimebasedValue ValueTimebased = 2;
+
+        message RangeValue {
+            string LogicOperator = 1;
+            string Boundary = 2;
+        }
+        repeated RangeValue ValueRange = 3;
+
+        message ChangeValue {
+            string LogicOperator = 1;
+            string Diff = 2;
+        }
+        optional ChangeValue ValueChange = 4;
+
+        message CurvelogValue {
+            string MaxErr = 1;
+            string BufSize = 2;
+        }
+        optional CurvelogValue ValueCurvelog = 5;
+
+        message HistoryValue {
+            string TimePeriod = 1;  //ISO8601 period expression
+        }
+        optional HistoryValue ValueHistory = 6;
+
+        message StaticMetadataValue {
+            string Tree = 1;
+        }
+        optional StaticMetadataValue ValueStaticMetadata = 7;
+
+        message DynamicMetadataValue {
+            string MetadataDomain = 1;
+        }
+        optional DynamicMetadataValue ValueDynamicMetadata = 8;
+    }
+    FilterValue Value = 2;
+  }
+  repeated FilterExpression FilterExp = 1;
+}
+
+message DataPackages {
+    message DataPackage {
+        string Path = 1;
+
+        message DataPoint {
+            string Value = 1;
+            string Ts = 2;
+        }
+        repeated DataPoint Dp = 2;
+    }
+    repeated DataPackage Data = 1;
+}
+
+message GetMessage {
+    MessageType MType = 1;
+
+    message RequestMessage {
+        string Action = 1;
+        string Path = 2;
+        optional FilterExpressions Filter = 3;
+        optional string Authorization = 4;
+        optional string RequestId = 5;
+    }
+    optional RequestMessage Request = 2;
+
+    message ResponseMessage {
+        ResponseStatus Status = 1;
+        message SuccessResponseMessage {
+            string Action = 1;
+            optional DataPackages DataPack = 2;
+            optional string Metadata = 3; // replaces DataPack in static metadata and one dynamic metadata variant
+            optional string RequestId = 4;
+            string Ts = 5;
+        }
+        optional SuccessResponseMessage SuccessResponse = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+    }
+    optional ResponseMessage Response = 3;
+}
+
+message SetMessage {
+    MessageType MType = 1;
+
+    message RequestMessage {
+        string Action = 1;
+        string Path = 2;
+        string Value = 3;
+        optional string Authorization = 4;
+        optional string RequestId = 5;
+    }
+    optional RequestMessage Request = 2;
+
+    message ResponseMessage {
+        ResponseStatus Status = 1;
+        message SuccessResponseMessage {
+            string Action = 1;
+            optional string RequestId = 2;
+            string Ts = 3;
+        }
+        optional SuccessResponseMessage SuccessResponse = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+    }
+    optional ResponseMessage Response = 3;
+}
+
+message SubscribeMessage {
+    MessageType MType = 1;
+
+    message RequestMessage {
+        string Action = 1;
+        string Path = 2;
+        optional FilterExpressions Filter = 3;
+        optional string Authorization = 4;
+        string RequestId = 5;
+    }
+    optional RequestMessage Request = 2;
+
+    message ResponseMessage {
+        ResponseStatus Status = 1;
+        message SuccessResponseMessage {
+            string Action = 1;
+            string SubscriptionId = 2;
+            string RequestId = 3;
+            string Ts = 4;
+        }
+        optional SuccessResponseMessage SuccessResponse = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+    }
+    optional ResponseMessage Response = 3;
+
+    message NotificationMessage {
+        ResponseStatus Status = 1;
+        message SuccessResponseMessage {
+            string Action = 1;
+            string SubscriptionId = 2;
+            DataPackages DataPack = 3;
+            string Ts = 4;
+        }
+        optional SuccessResponseMessage SuccessResponse = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+    }
+    optional NotificationMessage Notification = 4;
+}
+
+message UnSubscribeMessage {
+    MessageType MType = 1;
+
+    message RequestMessage {
+        string Action = 1;
+        string SubscriptionId = 2;
+        optional string RequestId = 3;
+    }
+    optional RequestMessage Request = 2;
+
+    message ResponseMessage {
+        ResponseStatus Status = 1;
+        message SuccessResponseMessage {
+            string Action = 1;
+            string SubscriptionId = 2;
+            optional string RequestId = 3;
+            string Ts = 4;
+        }
+        optional SuccessResponseMessage SuccessResponse = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+    }
+    optional ResponseMessage Response = 3;
+}
+
+message ProtobufMessage {
+    MessageMethod Method = 1;
+    optional GetMessage Get = 2;
+    optional SetMessage Set = 3;
+    optional SubscribeMessage Subscribe = 4;
+    optional UnSubscribeMessage UnSubscribe = 5;
+}
+

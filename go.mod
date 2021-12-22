@@ -9,10 +9,12 @@ go 1.16
 //	github.com/GENIVI/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/genivi/vss-tools/binary/go_parser/datamodel
 //	github.com/GENIVI/vss-tools/binary/go_parser/parserlib => /home/ulfbjorkengren/Proj/genivi/vss-tools/binary/go_parser/parserlib
 //)
+replace github.com/MEAE-GOT/WAII/protobuf/protoc-out => ./protobuf/protoc-out
 
 require (
 	github.com/GENIVI/vss-tools/binary/go_parser/datamodel v0.0.0-20210401175906-ae9043606d97
 	github.com/GENIVI/vss-tools/binary/go_parser/parserlib v0.0.0-20210401175906-ae9043606d97
+	github.com/MEAE-GOT/WAII/protobuf/protoc-out v0.0.0-00010101000000-000000000000 // indirect
 	github.com/akamensky/argparse v1.3.1
 	github.com/eclipse/paho.mqtt.golang v1.3.2
 	github.com/golang/protobuf v1.4.1

@@ -62,7 +62,7 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	(*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
 	written, err := (*w).Write(resp)
 	if err != nil {
-		Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
+		Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s", written, err.Error())
 	}
 }
 
@@ -74,7 +74,7 @@ func FrontendWSdataSession(conn *websocket.Conn, clientChannel chan string, back
 			Error.Printf("Service data read error: %s", err)
 			break
 		}
-		Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+		Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
 
 		clientChannel <- string(msg) // forward to mgr hub,
 		message := <-clientChannel   //  and wait for response
@@ -88,7 +88,7 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 	for {
 		message := <-backendChannel
 
-		Info.Printf("Service:BackendWSdataSession(): message received=%s\n", message)
+		Info.Printf("Service:BackendWSdataSession(): message received=%s", message)
 		// Write message back to server core
 		response := []byte(message)
 
@@ -206,7 +206,7 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	if err != nil {
 		Error.Fatal("Error reading response. ", err)
 	}
-	Info.Printf("%s\n", body)
+	Info.Printf("%s", body)
 
 	err = json.Unmarshal(body, regData)
 	if err != nil {
@@ -227,7 +227,7 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 		    msg = DecompressMessage(msg)
 		}
 		payload := string(msg)
-		Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), payload, len(payload))
+		Info.Printf("%s request: %s, len=%d", conn.RemoteAddr(), payload, len(payload))
 
 		clientChannel <- payload    // forward to mgr hub,
 		response := <-clientChannel //  and wait for response
@@ -241,7 +241,7 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string,
 	for {
 		message := <-clientBackendChannel
 
-		Info.Printf("backendWSAppSession(): Message received=%s\n", message)
+		Info.Printf("backendWSAppSession(): Message received=%s", message)
 		// Write message back to app client
 		response := []byte(message)
 		var err error
@@ -263,7 +263,7 @@ func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string) fu
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Upgrade") == "websocket" {
 			http.Error(w, "400 Incorrect port number", http.StatusBadRequest)
-			Warning.Printf("Client call to incorrect port number for websocket connection.\n")
+			Warning.Printf("Client call to incorrect port number for websocket connection.")
 			return
 		}
 		frontendHttpAppSession(w, req, appClientChannel[0])
@@ -399,7 +399,7 @@ func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataCon
 			Error.Println("Datachannel read error:" + err.Error())
 			return // ??
 		}
-		Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
+		Info.Printf("Server hub: HTTP response from server core:%s", string(response))
 		trimmedResponse, clientId := RemoveInternalData(string(response))
 		appClientChannel[clientId] <- trimmedResponse // no need for clientBackendChannel as subscription notifications not supported
 	}
@@ -412,7 +412,7 @@ func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *w
 			Error.Println("Datachannel read error:", err)
 			return // ??
 		}
-		Info.Printf("Server hub: WS response from server core:%s\n", string(response))
+		Info.Printf("Server hub: WS response from server core:%s", string(response))
 		trimmedResponse, clientId := RemoveInternalData(string(response))
 		if strings.Contains(trimmedResponse, "\"subscription\"") {
 			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
