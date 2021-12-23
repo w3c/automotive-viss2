@@ -23,16 +23,9 @@ enum ResponseStatus {
 }
 
 message ErrorResponseMessage {
-    string Action = 1;
-    message ErrorMessage {
-        string Number = 1;
-        optional string Reason = 2;
-        optional string Message = 3;
-    }
-    ErrorMessage Err = 2;
-    optional string RequestId = 3;
-    optional string SubscriptionId = 4;  // used by notifications
-    string Ts = 5;
+    string Number = 1;
+    optional string Reason = 2;
+    optional string Message = 3;
 }
 
 message FilterExpressions {
@@ -124,16 +117,16 @@ message GetMessage {
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        ResponseStatus Status = 1;
+        string Action = 1;
+        ResponseStatus Status = 2;
         message SuccessResponseMessage {
-            string Action = 1;
             optional DataPackages DataPack = 2;
             optional string Metadata = 3; // replaces DataPack in static metadata and one dynamic metadata variant
-            optional string RequestId = 4;
-            string Ts = 5;
         }
-        optional SuccessResponseMessage SuccessResponse = 2;
-        optional ErrorResponseMessage ErrorResponse = 3;
+        optional SuccessResponseMessage SuccessResponse = 3;
+        optional ErrorResponseMessage ErrorResponse = 4;
+        optional string RequestId = 5;
+        string Ts = 6;
     }
     optional ResponseMessage Response = 3;
 }
@@ -151,14 +144,11 @@ message SetMessage {
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        ResponseStatus Status = 1;
-        message SuccessResponseMessage {
-            string Action = 1;
-            optional string RequestId = 2;
-            string Ts = 3;
-        }
-        optional SuccessResponseMessage SuccessResponse = 2;
+        string Action = 1;
+        ResponseStatus Status = 2;
         optional ErrorResponseMessage ErrorResponse = 3;
+        optional string RequestId = 4;
+        string Ts = 5;
     }
     optional ResponseMessage Response = 3;
 }
@@ -176,28 +166,25 @@ message SubscribeMessage {
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        ResponseStatus Status = 1;
-        message SuccessResponseMessage {
-            string Action = 1;
-            string SubscriptionId = 2;
-            string RequestId = 3;
-            string Ts = 4;
-        }
-        optional SuccessResponseMessage SuccessResponse = 2;
+        string Action = 1;
+        ResponseStatus Status = 2;
         optional ErrorResponseMessage ErrorResponse = 3;
+        string SubscriptionId = 4;
+        string RequestId = 5;
+        string Ts = 6;
     }
     optional ResponseMessage Response = 3;
 
     message NotificationMessage {
-        ResponseStatus Status = 1;
+        string Action = 1;
+        string SubscriptionId = 2;
+        ResponseStatus Status = 3;
         message SuccessResponseMessage {
-            string Action = 1;
-            string SubscriptionId = 2;
-            DataPackages DataPack = 3;
-            string Ts = 4;
+            DataPackages DataPack = 1;
         }
-        optional SuccessResponseMessage SuccessResponse = 2;
-        optional ErrorResponseMessage ErrorResponse = 3;
+        optional SuccessResponseMessage SuccessResponse = 4;
+        optional ErrorResponseMessage ErrorResponse = 5;
+        string Ts = 6;
     }
     optional NotificationMessage Notification = 4;
 }
@@ -213,15 +200,12 @@ message UnSubscribeMessage {
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        ResponseStatus Status = 1;
-        message SuccessResponseMessage {
-            string Action = 1;
-            string SubscriptionId = 2;
-            optional string RequestId = 3;
-            string Ts = 4;
-        }
-        optional SuccessResponseMessage SuccessResponse = 2;
-        optional ErrorResponseMessage ErrorResponse = 3;
+        string Action = 1;
+        string SubscriptionId = 2;
+        ResponseStatus Status = 3;
+        optional ErrorResponseMessage ErrorResponse = 4;
+        optional string RequestId = 5;
+        string Ts = 6;
     }
     optional ResponseMessage Response = 3;
 }

@@ -20,14 +20,13 @@ import (
 )
 
 func ProtobufToJson(serialisedMessage []byte) string {
-    jsonMessage := ""
-    deSerialisedMessage := &pb.ProtobufMessage{}
-    err := proto.Unmarshal(serialisedMessage, deSerialisedMessage)
+    protoMessage := &pb.ProtobufMessage{}
+    err := proto.Unmarshal(serialisedMessage, protoMessage)
     if err != nil {
         Error.Printf("Unmarshaling error: ", err)
         return ""
     }
-    // populate jsonMessage from deSerialisedMessage
+    jsonMessage := populateJsonFromProto(protoMessage)
     return jsonMessage
 }
 
@@ -37,7 +36,7 @@ func JsonToProtobuf(jsonMessage string) []byte {
 testPrintProtoMessage(protoMessage)
     serialisedMessage, err := proto.Marshal(protoMessage)
     if err != nil {
-        Error.Printf("Unmarshaling error: ", err)
+        Error.Printf("Marshaling error: ", err)
         return nil
     }
 Info.Printf("JSON size=%d, ProtoBuf size = %d", len(jsonMessage), len(serialisedMessage))
@@ -150,10 +149,13 @@ func createGetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 
 func createGetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Get.Response = &pb.GetMessage_ResponseMessage{}
+    protoMessage.Get.Response.Action = messageMap["action"].(string)
+    requestId := messageMap["requestId"].(string)
+    protoMessage.Get.Response.RequestId = &requestId
+    protoMessage.Get.Response.Ts = messageMap["ts"].(string)
     if (messageMap["error"] == nil) {
         protoMessage.Get.Response.Status = pb.ResponseStatus_SUCCESS
         protoMessage.Get.Response.SuccessResponse = &pb.GetMessage_ResponseMessage_SuccessResponseMessage{}
-        protoMessage.Get.Response.SuccessResponse.Action = messageMap["action"].(string)
         numOfDataElements := getNumOfDataElements(messageMap["data"])
         if (numOfDataElements > 0) {
             protoMessage.Get.Response.SuccessResponse.DataPack = &pb.DataPackages{}
@@ -166,38 +168,30 @@ func createGetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string
 	    metadataStr := string(metadata)
             protoMessage.Get.Response.SuccessResponse.Metadata = &metadataStr
         }
-        requestId := messageMap["requestId"].(string)
-        protoMessage.Get.Response.SuccessResponse.RequestId = &requestId
-        protoMessage.Get.Response.SuccessResponse.Ts = messageMap["ts"].(string)
     } else {
         protoMessage.Get.Response.Status = pb.ResponseStatus_ERROR
-        protoMessage.Get.Response.ErrorResponse = &pb.ErrorResponseMessage{}
-        protoMessage.Get.Response.ErrorResponse.Action = messageMap["action"].(string)
-        protoMessage.Get.Response.ErrorResponse.Err = &pb.ErrorResponseMessage_ErrorMessage{}
-        protoMessage.Get.Response.ErrorResponse.Err = getProtoErrorMessage(messageMap["error"])
-        requestId := messageMap["requestId"].(string)
-        protoMessage.Get.Response.ErrorResponse.RequestId = &requestId
-        protoMessage.Get.Response.ErrorResponse.Ts = messageMap["ts"].(string)
+//        protoMessage.Get.Response.ErrorResponse = &pb.ErrorResponseMessage{}
+        protoMessage.Get.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
 
-func getProtoErrorMessage(messageErrorMap interface{}) *pb.ErrorResponseMessage_ErrorMessage {
-    var errorObject map[string]interface{}
-    switch vv := messageErrorMap.(type) {
-      case map[string]interface{}: errorObject = vv
-      default: return nil
+func getProtoErrorMessage(messageErrorMap map[string]interface{}) *pb.ErrorResponseMessage {
+    protoErrorMessage := &pb.ErrorResponseMessage{}
+    for k, v := range messageErrorMap {
+//Info.Println("key=",k, "v=", v)
+        if (k == "number") {
+            protoErrorMessage.Number = v.(string)
+        }
+        if (k == "reason") {
+            reason := v.(string)
+            protoErrorMessage.Reason = &reason
+        }
+        if (k == "message") {
+            message := v.(string)
+            protoErrorMessage.Message = &message
+        }
     }
-    var protoErrorMessage pb.ErrorResponseMessage_ErrorMessage
-    protoErrorMessage.Number = errorObject["number"].(string)
-    if (errorObject["reason"] != nil) {
-        reason := errorObject["reason"].(string)
-        protoErrorMessage.Reason = &reason
-    }
-    if (errorObject["reason"] != nil) {
-        message := errorObject["message"].(string)
-        protoErrorMessage.Message = &message
-    }
-    return &protoErrorMessage
+    return protoErrorMessage
 }
 
 func getNumOfDataElements(messageDataMap interface{}) int {
@@ -452,47 +446,37 @@ func createSubscribeRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[s
 
 func createSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Subscribe.Response = &pb.SubscribeMessage_ResponseMessage{}
+    protoMessage.Subscribe.Response.Action = messageMap["action"].(string)
+    protoMessage.Subscribe.Response.SubscriptionId = messageMap["subscriptionId"].(string)
+    protoMessage.Subscribe.Response.RequestId = messageMap["requestId"].(string)
+    protoMessage.Subscribe.Response.Ts = messageMap["ts"].(string)
     if (messageMap["error"] == nil) {
         protoMessage.Subscribe.Response.Status = pb.ResponseStatus_SUCCESS
-        protoMessage.Subscribe.Response.SuccessResponse = &pb.SubscribeMessage_ResponseMessage_SuccessResponseMessage{}
-        protoMessage.Subscribe.Response.SuccessResponse.Action = messageMap["action"].(string)
-        protoMessage.Subscribe.Response.SuccessResponse.SubscriptionId = messageMap["subscriptionId"].(string)
-        protoMessage.Subscribe.Response.SuccessResponse.Ts = messageMap["ts"].(string)
     } else {
         protoMessage.Subscribe.Response.Status = pb.ResponseStatus_ERROR
-        protoMessage.Subscribe.Response.ErrorResponse = &pb.ErrorResponseMessage{}
-        protoMessage.Subscribe.Response.ErrorResponse.Action = messageMap["action"].(string)
-        protoMessage.Subscribe.Response.ErrorResponse.Err = &pb.ErrorResponseMessage_ErrorMessage{}
-        protoMessage.Subscribe.Response.ErrorResponse.Err = getProtoErrorMessage(messageMap["error"])
-        requestId := messageMap["requestId"].(string)
-        protoMessage.Subscribe.Response.ErrorResponse.RequestId = &requestId
-        protoMessage.Subscribe.Response.ErrorResponse.Ts = messageMap["ts"].(string)
+//        protoMessage.Subscribe.Response.ErrorResponse = &pb.ErrorResponseMessage{}
+        protoMessage.Subscribe.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
 
 func createSubscribeNotificationPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Subscribe.Notification = &pb.SubscribeMessage_NotificationMessage{}
+    protoMessage.Subscribe.Notification.Action = messageMap["action"].(string)
+    protoMessage.Subscribe.Notification.SubscriptionId = messageMap["subscriptionId"].(string)
+    protoMessage.Subscribe.Notification.Ts = messageMap["ts"].(string)
     if (messageMap["error"] == nil) {
         protoMessage.Subscribe.Notification.Status = pb.ResponseStatus_SUCCESS
         protoMessage.Subscribe.Notification.SuccessResponse = &pb.SubscribeMessage_NotificationMessage_SuccessResponseMessage{}
-        protoMessage.Subscribe.Notification.SuccessResponse.Action = messageMap["action"].(string)
         numOfDataElements := getNumOfDataElements(messageMap["data"])
         protoMessage.Subscribe.Notification.SuccessResponse.DataPack = &pb.DataPackages{}
         protoMessage.Subscribe.Notification.SuccessResponse.DataPack.Data = make([]*pb.DataPackages_DataPackage, numOfDataElements)
         for i := 0 ; i < numOfDataElements ; i++ {
             protoMessage.Subscribe.Notification.SuccessResponse.DataPack.Data[i] = createDataElement(i, messageMap["data"])
         }
-        protoMessage.Subscribe.Notification.SuccessResponse.SubscriptionId = messageMap["subscriptionId"].(string)
-        protoMessage.Subscribe.Notification.SuccessResponse.Ts = messageMap["ts"].(string)
     } else {
         protoMessage.Subscribe.Notification.Status = pb.ResponseStatus_ERROR
-        protoMessage.Subscribe.Notification.ErrorResponse = &pb.ErrorResponseMessage{}
-        protoMessage.Subscribe.Notification.ErrorResponse.Action = messageMap["action"].(string)
-        protoMessage.Subscribe.Notification.ErrorResponse.Err = &pb.ErrorResponseMessage_ErrorMessage{}
-        protoMessage.Subscribe.Notification.ErrorResponse.Err = getProtoErrorMessage(messageMap["error"])
-        subscriptionId := messageMap["subscriptionId"].(string)
-        protoMessage.Subscribe.Notification.ErrorResponse.SubscriptionId = &subscriptionId
-        protoMessage.Subscribe.Notification.ErrorResponse.Ts = messageMap["ts"].(string)
+//        protoMessage.Subscribe.Notification.ErrorResponse = &pb.ErrorResponseMessage{}
+        protoMessage.Subscribe.Notification.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
 
@@ -521,22 +505,16 @@ func createSetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 
 func createSetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Set.Response = &pb.SetMessage_ResponseMessage{}
+    protoMessage.Set.Response.Action = messageMap["action"].(string)
+    requestId := messageMap["requestId"].(string)
+    protoMessage.Set.Response.RequestId = &requestId
+    protoMessage.Set.Response.Ts = messageMap["ts"].(string)
     if (messageMap["error"] == nil) {
         protoMessage.Set.Response.Status = pb.ResponseStatus_SUCCESS
-        protoMessage.Set.Response.SuccessResponse = &pb.SetMessage_ResponseMessage_SuccessResponseMessage{}
-        protoMessage.Set.Response.SuccessResponse.Action = messageMap["action"].(string)
-        requestId := messageMap["requestId"].(string)
-        protoMessage.Set.Response.SuccessResponse.RequestId = &requestId
-        protoMessage.Set.Response.SuccessResponse.Ts = messageMap["ts"].(string)
     } else {
         protoMessage.Set.Response.Status = pb.ResponseStatus_ERROR
-        protoMessage.Set.Response.ErrorResponse = &pb.ErrorResponseMessage{}
-        protoMessage.Set.Response.ErrorResponse.Action = messageMap["action"].(string)
-        protoMessage.Set.Response.ErrorResponse.Err = &pb.ErrorResponseMessage_ErrorMessage{}
-        protoMessage.Set.Response.ErrorResponse.Err = getProtoErrorMessage(messageMap["error"])
-        requestId := messageMap["requestId"].(string)
-        protoMessage.Set.Response.ErrorResponse.RequestId = &requestId
-        protoMessage.Set.Response.ErrorResponse.Ts = messageMap["ts"].(string)
+//        protoMessage.Set.Response.ErrorResponse = &pb.ErrorResponseMessage{}
+        protoMessage.Set.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
 
@@ -560,22 +538,338 @@ func createUnSubscribeRequestPb(protoMessage *pb.ProtobufMessage, messageMap map
 
 func createUnSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.UnSubscribe.Response = &pb.UnSubscribeMessage_ResponseMessage{}
+    protoMessage.UnSubscribe.Response.Action = messageMap["action"].(string)
+    protoMessage.UnSubscribe.Response.SubscriptionId = messageMap["subscriptionId"].(string)
+    if messageMap["requestId"] != nil {
+        reqId := messageMap["requestId"].(string)
+        protoMessage.UnSubscribe.Response.RequestId = &reqId
+    }
+    protoMessage.UnSubscribe.Response.Ts = messageMap["ts"].(string)
     if (messageMap["error"] == nil) {
         protoMessage.UnSubscribe.Response.Status = pb.ResponseStatus_SUCCESS
-        protoMessage.UnSubscribe.Response.SuccessResponse = &pb.UnSubscribeMessage_ResponseMessage_SuccessResponseMessage{}
-        protoMessage.UnSubscribe.Response.SuccessResponse.Action = messageMap["action"].(string)
-        protoMessage.UnSubscribe.Response.SuccessResponse.SubscriptionId = messageMap["subscriptionId"].(string)
-        protoMessage.UnSubscribe.Response.SuccessResponse.Ts = messageMap["ts"].(string)
     } else {
         protoMessage.UnSubscribe.Response.Status = pb.ResponseStatus_ERROR
-        protoMessage.UnSubscribe.Response.ErrorResponse = &pb.ErrorResponseMessage{}
-        protoMessage.UnSubscribe.Response.ErrorResponse.Action = messageMap["action"].(string)
-        protoMessage.UnSubscribe.Response.ErrorResponse.Err = &pb.ErrorResponseMessage_ErrorMessage{}
-        protoMessage.UnSubscribe.Response.ErrorResponse.Err = getProtoErrorMessage(messageMap["error"])
-        subscriptionId := messageMap["subscriptionId"].(string)
-        protoMessage.UnSubscribe.Response.ErrorResponse.SubscriptionId = &subscriptionId
-        protoMessage.UnSubscribe.Response.ErrorResponse.Ts = messageMap["ts"].(string)
+//        protoMessage.UnSubscribe.Response.ErrorResponse = &pb.ErrorResponseMessage{}
+        protoMessage.UnSubscribe.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
+}
+//      *******************************Proto to JSON code ***************************************
+
+func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
+    jsonMessage := "{"
+    switch protoMessage.GetMethod() {
+      case 0: // GET
+        jsonMessage += `"action":"get"`
+        switch protoMessage.GetGet().GetMType() {
+          case 0: //REQUEST
+            jsonMessage += `,"path":"` + protoMessage.GetGet().GetRequest().GetPath() + getJsonFilter(protoMessage,0) + 
+                           getJsonAuthorization(protoMessage,0,0) + getJsonTransactionId(protoMessage,0,0)
+          case 1: // RESPONSE
+            if (protoMessage.GetGet().GetResponse().GetStatus() == 0) { //SUCCESSFUL
+                jsonMessage += getJsonData(protoMessage,0)
+                
+            } else { // ERROR
+                jsonMessage += getJsonError(protoMessage,0)
+            }
+            jsonMessage += `,"ts":"` + protoMessage.GetGet().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage,0,1)
+        }
+    case 1: // SET
+        jsonMessage += `"action":"set",`
+      switch protoMessage.GetSet().GetMType() {
+        case 0: //REQUEST
+          Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSet().GetMType())
+          Info.Printf("protoMessage.Set.Request.Path = %s", protoMessage.GetSet().GetRequest().GetPath())
+          Info.Printf("protoMessage.Set.Request.RequestId = %s", protoMessage.GetSet().GetRequest().GetRequestId())
+        case 1: // RESPONSE
+          Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSet().GetMType())
+          if (protoMessage.GetSet().GetResponse().GetStatus() == 0) { //SUCCESSFUL
+            Info.Printf("protoMessage.Set.Response.Status=%d", protoMessage.GetSet().GetResponse().GetStatus())
+            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetRequestId())
+            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetTs())
+          } else { // ERROR
+            Info.Printf("protoMessage.Set.Response.Status=%d", protoMessage.GetSet().GetResponse().GetStatus())
+            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetRequestId())
+            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetTs())
+          }
+      }
+    case 2: // SUBSCRIBE
+      switch protoMessage.GetSubscribe().GetMType() {
+          case 0: //REQUEST
+            jsonMessage += `"action":"subscribe","path":"` + protoMessage.GetSubscribe().GetRequest().GetPath() + getJsonFilter(protoMessage,2) + 
+                           getJsonAuthorization(protoMessage,2,0) + getJsonTransactionId(protoMessage,2,0)
+          case 1: // RESPONSE
+            jsonMessage += `"action":"subscribe"`
+            if (protoMessage.GetSubscribe().GetResponse().GetStatus() != 0) { //ERROR
+                jsonMessage += getJsonError(protoMessage,2)
+            }
+            jsonMessage += `,"ts":"` + protoMessage.GetSubscribe().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage,2,1)
+        case 2: // NOTIFICATION
+            jsonMessage += `"action":"subscription"`
+            if (protoMessage.GetSubscribe().GetNotification().GetStatus() == 0) { //SUCCESSFUL
+                jsonMessage += getJsonData(protoMessage,2)
+                
+            } else { // ERROR
+                jsonMessage += getJsonError(protoMessage,2)
+            }
+            jsonMessage += `,"ts":"` + protoMessage.GetSubscribe().GetNotification().GetTs() + `"` + getJsonTransactionId(protoMessage,2,2)
+      }
+    case 3: // UNSUBSCRIBE
+        jsonMessage += `"action":"unsubscribe"`
+      switch protoMessage.GetUnSubscribe().GetMType() {
+        case 0: //REQUEST
+          jsonMessage += getJsonTransactionId(protoMessage,3,0)
+        case 1: // RESPONSE
+          if (protoMessage.GetUnSubscribe().GetResponse().GetStatus() == 0) { //SUCCESSFUL
+              jsonMessage += getJsonTransactionId(protoMessage,3,1)
+          } else { // ERROR
+              jsonMessage += getJsonError(protoMessage,3) + getJsonTransactionId(protoMessage,3,1)
+          }
+          jsonMessage += `,"ts":"` + protoMessage.GetUnSubscribe().GetResponse().GetTs() + `"`
+      }
+  }
+    return jsonMessage + "}"
+}
+
+func getJsonFilter(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
+    if (protoMessage.GetGet().GetRequest().GetFilter() == nil) {
+        return ""
+    }
+    var filterExp []*pb.FilterExpressions_FilterExpression
+    switch mMethod {
+        case 0:  // GET
+            filterExp = protoMessage.GetGet().GetRequest().GetFilter().GetFilterExp()
+        case 2:  // SUBSCRIBE
+            filterExp = protoMessage.GetSubscribe().GetRequest().GetFilter().GetFilterExp()
+    }
+    fType := ""
+    value := ""
+    switch filterExp[0].GetFType() {
+      case 0: 
+          fType = "paths"
+          value = getJsonFilterValuePaths(filterExp[0])
+      case 1: 
+          fType = "timebased"
+          value = getJsonFilterValueTimebased(filterExp[0])
+      case 2: 
+          fType = "range"
+          value = getJsonFilterValueRange(filterExp[0])
+      case 3: 
+          fType = "change"
+          value = getJsonFilterValueChange(filterExp[0])
+      case 4: 
+          fType = "curvelog"
+          value = getJsonFilterValueCurvelog(filterExp[0])
+      case 5: 
+          fType = "history"
+          value = getJsonFilterValueHistory(filterExp[0])
+      case 6: 
+          fType = "static-metadata"
+          value = getJsonFilterValueStaticMetadata(filterExp[0])
+      case 7: 
+          fType = "dynamic-metadata"
+          value = getJsonFilterValueDynamicMetadata(filterExp[0])
+    }
+    return `,"filter":{"type":"`+ fType + `","value":` + value + `}`
+}
+
+func getJsonFilterValuePaths(filterExp *pb.FilterExpressions_FilterExpression) string {
+    relativePaths := filterExp.GetValue().GetValuePaths().GetRelativePath()
+    value := ""
+    if (len(relativePaths) > 1) {
+        value = "["
+    }
+    for i := 0 ; i < len(relativePaths) ; i++ {
+        value += `"` + relativePaths[i] + `",`
+    }
+    value = value[:len(value)-1]
+    if (len(relativePaths) > 1) {
+        value += "]"
+    }
+    return value
+}
+
+func getJsonFilterValueTimebased(filterExp *pb.FilterExpressions_FilterExpression) string {
+    period := filterExp.GetValue().GetValueTimebased().GetPeriod()
+    return `{"period":"` + period + `"}`
+}
+
+func getJsonFilterValueRange(filterExp *pb.FilterExpressions_FilterExpression) string {
+    rangeValue := filterExp.GetValue().GetValueRange()
+    value := ""
+    if (len(rangeValue) > 1) {
+        value = "["
+    }
+    for i := 0 ; i < len(rangeValue) ; i++ {
+        logicOperator := rangeValue[i].GetLogicOperator()
+        boundary := rangeValue[i].GetBoundary()
+        value += `{"logic-op":"` + logicOperator + `","boundary":"` + boundary + `"},`
+    }
+    value = value[:len(value)-1]
+    if (len(rangeValue) > 1) {
+        value += "]"
+    }
+    return value
+}
+
+func getJsonFilterValueChange(filterExp *pb.FilterExpressions_FilterExpression) string {
+    logicOperator := filterExp.GetValue().GetValueChange().GetLogicOperator()
+    diff := filterExp.GetValue().GetValueChange().GetDiff()
+    return `{"logic-op":"` + logicOperator + `","diff":"` + diff + `"}`
+}
+
+func getJsonFilterValueCurvelog(filterExp *pb.FilterExpressions_FilterExpression) string {
+    maxErr := filterExp.GetValue().GetValueCurvelog().GetMaxErr()
+    bufSize := filterExp.GetValue().GetValueCurvelog().GetBufSize()
+    return `{"maxerr":"` + maxErr + `","bufsize":"` + bufSize + `"}`
+}
+
+func getJsonFilterValueHistory(filterExp *pb.FilterExpressions_FilterExpression) string {
+    timePeriod := filterExp.GetValue().GetValueHistory().GetTimePeriod()
+    return `"` + timePeriod + `"`
+}
+
+func getJsonFilterValueStaticMetadata(filterExp *pb.FilterExpressions_FilterExpression) string {
+    tree := filterExp.GetValue().GetValueStaticMetadata().GetTree()
+    return tree
+}
+
+func getJsonFilterValueDynamicMetadata(filterExp *pb.FilterExpressions_FilterExpression) string {
+    metadataDomain := filterExp.GetValue().GetValueDynamicMetadata().GetMetadataDomain()
+    return metadataDomain
+}
+
+func getJsonAuthorization(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod, mType pb.MessageType) string {
+    authorization := ""
+    value := ""
+    switch mMethod {
+        case 0:  // GET
+                switch mType {
+                    case 0: // REQUEST
+                        value = protoMessage.GetGet().GetRequest().GetAuthorization()
+                }
+        case 1:  // SET
+                switch mType {
+                    case 0: // REQUEST
+                        value = protoMessage.GetSet().GetRequest().GetAuthorization()
+                }
+        case 2:  // SUBSCRIBE
+                switch mType {
+                    case 0: // REQUEST
+                        value = protoMessage.GetSubscribe().GetRequest().GetAuthorization()
+                }
+    }
+    if (len(value) > 0) {
+        authorization = `,"authorization":"` + value + `"`
+    }
+    return authorization
+}
+
+func getJsonTransactionId(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod, mType pb.MessageType) string {
+    transactionId := ""
+    requestId := ""
+    subscriptionId := ""
+    switch mMethod {
+        case 0:  // GET
+                switch mType {
+                    case 0: // REQUEST
+                        requestId = protoMessage.GetGet().GetRequest().GetRequestId()
+                    case 1: // RESPONSE
+                        requestId = protoMessage.GetGet().GetResponse().GetRequestId()
+                }
+        case 1:  // SET
+                switch mType {
+                    case 0: // REQUEST
+                        requestId = protoMessage.GetSet().GetRequest().GetRequestId()
+                    case 1: // RESPONSE
+                        requestId = protoMessage.GetSet().GetResponse().GetRequestId()
+                }
+        case 2:  // SUBSCRIBE
+                switch mType {
+                    case 0: // REQUEST
+                        requestId = protoMessage.GetSubscribe().GetRequest().GetRequestId()
+                    case 1: // RESPONSE
+                        subscriptionId = protoMessage.GetSubscribe().GetResponse().GetSubscriptionId()
+                        requestId = protoMessage.GetSubscribe().GetResponse().GetRequestId()
+                    case 2: // NOTIFICATION
+                        subscriptionId = protoMessage.GetSubscribe().GetNotification().GetSubscriptionId()
+                }
+        case 3:  // UNSUBSCRIBE
+                switch mType {
+                    case 0: // REQUEST
+                        subscriptionId = protoMessage.GetUnSubscribe().GetRequest().GetSubscriptionId()
+                        requestId = protoMessage.GetUnSubscribe().GetRequest().GetRequestId()
+                    case 1: // RESPONSE
+                        subscriptionId = protoMessage.GetUnSubscribe().GetResponse().GetSubscriptionId()
+                        requestId = protoMessage.GetUnSubscribe().GetResponse().GetRequestId()
+                }
+    }
+    if (len(subscriptionId) > 0) {
+        transactionId += `,"subscriptionId":"` + subscriptionId + `"`
+    }
+    if (len(requestId) > 0) {
+        transactionId += `,"requestId":"` + requestId + `"`
+    }
+    return transactionId
+}
+
+func getJsonData(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
+    data := ""
+    var dataPack []*pb.DataPackages_DataPackage
+    switch mMethod {
+        case 0:  // GET
+            dataPack = protoMessage.GetGet().GetResponse().GetSuccessResponse().GetDataPack().GetData()
+        case 2:  // SUBSCRIBE
+            dataPack = protoMessage.GetSubscribe().GetNotification().GetSuccessResponse().GetDataPack().GetData()
+    }
+    if (len(dataPack) > 1) {
+        data += "["
+    }
+    for i := 0 ; i < len(dataPack) ; i++ {
+        path := dataPack[i].GetPath()
+        dp := getJsonDp(dataPack[i])
+        data += `{"path":"` + path + `","dp":` + dp + `},`
+    }
+    data = data[:len(data)-1]
+    if (len(dataPack) > 1) {
+        data += "]"
+    }
+    return `,"data":` + data
+}
+
+func getJsonDp(dataPack *pb.DataPackages_DataPackage) string {
+    dpPack := dataPack.GetDp()
+    dp := ""
+    if (len(dpPack) > 1) {
+        dp += "["
+    }
+    for i := 0 ; i < len(dpPack) ; i++ {
+        value := dpPack[i].GetValue()
+        ts := dpPack[i].GetTs()
+        dp += `{"value":"` + value + `","ts":"` + ts + `"},`
+    }
+    dp = dp[:len(dp)-1]
+    if (len(dpPack) > 1) {
+        dp += "]"
+    }
+    return dp
+}
+
+func getJsonError(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
+    var errorResponse *pb.ErrorResponseMessage
+    switch mMethod {
+        case 0:  // GET
+            errorResponse = protoMessage.GetGet().GetResponse().GetErrorResponse()
+        case 1:  // SET
+            errorResponse = protoMessage.GetSet().GetResponse().GetErrorResponse()
+        case 2:  // SUBSCRIBE
+            errorResponse = protoMessage.GetSubscribe().GetResponse().GetErrorResponse()
+        case 3:  // UNSUBSCRIBE
+            errorResponse = protoMessage.GetUnSubscribe().GetResponse().GetErrorResponse()
+    }
+    number := errorResponse.GetNumber()
+    reason := errorResponse.GetReason()
+    message := errorResponse.GetMessage()
+    return `,"error":{"number":"` + number + `","reason":"` + reason + `","message":"` + message + `"}`
 }
 
 //      *******************************Only for testing during dev ***************************************
@@ -589,15 +883,9 @@ func testPrintProtoMessage(protoMessage *pb.ProtobufMessage) {
           Info.Printf("protoMessage.Get.Request.RequestId = %s", protoMessage.GetGet().GetRequest().GetRequestId())
         case 1: // RESPONSE
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetGet().GetMType())
-          if (protoMessage.GetGet().GetResponse().GetStatus() == 0) { //SUCCESSFUL
             Info.Printf("protoMessage.Get.Response.Status=%d", protoMessage.GetGet().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Get.Response.RequestId = %s", protoMessage.GetGet().GetResponse().GetSuccessResponse().GetRequestId())
-            Info.Printf("protoMessage.Get.Response.Ts = %s", protoMessage.GetGet().GetResponse().GetSuccessResponse().GetTs())
-          } else { // ERROR
-            Info.Printf("protoMessage.Get.Response.Status=%d", protoMessage.GetGet().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Get.Response.RequestId = %s", protoMessage.GetGet().GetResponse().GetErrorResponse().GetRequestId())
-            Info.Printf("protoMessage.Get.Response.Ts = %s", protoMessage.GetGet().GetResponse().GetErrorResponse().GetTs())
-          }
+            Info.Printf("protoMessage.Get.Response.RequestId = %s", protoMessage.GetGet().GetResponse().GetRequestId())
+            Info.Printf("protoMessage.Get.Response.Ts = %s", protoMessage.GetGet().GetResponse().GetTs())
       }
     case 1: // SET
       switch protoMessage.GetSet().GetMType() {
@@ -607,61 +895,40 @@ func testPrintProtoMessage(protoMessage *pb.ProtobufMessage) {
           Info.Printf("protoMessage.Set.Request.RequestId = %s", protoMessage.GetSet().GetRequest().GetRequestId())
         case 1: // RESPONSE
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSet().GetMType())
-          if (protoMessage.GetSet().GetResponse().GetStatus() == 0) { //SUCCESSFUL
             Info.Printf("protoMessage.Set.Response.Status=%d", protoMessage.GetSet().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetSuccessResponse().GetRequestId())
-            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetSuccessResponse().GetTs())
-          } else { // ERROR
-            Info.Printf("protoMessage.Set.Response.Status=%d", protoMessage.GetSet().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetErrorResponse().GetRequestId())
-            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetErrorResponse().GetTs())
-          }
+            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetRequestId())
+            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetTs())
       }
     case 2: // SUBSCRIBE
       switch protoMessage.GetSubscribe().GetMType() {
         case 0: //REQUEST
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSubscribe().GetMType())
-          Info.Printf("protoMessage.Get.Request.Path = %s", protoMessage.GetSubscribe().GetRequest().GetPath())
-          Info.Printf("protoMessage.Get.Request.RequestId = %s", protoMessage.GetSubscribe().GetRequest().GetRequestId())
+          Info.Printf("protoMessage.Subscribe.Request.Path = %s", protoMessage.GetSubscribe().GetRequest().GetPath())
+          Info.Printf("protoMessage.Subscribe.Request.RequestId = %s", protoMessage.GetSubscribe().GetRequest().GetRequestId())
         case 1: // RESPONSE
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSubscribe().GetMType())
-          if (protoMessage.GetSubscribe().GetResponse().GetStatus() == 0) { //SUCCESSFUL
-            Info.Printf("protoMessage.Get.Response.Status=%d", protoMessage.GetSubscribe().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Get.Response.SubscriptionId = %s", protoMessage.GetSubscribe().GetResponse().GetSuccessResponse().GetSubscriptionId())
-            Info.Printf("protoMessage.Get.Response.Ts = %s", protoMessage.GetSubscribe().GetResponse().GetSuccessResponse().GetTs())
-          } else { // ERROR
-            Info.Printf("protoMessage.Get.Response.Status=%d", protoMessage.GetSubscribe().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Get.Response.RequestId = %s", protoMessage.GetSubscribe().GetResponse().GetErrorResponse().GetRequestId())
-            Info.Printf("protoMessage.Get.Response.Ts = %s", protoMessage.GetSubscribe().GetResponse().GetErrorResponse().GetTs())
-          }
+            Info.Printf("protoMessage.Subscribe.Response.Status=%d", protoMessage.GetSubscribe().GetResponse().GetStatus())
+            Info.Printf("protoMessage.Subscribe.Response.RequestId = %s", protoMessage.GetSubscribe().GetResponse().GetRequestId())
+            Info.Printf("protoMessage.Subscribe.Response.SubscriptionId = %s", protoMessage.GetSubscribe().GetResponse().GetSubscriptionId())
+            Info.Printf("protoMessage.Subscribe.Response.Ts = %s", protoMessage.GetSubscribe().GetResponse().GetTs())
         case 2: // NOTIFICATION
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSubscribe().GetMType())
-          if (protoMessage.GetSubscribe().GetResponse().GetStatus() == 0) { //SUCCESSFUL
-            Info.Printf("protoMessage.Get.Notification.Status=%d", protoMessage.GetSubscribe().GetNotification().GetStatus())
-            Info.Printf("protoMessage.Get.Notification.SubscriptionId = %s", protoMessage.GetSubscribe().GetNotification().GetSuccessResponse().GetSubscriptionId())
-            Info.Printf("protoMessage.Get.Notification.Ts = %s", protoMessage.GetSubscribe().GetNotification().GetSuccessResponse().GetTs())
-          } else { // ERROR
-            Info.Printf("protoMessage.Get.Notification.Status=%d", protoMessage.GetSubscribe().GetNotification().GetStatus())
-            Info.Printf("protoMessage.Get.Notification.SubscriptionId = %s", protoMessage.GetSubscribe().GetNotification().GetErrorResponse().GetSubscriptionId())
-            Info.Printf("protoMessage.Get.Notification.Ts = %s", protoMessage.GetSubscribe().GetNotification().GetErrorResponse().GetTs())
-          }
+            Info.Printf("protoMessage.Subscribe.Notification.Status=%d", protoMessage.GetSubscribe().GetNotification().GetStatus())
+            Info.Printf("protoMessage.Subscribe.Notification.SubscriptionId = %s", protoMessage.GetSubscribe().GetNotification().GetSubscriptionId())
+            Info.Printf("protoMessage.Subscribe.Notification.Ts = %s", protoMessage.GetSubscribe().GetNotification().GetTs())
       }
     case 3: // UNSUBSCRIBE
       switch protoMessage.GetUnSubscribe().GetMType() {
         case 0: //REQUEST
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetUnSubscribe().GetMType())
           Info.Printf("protoMessage.UnSubscribe.Request.SubscriptionId = %s", protoMessage.GetUnSubscribe().GetRequest().GetSubscriptionId())
+            Info.Printf("protoMessage.UnSubscribe.Request.RequestId = %s", protoMessage.GetUnSubscribe().GetRequest().GetRequestId())
         case 1: // RESPONSE
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetUnSubscribe().GetMType())
-          if (protoMessage.GetUnSubscribe().GetResponse().GetStatus() == 0) { //SUCCESSFUL
             Info.Printf("protoMessage.UnSubscribe.Response.Status=%d", protoMessage.GetUnSubscribe().GetResponse().GetStatus())
-            Info.Printf("protoMessage.UnSubscribe.Response.SubscriptionId = %s", protoMessage.GetUnSubscribe().GetResponse().GetSuccessResponse().GetSubscriptionId())
-            Info.Printf("protoMessage.UnSubscribe.Response.Ts = %s", protoMessage.GetUnSubscribe().GetResponse().GetSuccessResponse().GetTs())
-          } else { // ERROR
-            Info.Printf("protoMessage.UnSubscribe.Response.Status=%d", protoMessage.GetUnSubscribe().GetResponse().GetStatus())
-            Info.Printf("protoMessage.UnSubscribe.Response.SubscriptionId = %s", protoMessage.GetUnSubscribe().GetResponse().GetErrorResponse().GetSubscriptionId())
-            Info.Printf("protoMessage.UnSubscribe.Response.Ts = %s", protoMessage.GetUnSubscribe().GetResponse().GetErrorResponse().GetTs())
-          }
+            Info.Printf("protoMessage.UnSubscribe.Response.SubscriptionId = %s", protoMessage.GetUnSubscribe().GetResponse().GetSubscriptionId())
+            Info.Printf("protoMessage.UnSubscribe.Response.RequestId = %s", protoMessage.GetUnSubscribe().GetResponse().GetRequestId())
+            Info.Printf("protoMessage.UnSubscribe.Response.Ts = %s", protoMessage.GetUnSubscribe().GetResponse().GetTs())
       }
   }
 }

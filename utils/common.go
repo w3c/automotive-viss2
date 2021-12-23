@@ -158,7 +158,12 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 	if reqMap["subscriptionId"] != nil {
 		errRespMap["subscriptionId"] = reqMap["subscriptionId"]
 	}
-	errRespMap["error"] = `{"number":` + number + `,"reason":"` + reason + `","message":"` + message + `"}`
+	errMap := map[string]interface{}{
+	    "number" : number,
+	    "reason" : reason,
+	    "message": message,
+	}
+	errRespMap["error"] = errMap
         errRespMap["ts"] = GetRfcTime()
 }
 
