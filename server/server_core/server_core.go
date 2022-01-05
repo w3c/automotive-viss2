@@ -3,7 +3,7 @@
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -31,9 +31,9 @@ import (
 	"strings"
 	"time"
 
-	gomodel "github.com/GENIVI/vss-tools/binary/go_parser/datamodel"
-	golib "github.com/GENIVI/vss-tools/binary/go_parser/parserlib"
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
+	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
+	"github.com/MEAE-GOT/WAII/utils"
 )
 
 /*
@@ -233,8 +233,8 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 utils.Info.Printf("RESPONSE=%s", string(response))
 		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
 		utils.Info.Printf("mgrIndex=%d", mgrIndex)
-protoBuf := utils.JsonToProtobuf(string(response))  // !!!!!!!!!!!!! protobuf test on received response
-utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf))
+protoBuf := utils.JsonToProtobuf(string(response), utils.PB_LEVEL1)  // !!!!!!!!!!!!! protobuf test on received response
+utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf, utils.PB_LEVEL1))
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
@@ -1036,8 +1036,8 @@ func main() {
 		case request := <-transportDataChan[0]: // request from HTTP/HTTPS mgr
 			serveRequest(request, 0, 0)
 		case request := <-transportDataChan[1]: // request from WS/WSS mgr
-protoBuf := utils.JsonToProtobuf(request)  // !!!!!!!!!!!!! protobuf test on received request
-utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf))
+protoBuf := utils.JsonToProtobuf(request, utils.PB_LEVEL1)  // !!!!!!!!!!!!! protobuf test on received request
+utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf, utils.PB_LEVEL1))
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)

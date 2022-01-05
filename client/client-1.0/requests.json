@@ -1,0 +1,2 @@
+{"request":[{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"},{"action":"get","path":"Vehicle.Acceleration.Longitudinal","requestId":"233"},
+{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","value":{"period":"3"}},"requestId":"246"}]}

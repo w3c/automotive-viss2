@@ -1,7 +1,7 @@
 /**
 * (C) 2021 Geotab Inc
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -16,7 +16,7 @@ import (
     "encoding/json"
     "io/ioutil"
 
-    "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
+    "github.com/MEAE-GOT/WAII/utils"
     _ "github.com/mattn/go-sqlite3"
 )
 

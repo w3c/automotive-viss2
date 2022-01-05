@@ -10,16 +10,12 @@ package utils
 import (
 	"encoding/json"
 	"strconv"
-//	"strings"
 
-//	"github.com/MEAE-GOT/WAII/utils"
 	pb "github.com/MEAE-GOT/WAII/protobuf/protoc-out"
 	"github.com/golang/protobuf/proto"
-//	"github.com/akamensky/argparse"
-//	"github.com/gorilla/websocket"
 )
 
-func ProtobufToJson(serialisedMessage []byte) string {
+func ProtobufToJson(serialisedMessage []byte, compression Compression) string {
     protoMessage := &pb.ProtobufMessage{}
     err := proto.Unmarshal(serialisedMessage, protoMessage)
     if err != nil {
@@ -30,18 +26,25 @@ func ProtobufToJson(serialisedMessage []byte) string {
     return jsonMessage
 }
 
-func JsonToProtobuf(jsonMessage string) []byte {
+func JsonToProtobuf(jsonMessage string, compression Compression) []byte {
     var protoMessage *pb.ProtobufMessage
     protoMessage = populateProtoFromJson(jsonMessage)
-testPrintProtoMessage(protoMessage)
     serialisedMessage, err := proto.Marshal(protoMessage)
     if err != nil {
         Error.Printf("Marshaling error: ", err)
         return nil
     }
-Info.Printf("JSON size=%d, ProtoBuf size = %d", len(jsonMessage), len(serialisedMessage))
-Info.Printf("JSON size / ProtoBuf size=%d%", (100*len(jsonMessage))/len(serialisedMessage))
     return serialisedMessage
+}
+
+func ExtractSubscriptionId(pbNotification []byte) string {
+    protoNotification := &pb.ProtobufMessage{}
+    err := proto.Unmarshal(pbNotification, protoNotification)
+    if err != nil {
+        Error.Printf("Unmarshaling error: ", err)
+        return ""
+    }
+    return protoNotification.GetSubscribe().GetNotification().GetSubscriptionId()
 }
 
 func populateProtoFromJson(jsonMessage string) *pb.ProtobufMessage {
@@ -562,7 +565,7 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
         jsonMessage += `"action":"get"`
         switch protoMessage.GetGet().GetMType() {
           case 0: //REQUEST
-            jsonMessage += `,"path":"` + protoMessage.GetGet().GetRequest().GetPath() + getJsonFilter(protoMessage,0) + 
+            jsonMessage += `,"path":"` + protoMessage.GetGet().GetRequest().GetPath() + `"` + getJsonFilter(protoMessage,0) + 
                            getJsonAuthorization(protoMessage,0,0) + getJsonTransactionId(protoMessage,0,0)
           case 1: // RESPONSE
             if (protoMessage.GetGet().GetResponse().GetStatus() == 0) { //SUCCESSFUL
@@ -574,28 +577,23 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
             jsonMessage += `,"ts":"` + protoMessage.GetGet().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage,0,1)
         }
     case 1: // SET
-        jsonMessage += `"action":"set",`
+        jsonMessage += `"action":"set"`
       switch protoMessage.GetSet().GetMType() {
         case 0: //REQUEST
-          Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSet().GetMType())
-          Info.Printf("protoMessage.Set.Request.Path = %s", protoMessage.GetSet().GetRequest().GetPath())
-          Info.Printf("protoMessage.Set.Request.RequestId = %s", protoMessage.GetSet().GetRequest().GetRequestId())
+            jsonMessage += `,"path":"` + protoMessage.GetSet().GetRequest().GetPath() + `","value":"` + 
+            protoMessage.GetSet().GetRequest().GetValue() + getJsonAuthorization(protoMessage,1,0) + getJsonTransactionId(protoMessage,1,0)
         case 1: // RESPONSE
           Info.Printf("protoMessage.Method = %d, protoMessage.Get.MType=%d", protoMessage.GetMethod(), protoMessage.GetSet().GetMType())
           if (protoMessage.GetSet().GetResponse().GetStatus() == 0) { //SUCCESSFUL
-            Info.Printf("protoMessage.Set.Response.Status=%d", protoMessage.GetSet().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetRequestId())
-            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetTs())
+            jsonMessage +=  protoMessage.GetSet().GetResponse().GetTs()
           } else { // ERROR
-            Info.Printf("protoMessage.Set.Response.Status=%d", protoMessage.GetSet().GetResponse().GetStatus())
-            Info.Printf("protoMessage.Set.Response.RequestId = %s", protoMessage.GetSet().GetResponse().GetRequestId())
-            Info.Printf("protoMessage.Set.Response.Ts = %s", protoMessage.GetSet().GetResponse().GetTs())
+                jsonMessage += getJsonError(protoMessage,1)
           }
       }
     case 2: // SUBSCRIBE
       switch protoMessage.GetSubscribe().GetMType() {
           case 0: //REQUEST
-            jsonMessage += `"action":"subscribe","path":"` + protoMessage.GetSubscribe().GetRequest().GetPath() + getJsonFilter(protoMessage,2) + 
+            jsonMessage += `"action":"subscribe","path":"` + protoMessage.GetSubscribe().GetRequest().GetPath() + `"` + getJsonFilter(protoMessage,2) + 
                            getJsonAuthorization(protoMessage,2,0) + getJsonTransactionId(protoMessage,2,0)
           case 1: // RESPONSE
             jsonMessage += `"action":"subscribe"`
@@ -631,14 +629,17 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
 }
 
 func getJsonFilter(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
-    if (protoMessage.GetGet().GetRequest().GetFilter() == nil) {
-        return ""
-    }
     var filterExp []*pb.FilterExpressions_FilterExpression
     switch mMethod {
         case 0:  // GET
+	    if (protoMessage.GetGet().GetRequest().GetFilter() == nil) {
+        	return ""
+    	    }
             filterExp = protoMessage.GetGet().GetRequest().GetFilter().GetFilterExp()
         case 2:  // SUBSCRIBE
+	    if (protoMessage.GetSubscribe().GetRequest().GetFilter() == nil) {
+        	return ""
+    	    }
             filterExp = protoMessage.GetSubscribe().GetRequest().GetFilter().GetFilterExp()
     }
     fType := ""

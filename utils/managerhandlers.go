@@ -214,7 +214,7 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	}
 }
 
-func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, isCompressProtocol bool) {
+func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, compression Compression) {
 	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -223,10 +223,14 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 			break
 		}
 
-		if (isCompressProtocol == true) {
-		    msg = DecompressMessage(msg)
+		var payload string
+		if (compression == PROPRIETARY) {
+		    payload = string(DecompressMessage(msg))
+		} else if (compression == PB_LEVEL1 || compression == PB_LEVEL2) {
+		    payload = ProtobufToJson(msg, compression)
+		} else {
+		    payload = string(msg)
 		}
-		payload := string(msg)
 		Info.Printf("%s request: %s, len=%d", conn.RemoteAddr(), payload, len(payload))
 
 		clientChannel <- payload    // forward to mgr hub,
@@ -236,22 +240,27 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 	}
 }
 
-func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string, isCompressProtocol bool) {
+func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string, compression Compression) {
 	defer conn.Close()
 	for {
 		message := <-clientBackendChannel
 
 		Info.Printf("backendWSAppSession(): Message received=%s", message)
 		// Write message back to app client
-		response := []byte(message)
-		var err error
+		var response []byte
+	        var messageType int
 
-		if (isCompressProtocol == true) {
-		    response = CompressMessage(response)
- 		    err = conn.WriteMessage(websocket.BinaryMessage, response)
+		if (compression == PROPRIETARY) {
+		    response = CompressMessage([]byte(message))
+		    messageType = websocket.BinaryMessage
+		} else if (compression == PB_LEVEL1 || compression == PB_LEVEL2) {
+		    response = []byte(JsonToProtobuf(message, compression))
+		    messageType = websocket.BinaryMessage
 		} else {
-		    err = conn.WriteMessage(websocket.TextMessage, response)
+		    response = []byte(message)
+		    messageType = websocket.TextMessage
                }
+	        err := conn.WriteMessage(messageType, response)
 		if err != nil {
 			Error.Print("App client write error:", err)
 			break
@@ -275,18 +284,29 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 		if req.Header.Get("Upgrade") == "websocket" {
 			Info.Printf("we are upgrading to a websocket connection. Server index=%d", *wsH.serverIndex)
 			Upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-			isCompressProtocol := false
+			var compression Compression
+			compression = NONE
 			h := http.Header{}
 			for _, sub := range websocket.Subprotocols(req) {
-			   if sub == "VISSv2c" {
-			      isCompressProtocol = true
+			   if sub == "VISSv2" {
+			      compression = NONE
 			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
 			   }
-			   if sub == "VISSv2" {
-			      isCompressProtocol = false
+			   if sub == "VISSv2c" {
+			      compression = PROPRIETARY
 			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
+			   }
+			   if sub == "VISSv2pbl1" {
+			      compression = PB_LEVEL1
+			      h.Set("Sec-Websocket-Protocol", sub)
+			      break
+			   if sub == "VISSv2pbl2" {
+			      compression = PB_LEVEL2
+			      h.Set("Sec-Websocket-Protocol", sub)
+			      break
+			   }
 			   }
 			}
 			conn, err := Upgrader.Upgrade(w, req, h)
@@ -296,8 +316,8 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			}
 			Info.Printf("len(appClientChannel)=%d", len(appClientChannel))
 			if *wsH.serverIndex < len(appClientChannel) {
-				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol)
-				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol)
+				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], compression)
+				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], compression)
 				*wsH.serverIndex += 1
 			} else {
 				Error.Printf("not possible to start more app client sessions.")
