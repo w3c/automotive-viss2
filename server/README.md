@@ -1,4 +1,4 @@
-# Project: W3C_VehicleSignalInterfaceImpl: server/server-1.0
+# Project: WAII: server/server-1.0
 
 Functionality: <br>
 	Long term: Server implementation following the project SwA, with capability to serve multiple app-clients over both WebSockets and HTTP protocols in parallel.<br>

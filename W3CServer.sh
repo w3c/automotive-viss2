@@ -12,12 +12,9 @@ startme() {
 		echo "Starting $service"
 		mkdir -p logs
 		if [ $service == "service_mgr" ]; then
-			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service --uds --vssPathList &> ./logs/$service-log.txt && popd"
+      screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
 		else
 			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
-		fi
-		if [ $service == "server_core" ]; then
-			sleep 5s
 		fi
 	done
 	screen -list
@@ -33,7 +30,7 @@ stopme() {
 }
 
 #configureme() {
-#ln -s <absolute-path-to-dir-of-git-root>/W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
+#ln -s <absolute-path-to-dir-of-git-root>/WAII/server/Go/server-1.0/vendor/utils $GOPATH/src/utils
 #}
 
 if [ $# -ne 1 ]

@@ -1,7 +1,7 @@
 **(C) 2019 Volvo Cars**<br>
 **(C) 2020 Geotab Inc**<br>
 
-# Project: W3C_VehicleSignalInterfaceImpl: client/client-1.0
+# Project: WAII: client/client-1.0
 
 Client implementations for communication with the server found at the server/server-1.0 directory.<br>
 The functionality in the W3C VISS v2 specs shall be supported, with features such as:<br>

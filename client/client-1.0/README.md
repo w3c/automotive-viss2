@@ -2,7 +2,7 @@
 
 # MQTT client
 
-The MQTT client is a rudimentary implementation to allow testing VISS v2 request/response communication over MQTT using the proposed application level protocol that is described in the <a href="https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/tree/master/server/mqtt_mgr">server/mqtt_mgr</a> directory.<br>
+The MQTT client is a rudimentary implementation to allow testing VISS v2 request/response communication over MQTT using the proposed application level protocol that is described in the <a href="https://github.com/MEAE-GOT/WAII/tree/master/server/mqtt_mgr">server/mqtt_mgr</a> directory.<br>
 The MQTT client is started as shown below<br>
 $ ./mqtt_mgr VIN<br>
 where VIN is the VIN number associated to the VSS path "Vehicle.VehicleIdentification.VIN".<br>

@@ -2,7 +2,7 @@
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -15,10 +15,10 @@ import (
 	"flag"
 	"io/ioutil"
 
-	"net/http"
-	"net/url"
 	"crypto/tls"
 	"crypto/x509"
+	"net/http"
+	"net/url"
 
 	"strconv"
 	"strings"
@@ -30,17 +30,17 @@ import (
 func ReadTransportSecConfig() {
 	data, err := ioutil.ReadFile(trSecConfigPath + "transportSec.json")
 	if err != nil {
-	    Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", trSecConfigPath, err)
-	    secConfig.TransportSec = "no"
-	    return
+		Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", trSecConfigPath, err)
+		secConfig.TransportSec = "no"
+		return
 	}
 	err = json.Unmarshal(data, &secConfig)
 	if err != nil {
-	    Error.Printf("ReadTransportSecConfig():Error unmarshal transportSec.json=%s", err)
-	    secConfig.TransportSec = "no"
-	    return
+		Error.Printf("ReadTransportSecConfig():Error unmarshal transportSec.json=%s", err)
+		secConfig.TransportSec = "no"
+		return
 	}
-        Info.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
+	Info.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
 }
 
 func backendHttpAppSession(message string, w *http.ResponseWriter) {
@@ -49,12 +49,12 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	var responseMap = make(map[string]interface{})
 	MapRequest(message, &responseMap)
 	if responseMap["action"] != nil {
-            delete(responseMap, "action")
-        }
+		delete(responseMap, "action")
+	}
 	if responseMap["requestId"] != nil {
-            delete(responseMap, "requestId")
-        }
-        response := FinalizeMessage(responseMap)
+		delete(responseMap, "requestId")
+	}
+	response := FinalizeMessage(responseMap)
 
 	resp := []byte(response)
 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
@@ -92,7 +92,7 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 		// Write message back to server core
 		response := []byte(message)
 
-//		err := conn.WriteMessage(websocket.TextMessage, response)
+		//		err := conn.WriteMessage(websocket.TextMessage, response)
 		err := conn.WriteMessage(websocket.BinaryMessage, response)
 		if err != nil {
 			Error.Printf("Service data write error: %s", err)
@@ -104,41 +104,41 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 func splitToPathQueryKeyValue(path string) (string, string, string) {
 	delim := strings.Index(path, "?")
 	if delim != -1 {
-	    if (path[delim+1] == 'f') {
-		return path[:delim], "filter", path[delim+8:]   // path?filter=json-exp
-	    } else if (path[delim+1] == 'm') {
-		return path[:delim], "metadata", path[delim+10:]   // path?metadata=static (or dynamic)
-	    }
+		if path[delim+1] == 'f' {
+			return path[:delim], "filter", path[delim+8:] // path?filter=json-exp
+		} else if path[delim+1] == 'm' {
+			return path[:delim], "metadata", path[delim+10:] // path?metadata=static (or dynamic)
+		}
 	}
 	return path, "", ""
 }
 
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
 	path := req.RequestURI
-        if (len(path) ==  0) {
-            path = "empty-path"   // will generate error as not found in VSS tree
-        }
-        path = strings.ReplaceAll(path, "%22", "\"")
-        path = strings.ReplaceAll(path, "%20", "")
+	if len(path) == 0 {
+		path = "empty-path" // will generate error as not found in VSS tree
+	}
+	path = strings.ReplaceAll(path, "%22", "\"")
+	path = strings.ReplaceAll(path, "%20", "")
 	var requestMap = make(map[string]interface{})
 	queryKey := ""
 	queryValue := ""
-        if (strings.Contains(path, "?") == true) {
-            requestMap["path"], queryKey, queryValue = splitToPathQueryKeyValue(path)
-        } else {
-            requestMap["path"] = path
-        }
+	if strings.Contains(path, "?") == true {
+		requestMap["path"], queryKey, queryValue = splitToPathQueryKeyValue(path)
+	} else {
+		requestMap["path"] = path
+	}
 	Info.Printf("HTTP method:%s, path: %s", req.Method, path)
-        token := req.Header.Get("Authorization")
+	token := req.Header.Get("Authorization")
 	Info.Printf("HTTP token:%s", token)
-        if (len(token) > 0) {
-            requestMap["token"] = token
-        }
+	if len(token) > 0 {
+		requestMap["token"] = token
+	}
 	requestMap["requestId"] = strconv.Itoa(requestTag)
 	requestTag++
 	switch req.Method {
 	case "OPTIONS":
-                fallthrough  // should work for POST also...
+		fallthrough // should work for POST also...
 	case "GET":
 		requestMap["action"] = "get"
 	case "POST": // set
@@ -146,13 +146,13 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 		body, _ := ioutil.ReadAll(req.Body)
 		requestMap["value"] = string(body)
 	default:
-//		http.Error(w, "400 Unsupported method", http.StatusBadRequest)
+		//		http.Error(w, "400 Unsupported method", http.StatusBadRequest)
 		Warning.Printf("Only GET and POST methods are supported.")
- 	        backendHttpAppSession(`{"error": "400", "reason": "Bad request", "message":"Unsupported HTTP method"}`, &w)
+		backendHttpAppSession(`{"error": "400", "reason": "Bad request", "message":"Unsupported HTTP method"}`, &w)
 		return
 	}
 	clientChannel <- AddKeyValue(FinalizeMessage(requestMap), queryKey, queryValue) // forward to mgr hub,
-	response := <-clientChannel                   //  and wait for response
+	response := <-clientChannel                                                     //  and wait for response
 
 	backendHttpAppSession(response, &w)
 }
@@ -192,10 +192,16 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	// Validate headers are attached
 	Info.Println(req.Header)
 
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		Error.Fatal("registerAsTransportMgr: Error reading response. ", err)
+	// Send request loop until connection succeeds
+	var resp *http.Response
+	for {
+		resp, err = client.Do(req)
+		if err != nil {
+			Error.Error("registerAsTransportMgr: Error reading response. ", err)
+			time.Sleep(1 * time.Second)
+		} else {
+			break
+		}
 	}
 	defer resp.Body.Close()
 
@@ -223,8 +229,8 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 			break
 		}
 
-		if (isCompressProtocol == true) {
-		    msg = DecompressMessage(msg)
+		if isCompressProtocol == true {
+			msg = DecompressMessage(msg)
 		}
 		payload := string(msg)
 		Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), payload, len(payload))
@@ -246,12 +252,12 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string,
 		response := []byte(message)
 		var err error
 
-		if (isCompressProtocol == true) {
-		    response = CompressMessage(response)
- 		    err = conn.WriteMessage(websocket.BinaryMessage, response)
+		if isCompressProtocol == true {
+			response = CompressMessage(response)
+			err = conn.WriteMessage(websocket.BinaryMessage, response)
 		} else {
-		    err = conn.WriteMessage(websocket.TextMessage, response)
-               }
+			err = conn.WriteMessage(websocket.TextMessage, response)
+		}
 		if err != nil {
 			Error.Print("App client write error:", err)
 			break
@@ -278,16 +284,16 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			isCompressProtocol := false
 			h := http.Header{}
 			for _, sub := range websocket.Subprotocols(req) {
-			   if sub == "VISSv2c" {
-			      isCompressProtocol = true
-			      h.Set("Sec-Websocket-Protocol", sub)
-			      break
-			   }
-			   if sub == "VISSv2" {
-			      isCompressProtocol = false
-			      h.Set("Sec-Websocket-Protocol", sub)
-			      break
-			   }
+				if sub == "VISSv2c" {
+					isCompressProtocol = true
+					h.Set("Sec-Websocket-Protocol", sub)
+					break
+				}
+				if sub == "VISSv2" {
+					isCompressProtocol = false
+					h.Set("Sec-Websocket-Protocol", sub)
+					break
+				}
 			}
 			conn, err := Upgrader.Upgrade(w, req, h)
 			if err != nil {
@@ -312,19 +318,19 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 
 	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
-	if (secConfig.TransportSec == "yes") {
-	    secPortNum, _ := strconv.Atoi(secConfig.SecPort)
-	    server := http.Server{
-	        Addr: ":" + strconv.Itoa(secPortNum + 1),   // to diff from WSS portno
-	        TLSConfig: getTLSConfig("localhost", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt",
-	                                 tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
-	        Handler: muxServer,
-	    }
- 	    Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
-	    Error.Fatal(server.ListenAndServeTLS(trSecConfigPath + secConfig.ServerSecPath + "server.crt", trSecConfigPath + secConfig.ServerSecPath + "server.key"))
+	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
+	if secConfig.TransportSec == "yes" {
+		secPortNum, _ := strconv.Atoi(secConfig.SecPort)
+		server := http.Server{
+			Addr: ":" + strconv.Itoa(secPortNum+1), // to diff from WSS portno
+			TLSConfig: getTLSConfig("localhost", trSecConfigPath+secConfig.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
+			Handler: muxServer,
+		}
+		Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
+		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+secConfig.ServerSecPath+"server.crt", trSecConfigPath+secConfig.ServerSecPath+"server.key"))
 	} else {
-	    Error.Fatal(http.ListenAndServe(":8888", muxServer))
+		Error.Fatal(http.ListenAndServe(":8888", muxServer))
 	}
 }
 
@@ -332,32 +338,32 @@ func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *i
 	*serverIndex = 0
 	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
-	if (secConfig.TransportSec == "yes") {
-	    server := http.Server{
-	        Addr: ":" + secConfig.SecPort, 
-	        TLSConfig: getTLSConfig("localhost", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt",
-	                                 tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
-	        Handler: muxServer,
-	    }
- 	    Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
-	    Error.Fatal(server.ListenAndServeTLS(trSecConfigPath + secConfig.ServerSecPath + "server.crt", trSecConfigPath + secConfig.ServerSecPath + "server.key"))
+	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
+	if secConfig.TransportSec == "yes" {
+		server := http.Server{
+			Addr: ":" + secConfig.SecPort,
+			TLSConfig: getTLSConfig("localhost", trSecConfigPath+secConfig.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
+			Handler: muxServer,
+		}
+		Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
+		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+secConfig.ServerSecPath+"server.crt", trSecConfigPath+secConfig.ServerSecPath+"server.key"))
 	} else {
-	    Error.Fatal(http.ListenAndServe(":8080", muxServer))
+		Error.Fatal(http.ListenAndServe(":8080", muxServer))
 	}
 }
 
 func certOptToInt(serverCertOpt string) int {
-    if (serverCertOpt == "NoClientCert") {
-        return 0
-    }
-    if (serverCertOpt == "ClientCertNoVerification") {
-        return 2
-    }
-    if (serverCertOpt == "ClientCertVerification") {
-        return 4
-    }
-    return 4 // if unclear, apply max security
+	if serverCertOpt == "NoClientCert" {
+		return 0
+	}
+	if serverCertOpt == "ClientCertNoVerification" {
+		return 2
+	}
+	if serverCertOpt == "ClientCertVerification" {
+		return 4
+	}
+	return 4 // if unclear, apply max security
 }
 
 func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
@@ -382,14 +388,14 @@ func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *t
 	}
 }
 
-func RemoveInternalData(response string) (string, int) {  // "RouterId" : "mgrId?clientId", 
-    routerIdStart := strings.Index(response, "RouterId") - 1
-    clientIdStart := strings.Index(response[routerIdStart:], "?") + 1 + routerIdStart
-    clientIdStop := NextQuoteMark([]byte(response), clientIdStart)
-    clientId, _ := strconv.Atoi(response[clientIdStart:clientIdStop])
-    routerIdStop := strings.Index(response[clientIdStop:], ",") + 1 + clientIdStop
-    trimmedResponse := response[:routerIdStart] + response[routerIdStop:]
-    return trimmedResponse, clientId
+func RemoveInternalData(response string) (string, int) { // "RouterId" : "mgrId?clientId",
+	routerIdStart := strings.Index(response, "RouterId") - 1
+	clientIdStart := strings.Index(response[routerIdStart:], "?") + 1 + routerIdStart
+	clientIdStop := NextQuoteMark([]byte(response), clientIdStart)
+	clientId, _ := strconv.Atoi(response[clientIdStart:clientIdStop])
+	routerIdStop := strings.Index(response[clientIdStop:], ",") + 1 + clientIdStop
+	trimmedResponse := response[:routerIdStart] + response[routerIdStop:]
+	return trimmedResponse, clientId
 }
 
 func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {

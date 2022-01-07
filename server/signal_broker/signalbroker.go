@@ -1,13 +1,17 @@
+/*
+* (C) 2021 Mitsubishi Electrics Automotive
+*/
+
 package main
 
 import (
 	"context"
 	"fmt"
-	base "github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/server/signal_broker/proto_files"
+	base "github.com/MEAE-GOT/WAII/server/signal_broker/proto_files"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	// "W3C_VehicleSignalInterfaceImpl/server/Go/server-1.0/server-core/util"
+	// "WAII/server/Go/server-1.0/server-core/util"
 )
 
 const (

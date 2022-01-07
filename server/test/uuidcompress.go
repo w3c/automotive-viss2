@@ -3,7 +3,7 @@
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -11,8 +11,8 @@
 package main
 
 import (
-       "fmt"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"strings"
 )
@@ -92,4 +92,3 @@ func main() {
     }
     fmt.Printf("Minimum UUID length for uniqueness is %d\n", uuidlen)
 }
-

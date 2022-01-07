@@ -1,7 +1,8 @@
 /**
+* (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2021 Geotab Inc
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl
+* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -9,21 +10,12 @@
 package main
 
 import (
-//	"io"
-//	"encoding/json"
-//	"io/ioutil"
-	"net"
-//	"net/http"
-//	"strconv"
-//	"strings"
-//	"time"
-	"os"
 	"fmt"
-//        "database/sql"
-        _ "github.com/mattn/go-sqlite3"
-	"github.com/MEAE-GOT/W3C_VehicleSignalInterfaceImpl/utils"
-)
+	"net"
+	"os"
 
+	"github.com/MEAE-GOT/WAII/utils"
+)
 
 func main() {
     buf := make([]byte, 128)
@@ -88,4 +80,3 @@ func main() {
         fmt.Printf("Server response: %s\n", string(buf[:n]))
     }
 }
-
