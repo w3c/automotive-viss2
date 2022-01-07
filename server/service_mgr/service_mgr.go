@@ -884,6 +884,7 @@ func getVssPathList(host string, port int, path string) []byte {
 
 	utils.Info.Printf("getVssPathList fetched %d bytes", len(data))
 	return data
+}
 
 func getMetadataDomainDp(domain string, path string) string {
     value := ""
