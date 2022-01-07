@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"flag"
 	"io/ioutil"
-	"net/http"
+//	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -57,17 +57,17 @@ func jsonToStructList(jsonList string) int {
     }
     switch vv := reqList["request"].(type) {
       case []interface{}:
-        utils.Info.Println(jsonList, "is an array:, len=",strconv.Itoa(len(vv)))
+//        utils.Info.Println(jsonList, "is an array:, len=",strconv.Itoa(len(vv)))
         requestList.Request = make([]string, len(vv))
         for i := 0 ; i < len(vv) ; i++ {
   	    requestList.Request[i] = retrieveRequest(vv[i].(map[string]interface{}))
   	}
       case map[string]interface{}:
-        utils.Info.Println(jsonList, "is a map:")
+//        utils.Info.Println(jsonList, "is a map:")
         requestList.Request = make([]string, 1)
   	requestList.Request[0] = retrieveRequest(vv)
       default:
-        utils.Info.Println(vv, "is of an unknown type")
+//        utils.Info.Println(vv, "is of an unknown type")
     }
     return len(requestList.Request)
 }
@@ -90,90 +90,6 @@ func createListFromFile(fname string) int {
 	return jsonToStructList(string(data))
 }
 
-func saveListAsFile(fname string) {
-	buf, err := json.Marshal(requestList)
-	if err != nil {
-		fmt.Printf("Error marshalling from file %s: %s\n", fname, err)
-		return
-	}
-
-	err = ioutil.WriteFile(fname, buf, 0644)
-	if err != nil {
-		fmt.Printf("Error writing file %s: %s\n", fname, err)
-		return
-	}
-}
-
-func getGen2Response(path string) string {
-	secPort := "8888"
-	scheme := "http"
-	if secConfig.TransportSec == "yes" {
-		scheme = "https"
-		secPortNum, _ := strconv.Atoi(secConfig.SecPort)
-		secPort = strconv.Itoa(secPortNum + 1) // to diff from WSS portno
-	}
-	url := scheme + "://" + vissv2Url + ":" + secPort + pathToUrl(path)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fmt.Printf("getGen2Response: Error creating request=%s.", err)
-		return ""
-	}
-
-	// Set headers
-	req.Header.Set("Access-Control-Allow-Origin", "*")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", vissv2Url+":"+secPort)
-
-	// Configure client
-	var client *http.Client
-	if secConfig.TransportSec == "yes" {
-		t := &http.Transport{
-			TLSClientConfig: &tls.Config{
-				Certificates: []tls.Certificate{clientCert},
-				RootCAs:      &caCertPool,
-			},
-		}
-
-		client = &http.Client{Transport: t, Timeout: 10 * time.Second}
-	} else {
-		client = &http.Client{Timeout: 10 * time.Second}
-	}
-
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Printf("getGen2Response: Error in issuing request/response= %s ", err)
-		return ""
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Printf("getGen2Response: Error in reading response= %s ", err)
-		return ""
-	}
-
-	return string(body)
-}
-
-func displayMessage(message string) {
-    fmt.Printf("displayMessage: message = %s\n", message)
-}
-
-func iterateGetAndWrite(elements int, sleepTime int) {
-	for i := 0; i < elements; i++ {
-		response := getGen2Response(requestList.Request[i])
-		if len(response) == 0 {
-			fmt.Printf("iterateGetAndWrite: Cannot connect to server.\n")
-			os.Exit(-1)
-		}
-		displayMessage(response)
-		time.Sleep((time.Duration)(sleepTime) * time.Millisecond)
-	}
-	fmt.Printf("\n\n****************** Iteration cycle over all paths completed ************************************\n\n")
-}
-
 func initVissV2WebSocket(compression string) *websocket.Conn {
 	scheme := "ws"
 	portNum := "8080"
@@ -187,9 +103,6 @@ func initVissV2WebSocket(compression string) *websocket.Conn {
 	}
 	var addr = flag.String("addr", vissv2Url+":"+portNum, "http service address")
 	dataSessionUrl := url.URL{Scheme: scheme, Host: *addr, Path: ""}
-//	h := http.Header{}
-//	h.Set("Sec-Websocket-Protocol", "VISSv2" + compression)
-//	conn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
 	subProtocol := make([]string, 1)
 	subProtocol[0] = "VISSv2" + compression
 	dialer := websocket.Dialer{
@@ -206,71 +119,6 @@ func initVissV2WebSocket(compression string) *websocket.Conn {
 	return conn
 }
 
-func iterateNotificationAndWrite(conn *websocket.Conn) {
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			fmt.Printf("Subscription response error: %s\n", err)
-			return
-		}
-		message := string(msg)
-		if strings.Contains(message, "subscribe") {
-			fmt.Printf("Subscription response:%s\n", message)
-		} else {
-			//	    var msgMap = make(map[string]interface{})
-			//	    jsonToMap(message, &msgMap)
-			//	    data, _ := json.Marshal(msgMap["data"])
-			//	    displayMessage(`{"data":` + string(data) + "}")
-			displayMessage(message)
-		}
-	}
-}
-
-func extractMessage(message string) (string, string, string) { // message is expected to contain the key-value: “data”:{“path”:”B”, “dp”:{“value”:”C”, “ts”:”D”}}
-	var msgMap = make(map[string]interface{})
-	jsonToMap(message, &msgMap)
-	if msgMap["data"] == nil {
-		fmt.Printf("Error: Message does not contain vehicle data.\n")
-		return "", "", ""
-	}
-	data, _ := json.Marshal(msgMap["data"])
-
-	jsonToMap(string(data), &msgMap)
-	path := msgMap["path"].(string)
-	dp, _ := json.Marshal(msgMap["dp"])
-
-	jsonToMap(string(dp), &msgMap)
-	value := msgMap["value"].(string)
-	ts := msgMap["ts"].(string)
-	fmt.Printf("path=%s, value=%s, ts=%s\n", path, value, ts)
-	return path, value, ts
-}
-
-func jsonToMap(request string, rMap *map[string]interface{}) {
-	decoder := json.NewDecoder(strings.NewReader(request))
-	err := decoder.Decode(rMap)
-	if err != nil {
-		fmt.Printf("jsonToMap: JSON decode failed for request:%s, err=%s\n", request, err)
-	}
-}
-
-func subscribeToPaths(conn *websocket.Conn, elements int, sleepTime int) {
-	for i := 0; i < elements; i++ {
-		subscribeToPath(conn, requestList.Request[i])
-		time.Sleep((time.Duration)(sleepTime) * time.Millisecond)
-	}
-}
-
-func subscribeToPath(conn *websocket.Conn, path string) {
-	request := `{"action":"subscribe", "path":"` + path + `", "filter":{"op-type":"capture", "op-value":"time-based", "op-extra":{"period":"3"}}, "requestId": "6578"}`
-
-	err := conn.WriteMessage(websocket.TextMessage, []byte(request))
-	if err != nil {
-		fmt.Printf("Subscribe request error:%s\n", err)
-	}
-
-}
-
 func getResponse(conn *websocket.Conn, request []byte) []byte {
 	err := conn.WriteMessage(websocket.BinaryMessage, request)
 	if err != nil {
@@ -285,31 +133,54 @@ func getResponse(conn *websocket.Conn, request []byte) []byte {
 	return msg
 }
 
-/*func transferData(elements int, sleepTime int, protocol string) {
-	if protocol == "http" {
-		for {
-			iterateGetAndWrite(elements, sleepTime)
-		}
-	} else {
-		conn := initVissV2WebSocket(compression)
-		go iterateNotificationAndWrite(conn)
-		subscribeToPaths(conn, elements, sleepTime)
-		for {
-			time.Sleep(1000 * time.Millisecond) // just to keep alive...
-		}
-	}
-}*/
-
 func performCommand(commandNumber int, conn *websocket.Conn, optionChannel chan string) {
     fmt.Printf("Request: %s\n", requestList.Request[commandNumber])
-    pbRequest := utils.JsonToProtobuf(requestList.Request[commandNumber], convertToCompression(compression)) 
-    fmt.Printf("JSON request size= %d, Protobuf request size=%d\n", len(requestList.Request[commandNumber]), len(pbRequest))
-    fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber])) / len(pbRequest) - 100)
-    compressedResponse := getResponse(conn, pbRequest)
+    if (compression != "prop") {
+        performPbCommand(commandNumber, conn, optionChannel)
+    } else {
+    compressedRequest := utils.CompressMessage([]byte(requestList.Request[commandNumber]))
+    fmt.Printf("JSON request size= %d, Compressed request size=%d\n", len(requestList.Request[commandNumber]), len(compressedRequest))
+    fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber])) / len(compressedRequest))
+    compressedResponse := getResponse(conn, compressedRequest)
+    jsonResponse := string(utils.DecompressMessage([]byte(compressedResponse)))
+    fmt.Printf("Response: %s\n", jsonResponse)
+    fmt.Printf("JSON response size= %d, Compressed response size=%d\n", len(jsonResponse), len(compressedResponse))
+    fmt.Printf("Compression= %d%\n", (100*len(jsonResponse)) / len(compressedResponse))
+    if (strings.Contains(requestList.Request[commandNumber], "subscribe") == true) {
+        for {
+	    _, msg, err := conn.ReadMessage()
+	    if err != nil {
+		fmt.Printf("Notification error: %s\n", err)
+		return
+	    }
+	    jsonNotification := string(utils.DecompressMessage(msg))
+	    fmt.Printf("Notification: %s\n", jsonNotification)
+	    fmt.Printf("JSON notification size= %d, Compressed notification size=%d\n", len(jsonNotification), len(msg))
+	    fmt.Printf("Compression= %d%\n", (100*len(jsonNotification)) / len(msg))
+	    select {
+	        case <- optionChannel:
+	            // issue unsubscribe request
+	            subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
+	            unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
+	            compressedUnsubReq := utils.CompressMessage([]byte(unsubReq))
+	            getResponse(conn, compressedUnsubReq)
+	            return
+	        default:
+	    }
+        }
+    }
+    }
+}
+
+func performPbCommand(commandNumber int, conn *websocket.Conn, optionChannel chan string) {
+    compressedRequest := utils.JsonToProtobuf(requestList.Request[commandNumber], convertToCompression(compression)) 
+    fmt.Printf("JSON request size= %d, Protobuf request size=%d\n", len(requestList.Request[commandNumber]), len(compressedRequest))
+    fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber])) / len(compressedRequest))
+    compressedResponse := getResponse(conn, compressedRequest)
     jsonResponse := utils.ProtobufToJson(compressedResponse, convertToCompression(compression))
     fmt.Printf("Response: %s\n", jsonResponse)
     fmt.Printf("JSON response size= %d, Protobuf response size=%d\n", len(jsonResponse), len(compressedResponse))
-    fmt.Printf("Compression= %d%\n", (100*len(jsonResponse)) / len(compressedResponse) - 100)
+    fmt.Printf("Compression= %d%\n", (100*len(jsonResponse)) / len(compressedResponse))
     if (strings.Contains(requestList.Request[commandNumber], "subscribe") == true) {
         for {
 	    _, msg, err := conn.ReadMessage()
@@ -320,11 +191,11 @@ func performCommand(commandNumber int, conn *websocket.Conn, optionChannel chan 
 	    jsonNotification := utils.ProtobufToJson(msg, convertToCompression(compression))
 	    fmt.Printf("Notification: %s\n", jsonNotification)
 	    fmt.Printf("JSON notification size= %d, Protobuf notification size=%d\n", len(jsonNotification), len(msg))
-	    fmt.Printf("Compression= %d%\n", (100*len(jsonNotification)) / len(msg) - 100)
+	    fmt.Printf("Compression= %d%\n", (100*len(jsonNotification)) / len(msg))
 	    select {
 	        case <- optionChannel:
 	            // issue unsubscribe request
-	            subscriptionId := utils.ExtractSubscriptionId(msg)
+	            subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
 	            unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
 	            pbUnsubReq := utils.JsonToProtobuf(unsubReq, convertToCompression(compression))
 	            getResponse(conn, pbUnsubReq)
@@ -400,6 +271,11 @@ func main() {
 
 	if createListFromFile("requests.json") == 0 {
 		fmt.Printf("Failed in creating list from requests.json")
+		os.Exit(1)
+	}
+
+	if (utils.InitCompression("vsspathlist.json") != true) {
+		fmt.Printf("Failed in creating list from vsspathlist.json")
 		os.Exit(1)
 	}
 

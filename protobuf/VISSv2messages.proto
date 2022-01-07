@@ -93,13 +93,15 @@ message FilterExpressions {
 
 message DataPackages {
     message DataPackage {
-        string Path = 1;
+        optional string Path = 1;
+        optional int32 PathC = 2;
 
         message DataPoint {
             string Value = 1;
-            string Ts = 2;
+            optional string Ts = 2;
+            optional int32 TsC = 3;
         }
-        repeated DataPoint Dp = 2;
+        repeated DataPoint Dp = 3;
     }
     repeated DataPackage Data = 1;
 }
@@ -108,25 +110,24 @@ message GetMessage {
     MessageType MType = 1;
 
     message RequestMessage {
-        string Action = 1;
-        string Path = 2;
-        optional FilterExpressions Filter = 3;
-        optional string Authorization = 4;
-        optional string RequestId = 5;
+        string Path = 1;
+        optional FilterExpressions Filter = 2;
+        optional string Authorization = 3;
+        optional string RequestId = 4;
     }
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        string Action = 1;
-        ResponseStatus Status = 2;
+        ResponseStatus Status = 1;
         message SuccessResponseMessage {
-            optional DataPackages DataPack = 2;
-            optional string Metadata = 3; // replaces DataPack in static metadata and one dynamic metadata variant
+            optional DataPackages DataPack = 1;
+            optional string Metadata = 2; // replaces DataPack in static metadata and one dynamic metadata variant
         }
-        optional SuccessResponseMessage SuccessResponse = 3;
-        optional ErrorResponseMessage ErrorResponse = 4;
-        optional string RequestId = 5;
-        string Ts = 6;
+        optional SuccessResponseMessage SuccessResponse = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+        optional string RequestId = 4;
+        optional string Ts = 5;
+        optional int32 TsC = 6;
     }
     optional ResponseMessage Response = 3;
 }
@@ -135,20 +136,18 @@ message SetMessage {
     MessageType MType = 1;
 
     message RequestMessage {
-        string Action = 1;
-        string Path = 2;
-        string Value = 3;
-        optional string Authorization = 4;
-        optional string RequestId = 5;
+        string Path = 1;
+        string Value = 2;
+        optional string Authorization = 3;
+        optional string RequestId = 4;
     }
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        string Action = 1;
-        ResponseStatus Status = 2;
-        optional ErrorResponseMessage ErrorResponse = 3;
-        optional string RequestId = 4;
-        string Ts = 5;
+        ResponseStatus Status = 1;
+        optional ErrorResponseMessage ErrorResponse = 2;
+        optional string RequestId = 3;
+        string Ts = 4;
     }
     optional ResponseMessage Response = 3;
 }
@@ -157,34 +156,32 @@ message SubscribeMessage {
     MessageType MType = 1;
 
     message RequestMessage {
-        string Action = 1;
-        string Path = 2;
-        optional FilterExpressions Filter = 3;
-        optional string Authorization = 4;
-        string RequestId = 5;
+        string Path = 1;
+        optional FilterExpressions Filter = 2;
+        optional string Authorization = 3;
+        string RequestId = 4;
     }
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        string Action = 1;
-        ResponseStatus Status = 2;
-        optional ErrorResponseMessage ErrorResponse = 3;
-        string SubscriptionId = 4;
-        string RequestId = 5;
-        string Ts = 6;
+        ResponseStatus Status = 1;
+        optional ErrorResponseMessage ErrorResponse = 2;
+        string SubscriptionId = 3;
+        string RequestId = 4;
+        string Ts = 5;
     }
     optional ResponseMessage Response = 3;
 
     message NotificationMessage {
-        string Action = 1;
-        string SubscriptionId = 2;
-        ResponseStatus Status = 3;
+        string SubscriptionId = 1;
+        ResponseStatus Status = 2;
         message SuccessResponseMessage {
             DataPackages DataPack = 1;
         }
-        optional SuccessResponseMessage SuccessResponse = 4;
-        optional ErrorResponseMessage ErrorResponse = 5;
-        string Ts = 6;
+        optional SuccessResponseMessage SuccessResponse = 3;
+        optional ErrorResponseMessage ErrorResponse = 4;
+        optional string Ts = 5;
+        optional int32 TsC = 6;
     }
     optional NotificationMessage Notification = 4;
 }
@@ -193,19 +190,17 @@ message UnSubscribeMessage {
     MessageType MType = 1;
 
     message RequestMessage {
-        string Action = 1;
-        string SubscriptionId = 2;
-        optional string RequestId = 3;
+        string SubscriptionId = 1;
+        optional string RequestId = 2;
     }
     optional RequestMessage Request = 2;
 
     message ResponseMessage {
-        string Action = 1;
-        string SubscriptionId = 2;
-        ResponseStatus Status = 3;
-        optional ErrorResponseMessage ErrorResponse = 4;
-        optional string RequestId = 5;
-        string Ts = 6;
+        string SubscriptionId = 1;
+        ResponseStatus Status = 2;
+        optional ErrorResponseMessage ErrorResponse = 3;
+        optional string RequestId = 4;
+        string Ts = 5;
     }
     optional ResponseMessage Response = 3;
 }

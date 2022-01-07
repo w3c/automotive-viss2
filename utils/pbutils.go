@@ -15,7 +15,10 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+var currentCompression Compression
+
 func ProtobufToJson(serialisedMessage []byte, compression Compression) string {
+    currentCompression = compression
     protoMessage := &pb.ProtobufMessage{}
     err := proto.Unmarshal(serialisedMessage, protoMessage)
     if err != nil {
@@ -27,6 +30,7 @@ func ProtobufToJson(serialisedMessage []byte, compression Compression) string {
 }
 
 func JsonToProtobuf(jsonMessage string, compression Compression) []byte {
+    currentCompression = compression
     var protoMessage *pb.ProtobufMessage
     protoMessage = populateProtoFromJson(jsonMessage)
     serialisedMessage, err := proto.Marshal(protoMessage)
@@ -37,14 +41,14 @@ func JsonToProtobuf(jsonMessage string, compression Compression) []byte {
     return serialisedMessage
 }
 
-func ExtractSubscriptionId(pbNotification []byte) string {
-    protoNotification := &pb.ProtobufMessage{}
-    err := proto.Unmarshal(pbNotification, protoNotification)
+func ExtractSubscriptionId(jsonSubResponse string) string {
+    var subResponseMap map[string]interface{}
+    err := json.Unmarshal([]byte(jsonSubResponse), &subResponseMap)
     if err != nil {
-        Error.Printf("Unmarshaling error: ", err)
-        return ""
+        Error.Printf("ExtractSubscriptionId:Unmarshal error response=%s, err=%s", jsonSubResponse, err)
+	return ""
     }
-    return protoNotification.GetSubscribe().GetNotification().GetSubscriptionId()
+    return subResponseMap["subscriptionId"].(string)
 }
 
 func populateProtoFromJson(jsonMessage string) *pb.ProtobufMessage {
@@ -152,10 +156,15 @@ func createGetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 
 func createGetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Get.Response = &pb.GetMessage_ResponseMessage{}
-    protoMessage.Get.Response.Action = messageMap["action"].(string)
     requestId := messageMap["requestId"].(string)
     protoMessage.Get.Response.RequestId = &requestId
-    protoMessage.Get.Response.Ts = messageMap["ts"].(string)
+    ts := messageMap["ts"].(string)
+    if (currentCompression == PB_LEVEL1) {
+        protoMessage.Get.Response.Ts = &ts
+    } else {
+        tsc := CompressTS(ts)
+        protoMessage.Get.Response.TsC = &tsc
+    }
     if (messageMap["error"] == nil) {
         protoMessage.Get.Response.Status = pb.ResponseStatus_SUCCESS
         protoMessage.Get.Response.SuccessResponse = &pb.GetMessage_ResponseMessage_SuccessResponseMessage{}
@@ -214,7 +223,12 @@ func createDataElement(index int, messageDataMap interface{}) *pb.DataPackages_D
       default: dataObject = vv.(map[string]interface{})
     }
     var protoDataElement pb.DataPackages_DataPackage
-    protoDataElement.Path = dataObject["path"].(string)
+    path := dataObject["path"].(string)
+    if (currentCompression == PB_LEVEL1) {
+        protoDataElement.Path = &path
+    } else {
+        protoDataElement.PathC = CompressPath(path)
+    }
     numOfDataPointElements := getNumOfDataPointElements(dataObject["dp"])
     protoDataElement.Dp = make([]*pb.DataPackages_DataPackage_DataPoint, numOfDataPointElements)
     for i := 0 ; i < numOfDataPointElements ; i++ {
@@ -241,7 +255,13 @@ func createDataPointElement(index int, messageDataPointMap interface{}) *pb.Data
     }
     var protoDataPointElement pb.DataPackages_DataPackage_DataPoint
     protoDataPointElement.Value = dataPointObject["value"].(string)
-    protoDataPointElement.Ts = dataPointObject["ts"].(string)
+    ts := dataPointObject["ts"].(string)
+    if (currentCompression == PB_LEVEL1) {
+        protoDataPointElement.Ts = &ts
+    } else {
+        tsc := CompressTS(ts)
+        protoDataPointElement.TsC = &tsc
+    }
     return &protoDataPointElement
 }
 
@@ -449,7 +469,6 @@ func createSubscribeRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[s
 
 func createSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Subscribe.Response = &pb.SubscribeMessage_ResponseMessage{}
-    protoMessage.Subscribe.Response.Action = messageMap["action"].(string)
     protoMessage.Subscribe.Response.SubscriptionId = messageMap["subscriptionId"].(string)
     protoMessage.Subscribe.Response.RequestId = messageMap["requestId"].(string)
     protoMessage.Subscribe.Response.Ts = messageMap["ts"].(string)
@@ -457,16 +476,20 @@ func createSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[
         protoMessage.Subscribe.Response.Status = pb.ResponseStatus_SUCCESS
     } else {
         protoMessage.Subscribe.Response.Status = pb.ResponseStatus_ERROR
-//        protoMessage.Subscribe.Response.ErrorResponse = &pb.ErrorResponseMessage{}
         protoMessage.Subscribe.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
 
 func createSubscribeNotificationPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Subscribe.Notification = &pb.SubscribeMessage_NotificationMessage{}
-    protoMessage.Subscribe.Notification.Action = messageMap["action"].(string)
     protoMessage.Subscribe.Notification.SubscriptionId = messageMap["subscriptionId"].(string)
-    protoMessage.Subscribe.Notification.Ts = messageMap["ts"].(string)
+    ts := messageMap["ts"].(string)
+    if (currentCompression == PB_LEVEL1) {
+        protoMessage.Subscribe.Notification.Ts = &ts
+    } else {
+        tsc := CompressTS(ts)
+        protoMessage.Subscribe.Notification.TsC = &tsc
+    }
     if (messageMap["error"] == nil) {
         protoMessage.Subscribe.Notification.Status = pb.ResponseStatus_SUCCESS
         protoMessage.Subscribe.Notification.SuccessResponse = &pb.SubscribeMessage_NotificationMessage_SuccessResponseMessage{}
@@ -508,7 +531,6 @@ func createSetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 
 func createSetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.Set.Response = &pb.SetMessage_ResponseMessage{}
-    protoMessage.Set.Response.Action = messageMap["action"].(string)
     requestId := messageMap["requestId"].(string)
     protoMessage.Set.Response.RequestId = &requestId
     protoMessage.Set.Response.Ts = messageMap["ts"].(string)
@@ -516,7 +538,6 @@ func createSetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string
         protoMessage.Set.Response.Status = pb.ResponseStatus_SUCCESS
     } else {
         protoMessage.Set.Response.Status = pb.ResponseStatus_ERROR
-//        protoMessage.Set.Response.ErrorResponse = &pb.ErrorResponseMessage{}
         protoMessage.Set.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
@@ -541,7 +562,6 @@ func createUnSubscribeRequestPb(protoMessage *pb.ProtobufMessage, messageMap map
 
 func createUnSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
     protoMessage.UnSubscribe.Response = &pb.UnSubscribeMessage_ResponseMessage{}
-    protoMessage.UnSubscribe.Response.Action = messageMap["action"].(string)
     protoMessage.UnSubscribe.Response.SubscriptionId = messageMap["subscriptionId"].(string)
     if messageMap["requestId"] != nil {
         reqId := messageMap["requestId"].(string)
@@ -552,7 +572,6 @@ func createUnSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap ma
         protoMessage.UnSubscribe.Response.Status = pb.ResponseStatus_SUCCESS
     } else {
         protoMessage.UnSubscribe.Response.Status = pb.ResponseStatus_ERROR
-//        protoMessage.UnSubscribe.Response.ErrorResponse = &pb.ErrorResponseMessage{}
         protoMessage.UnSubscribe.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
     }
 }
@@ -574,7 +593,11 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
             } else { // ERROR
                 jsonMessage += getJsonError(protoMessage,0)
             }
-            jsonMessage += `,"ts":"` + protoMessage.GetGet().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage,0,1)
+            if (currentCompression == PB_LEVEL1) {
+                jsonMessage += `,"ts":"` + protoMessage.GetGet().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage,0,1)
+            } else {
+                jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetGet().GetResponse().GetTsC()) + `"` + getJsonTransactionId(protoMessage,0,1)
+            }
         }
     case 1: // SET
         jsonMessage += `"action":"set"`
@@ -609,7 +632,12 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
             } else { // ERROR
                 jsonMessage += getJsonError(protoMessage,2)
             }
-            jsonMessage += `,"ts":"` + protoMessage.GetSubscribe().GetNotification().GetTs() + `"` + getJsonTransactionId(protoMessage,2,2)
+            if (currentCompression == PB_LEVEL1) {
+                jsonMessage += `,"ts":"` + protoMessage.GetSubscribe().GetNotification().GetTs() + `"` + getJsonTransactionId(protoMessage,2,2)
+            } else {
+                jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetSubscribe().GetNotification().GetTsC()) + `"` + 
+                                getJsonTransactionId(protoMessage,2,2)
+            }
       }
     case 3: // UNSUBSCRIBE
         jsonMessage += `"action":"unsubscribe"`
@@ -826,7 +854,12 @@ func getJsonData(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) str
         data += "["
     }
     for i := 0 ; i < len(dataPack) ; i++ {
-        path := dataPack[i].GetPath()
+        var path string
+        if (currentCompression == PB_LEVEL1) {
+            path = dataPack[i].GetPath()
+        } else {
+            path = DecompressPath(dataPack[i].GetPathC())
+        }
         dp := getJsonDp(dataPack[i])
         data += `{"path":"` + path + `","dp":` + dp + `},`
     }
@@ -845,7 +878,12 @@ func getJsonDp(dataPack *pb.DataPackages_DataPackage) string {
     }
     for i := 0 ; i < len(dpPack) ; i++ {
         value := dpPack[i].GetValue()
-        ts := dpPack[i].GetTs()
+        var ts string
+        if (currentCompression == PB_LEVEL1) {
+            ts = dpPack[i].GetTs()
+        } else {
+            ts = DecompressTs(dpPack[i].GetTsC())
+        }
         dp += `{"value":"` + value + `","ts":"` + ts + `"},`
     }
     dp = dp[:len(dp)-1]

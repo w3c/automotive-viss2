@@ -232,6 +232,7 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 		    payload = string(msg)
 		}
 		Info.Printf("%s request: %s, len=%d", conn.RemoteAddr(), payload, len(payload))
+		Info.Printf("Compression variant=%d", compression)
 
 		clientChannel <- payload    // forward to mgr hub,
 		response := <-clientChannel //  and wait for response
@@ -293,20 +294,32 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
 			   }
-			   if sub == "VISSv2c" {
-			      compression = PROPRIETARY
-			      h.Set("Sec-Websocket-Protocol", sub)
+			   if sub == "VISSv2prop" {
+			      if (InitCompression("../vsspathlist.json") == true) {
+			          compression = PROPRIETARY
+			          h.Set("Sec-Websocket-Protocol", sub)
+			      } else {
+			          Error.Printf("Cannot find vsspathlist.json.")
+			          compression = NONE // revert back to no compression
+			          h.Set("Sec-Websocket-Protocol", "VISSv2")
+			      }
 			      break
 			   }
 			   if sub == "VISSv2pbl1" {
 			      compression = PB_LEVEL1
 			      h.Set("Sec-Websocket-Protocol", sub)
 			      break
-			   if sub == "VISSv2pbl2" {
-			      compression = PB_LEVEL2
-			      h.Set("Sec-Websocket-Protocol", sub)
-			      break
 			   }
+			   if sub == "VISSv2pbl2" {
+			      if (InitCompression("../vsspathlist.json") == true) {
+			          compression = PB_LEVEL2
+			          h.Set("Sec-Websocket-Protocol", sub)
+			      } else {
+			          Error.Printf("Cannot find vsspathlist.json.")
+			          compression = PB_LEVEL1 // revert back to level 1
+			          h.Set("Sec-Websocket-Protocol", "VISSv2pbl1")
+			      }
+			      break
 			   }
 			}
 			conn, err := Upgrader.Upgrade(w, req, h)
