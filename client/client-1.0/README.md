@@ -1,13 +1,30 @@
 **(C) 2021 Geotab Inc**<br>
 
-# MQTT client
+# Compression client
 
-The MQTT client is a rudimentary implementation to allow testing VISS v2 request/response communication over MQTT using the proposed application level protocol that is described in the <a href="https://github.com/MEAE-GOT/WAII/tree/master/server/mqtt_mgr">server/mqtt_mgr</a> directory.<br>
-The MQTT client is started as shown below<br>
-$ ./mqtt_mgr VIN<br>
-where VIN is the VIN number associated to the VSS path "Vehicle.VehicleIdentification.VIN".<br>
-This VIN should probably only be used in test cases like this, otherwise a "pseudo-VIN" is probably more appropriate from a privacy point of view.<br>
-In the current implementation the VISSv2 server mqtt manager reads the VIN using the path above, and then issues a subcribe on the topic "VIN/Vehicle". This topic must be known by the MQTT client for the protocol to work.<br>
-In the current server implementation a random dummy value is returned if the service manager at start up does not find a "statestorage.db" database, AND that this database has a value stored for the addressed path. So, to simplify testing with the MQTT client, it is recommended that a statestorage.db is created, with at least a value, plus corresponding timestamp, written into it. Then this value is what shall be used when starting as mentioned above.<br>
-To create such a statestorage database, please clone the <a href="https://github.com/GENIVI/ccs-w3c-client">ccs-w3-client</a> repo, and follow the instructions <a href="https://github.com/GENIVI/ccs-w3c-client/tree/master/statestorage">statestorage</a> directory.
+The compression client is a client for testing the experimental compression solutions that are supported by the VISSv2 server. 
+If the client is started without any command argument the following is shown:<br>
+<pre>[-v|--vissv2Url] is required
+usage: print [-h|--help] -v|--vissv2Url &quot;&lt;value&gt;&quot; [-p|--protocol (http|ws)]
+             [-c|--compression (prop|pbl1|pbl2)] [--logfile] [--loglevel
+             (trace|debug|info|warn|error|fatal|panic)]
 
+             Prints provided string to stdout
+
+Arguments:
+
+  -h  --help         Print help information
+  -v  --vissv2Url    IP/url to VISSv2 server
+  -p  --protocol     Protocol must be either http or websocket. Default: ws
+  -c  --compression  Compression must be either proprietary or protobuf level 1
+                     or 2. Default: pbl1
+      --logfile      outputs to logfile in ./logs folder
+      --loglevel     changes log output level. Default: info
+</pre>
+Depending on the -c argument the client will run in one of the three compression variants supported (see README in utils directory), 
+and it will set the websocket subprotocol accordingly to signal to the server which variant to use.<br>
+
+The file requests.json contains the requests that the client have available for sending to the server. This file can be updated with additional requests.<br>
+The client presents the requests on the terminal window with an integer index in front. Enter the index for the request to be issued, and the client will then present the JSON payload sizes, the compressed sizes, and the compression ratio=(len(json)*100)/len(compressed) for the request and response.<br>
+If a subscribe request is issued, the client will continue to show the received notification information as above, until it receives a RETURN key user input, which will lead to that it issues an unsubscribe request, and then waits for new user input.<br>
+The user input zero (0) terminates the client.

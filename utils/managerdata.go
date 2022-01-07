@@ -28,6 +28,15 @@ type SecConfig struct {
 }
 var secConfig SecConfig
 
+type Compression int
+
+const (
+	NONE Compression = 0
+	PROPRIETARY      = 1
+	PB_LEVEL1        = 2  // path has string format, e. g. "Vehicle.Acceleration.Longitudinal"
+	PB_LEVEL2        = 3  // path is represented by integer index, retrieved from vsspathlist.json
+)
+
 var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for app client HTTP sessions
 	http.NewServeMux(), // for data session with core server on port number provided at registration

@@ -62,7 +62,7 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	(*w).Header().Set("Content-Length", strconv.Itoa(len(resp)))
 	written, err := (*w).Write(resp)
 	if err != nil {
-		Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s\n", written, err.Error())
+		Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s", written, err.Error())
 	}
 }
 
@@ -74,7 +74,7 @@ func FrontendWSdataSession(conn *websocket.Conn, clientChannel chan string, back
 			Error.Printf("Service data read error: %s", err)
 			break
 		}
-		Info.Printf("%s request: %s \n", conn.RemoteAddr(), string(msg))
+		Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
 
 		clientChannel <- string(msg) // forward to mgr hub,
 		message := <-clientChannel   //  and wait for response
@@ -88,7 +88,7 @@ func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
 	for {
 		message := <-backendChannel
 
-		Info.Printf("Service:BackendWSdataSession(): message received=%s\n", message)
+		Info.Printf("Service:BackendWSdataSession(): message received=%s", message)
 		// Write message back to server core
 		response := []byte(message)
 
@@ -212,7 +212,7 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	if err != nil {
 		Error.Fatal("Error reading response. ", err)
 	}
-	Info.Printf("%s\n", body)
+	Info.Printf("%s", body)
 
 	err = json.Unmarshal(body, regData)
 	if err != nil {
@@ -220,7 +220,7 @@ func RegisterAsTransportMgr(regData *RegData, protocol string) {
 	}
 }
 
-func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, isCompressProtocol bool) {
+func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, compression Compression) {
 	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -229,11 +229,16 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 			break
 		}
 
-		if isCompressProtocol == true {
-			msg = DecompressMessage(msg)
+		var payload string
+		if (compression == PROPRIETARY) {
+		    payload = string(DecompressMessage(msg))
+		} else if (compression == PB_LEVEL1 || compression == PB_LEVEL2) {
+		    payload = ProtobufToJson(msg, compression)
+		} else {
+		    payload = string(msg)
 		}
-		payload := string(msg)
-		Info.Printf("%s request: %s, len=%d\n", conn.RemoteAddr(), payload, len(payload))
+		Info.Printf("%s request: %s, len=%d", conn.RemoteAddr(), payload, len(payload))
+		Info.Printf("Compression variant=%d", compression)
 
 		clientChannel <- payload    // forward to mgr hub,
 		response := <-clientChannel //  and wait for response
@@ -242,22 +247,27 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 	}
 }
 
-func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string, isCompressProtocol bool) {
+func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string, compression Compression) {
 	defer conn.Close()
 	for {
 		message := <-clientBackendChannel
 
-		Info.Printf("backendWSAppSession(): Message received=%s\n", message)
+		Info.Printf("backendWSAppSession(): Message received=%s", message)
 		// Write message back to app client
-		response := []byte(message)
-		var err error
+		var response []byte
+	        var messageType int
 
-		if isCompressProtocol == true {
-			response = CompressMessage(response)
-			err = conn.WriteMessage(websocket.BinaryMessage, response)
+		if (compression == PROPRIETARY) {
+		    response = CompressMessage([]byte(message))
+		    messageType = websocket.BinaryMessage
+		} else if (compression == PB_LEVEL1 || compression == PB_LEVEL2) {
+		    response = []byte(JsonToProtobuf(message, compression))
+		    messageType = websocket.BinaryMessage
 		} else {
-			err = conn.WriteMessage(websocket.TextMessage, response)
-		}
+		    response = []byte(message)
+		    messageType = websocket.TextMessage
+               }
+	        err := conn.WriteMessage(messageType, response)
 		if err != nil {
 			Error.Print("App client write error:", err)
 			break
@@ -269,7 +279,7 @@ func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string) fu
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Upgrade") == "websocket" {
 			http.Error(w, "400 Incorrect port number", http.StatusBadRequest)
-			Warning.Printf("Client call to incorrect port number for websocket connection.\n")
+			Warning.Printf("Client call to incorrect port number for websocket connection.")
 			return
 		}
 		frontendHttpAppSession(w, req, appClientChannel[0])
@@ -281,19 +291,42 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 		if req.Header.Get("Upgrade") == "websocket" {
 			Info.Printf("we are upgrading to a websocket connection. Server index=%d", *wsH.serverIndex)
 			Upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-			isCompressProtocol := false
+			var compression Compression
+			compression = NONE
 			h := http.Header{}
 			for _, sub := range websocket.Subprotocols(req) {
-				if sub == "VISSv2c" {
-					isCompressProtocol = true
-					h.Set("Sec-Websocket-Protocol", sub)
-					break
-				}
-				if sub == "VISSv2" {
-					isCompressProtocol = false
-					h.Set("Sec-Websocket-Protocol", sub)
-					break
-				}
+			   if sub == "VISSv2" {
+			      compression = NONE
+			      h.Set("Sec-Websocket-Protocol", sub)
+			      break
+			   }
+			   if sub == "VISSv2prop" {
+			      if (InitCompression("../vsspathlist.json") == true) {
+			          compression = PROPRIETARY
+			          h.Set("Sec-Websocket-Protocol", sub)
+			      } else {
+			          Error.Printf("Cannot find vsspathlist.json.")
+			          compression = NONE // revert back to no compression
+			          h.Set("Sec-Websocket-Protocol", "VISSv2")
+			      }
+			      break
+			   }
+			   if sub == "VISSv2pbl1" {
+			      compression = PB_LEVEL1
+			      h.Set("Sec-Websocket-Protocol", sub)
+			      break
+			   }
+			   if sub == "VISSv2pbl2" {
+			      if (InitCompression("../vsspathlist.json") == true) {
+			          compression = PB_LEVEL2
+			          h.Set("Sec-Websocket-Protocol", sub)
+			      } else {
+			          Error.Printf("Cannot find vsspathlist.json.")
+			          compression = PB_LEVEL1 // revert back to level 1
+			          h.Set("Sec-Websocket-Protocol", "VISSv2pbl1")
+			      }
+			      break
+			   }
 			}
 			conn, err := Upgrader.Upgrade(w, req, h)
 			if err != nil {
@@ -302,8 +335,8 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			}
 			Info.Printf("len(appClientChannel)=%d", len(appClientChannel))
 			if *wsH.serverIndex < len(appClientChannel) {
-				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol)
-				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], isCompressProtocol)
+				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], compression)
+				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], compression)
 				*wsH.serverIndex += 1
 			} else {
 				Error.Printf("not possible to start more app client sessions.")
@@ -405,7 +438,7 @@ func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataCon
 			Error.Println("Datachannel read error:" + err.Error())
 			return // ??
 		}
-		Info.Printf("Server hub: HTTP response from server core:%s\n", string(response))
+		Info.Printf("Server hub: HTTP response from server core:%s", string(response))
 		trimmedResponse, clientId := RemoveInternalData(string(response))
 		appClientChannel[clientId] <- trimmedResponse // no need for clientBackendChannel as subscription notifications not supported
 	}
@@ -418,7 +451,7 @@ func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *w
 			Error.Println("Datachannel read error:", err)
 			return // ??
 		}
-		Info.Printf("Server hub: WS response from server core:%s\n", string(response))
+		Info.Printf("Server hub: WS response from server core:%s", string(response))
 		trimmedResponse, clientId := RemoveInternalData(string(response))
 		if strings.Contains(trimmedResponse, "\"subscription\"") {
 			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
