@@ -2,7 +2,17 @@
 
 All files and artifacts in this repository are licensed under the provisions of the license provided by the LICENSE file in this repository.
 
-# Reference compression design
+Two experimental (i. e. not part of the VISSv2 standard) compression solutions are implemented:<br>
+ - Protobuf: Based on protobuf. For more information, see below, in README in the protobuf, and client/client-1.0 directories.
+   The code that transforms payload messages from json to protobuf, and back, are found in pbutils.go.<br>
+   
+ - Proprietary: Based on a proprietary algorithm that is explained below.<br>
+   The code that transforms payload messages from json to protobuf, and back, are found in computils.go.<br>
+   The proprietary solution currently only supports requests where the path points to a leaf node in the VSS tree.<br>
+
+The compression solutions are currently supported over the websocket transport only, where it is signalled in the subprotocol parameter at session initiation. For HTTP support, it could be signalled in a header. For MQTT, a new key-value parameter could be added to the application protocol.
+
+# Proprietary reference compression design
 
 The design is context aware, i. e. it knows that the payload is JSON, and the set of key-value pairs that can be expected.
 As the payload sizes are typically less than 100 characters, this is probably necessary to achieve high compression ratios.
@@ -77,4 +87,14 @@ Values that are not of any of these types are kept uncompressed.
 6. The fact that data that does not relate to any of the mentioned compression features is left uncompressed leads to that the usage of this compression does not apply any restriction to the syntax scope of VISSv2. It also enables the client to send uncompressed requests, where the response will be compressed. 
 
 The current compression solution does not support service discovery requests.
+
+# Protobuf reference compression design
+This design provides two levels of compression:<br>
+PB_LEVEL1:<br>
+All payload data parameters are represented in string format.<br>
+PB_LEVEL2:<br>
+Paths are represented by an index into the path array found in the vsspathlist.json file. The index has int32 format.<br>
+Timestamps are represented as Unix time using int32 format.<br>
+This is currently implemented in get and subscribe responses/notifications.<br>
+All other payload data parameters are represented in string format.<br>
 

@@ -396,19 +396,20 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 	return false
 }
 
-func addDataPackage(incompleteMessage string, dataPack string) string {
-	return incompleteMessage[:len(incompleteMessage)-1] + ", \"data\":" + dataPack + "}"
+func addPackage(incompleteMessage string, packName string, packValue string) string {
+	return incompleteMessage[:len(incompleteMessage)-1] + ", \"" + packName + "\":" + packValue + "}"
 }
 
 func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backendChannel chan string, subscriptionList []SubscriptionState) []SubscriptionState {
 	var subscriptionMap = make(map[string]interface{})
 	subscriptionMap["action"] = "subscription"
+	subscriptionMap["ts"] = utils.GetRfcTime()
 	select {
 	case subscriptionId := <-subscriptionChannel: // interval notification triggered
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.routerId
-		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionState.path, nil))
+		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionState.path, nil))
 	case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		//subscriptionState := subscriptionList[index]
@@ -419,7 +420,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		}
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionList[index].subscriptionId)
 		subscriptionMap["RouterId"] = subscriptionList[index].routerId
-		backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), clPack.DataPack)
+		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", clPack.DataPack)
 	default:
 		// check if range or change notification triggered
 		for i := range subscriptionList {
@@ -430,7 +431,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.routerId
 				subscriptionList[i].latestDataPoint = triggerDataPoint
-				backendChannel <- addDataPackage(utils.FinalizeMessage(subscriptionMap), getDataPack(subscriptionList[i].path, nil))
+				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].path, nil))
 			}
 		}
 	}
@@ -807,13 +808,20 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 		dataPack += "["
 	}
 	getHistory := false
+	getDomain := false
 	period := ""
+	domain := ""
 	if filterList != nil {
 		for i := 0; i < len(filterList); i++ {
 			if filterList[i].Type == "history" {
 				period = filterList[i].Value
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
+				break
+			} else if (filterList[i].Type == "dynamic-metadata") {
+				domain = filterList[i].Value
+				utils.Info.Printf("Dynamic metadata request, domain=%s", domain)
+				getDomain = true
 				break
 			}
 		}
@@ -828,6 +836,8 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 			if len(dataPoint) == 0 {
 				return ""
 			}
+		} else if (getDomain == true) {
+			dataPoint = getMetadataDomainDp(domain, pathArray[i])
 		} else {
 			dataPoint = getVehicleData(pathArray[i])
 		}
@@ -874,6 +884,28 @@ func getVssPathList(host string, port int, path string) []byte {
 
 	utils.Info.Printf("getVssPathList fetched %d bytes", len(data))
 	return data
+
+func getMetadataDomainDp(domain string, path string) string {
+    value := ""
+    switch domain {
+        case "samplerate": value = getSampleRate(path)
+        case "availability": value = getAvailability(path)
+        case "validate": value = getValidation(path)
+        default: value = "Unknown domain"
+    } 
+    return `{"value":"` + value + `","ts":"` + utils.GetRfcTime() + `"}`
+}
+
+func getSampleRate(path string) string {
+    return "X Hz"  //dummy return
+}
+
+func getAvailability(path string) string {
+    return "available"  //dummy return
+}
+
+func getValidation(path string) string {
+    return "read-write"  //dummy return
 }
 
 func main() {
@@ -946,6 +978,7 @@ func main() {
 			responseMap["RouterId"] = requestMap["RouterId"]
 			responseMap["action"] = requestMap["action"]
 			responseMap["requestId"] = requestMap["requestId"]
+			responseMap["ts"] = utils.GetRfcTime()
 			switch requestMap["action"] {
 			case "set":
 				if strings.Contains(requestMap["path"].(string), "[") == true {
@@ -971,8 +1004,6 @@ func main() {
 				}
 				var filterList []utils.FilterObject
 				if requestMap["filter"] != nil && requestMap["filter"] != "" {
-					//				filterData, err := json.Marshal(requestMap["filter"])
-					//				if err != nil {
 					utils.UnpackFilter(requestMap["filter"], &filterList)
 					if len(filterList) == 0 {
 						utils.Error.Printf("Request filter malformed.")
@@ -980,7 +1011,11 @@ func main() {
 						dataChan <- utils.FinalizeMessage(errorResponseMap)
 						break
 					}
-					//				filter = string(filterData)
+					if (filterList[0].Type == "dynamic-metadata" && filterList[0].Value == "server_capabilities") {
+				    	    metadataPack := `{"filter":["paths","timebased","change","range","curvelog","history","dynamic-metadata","static-metadata"],"access_ctrl":["short_term","long_term","signalset_claim"],"transport_protocol":["https","wss","mqtts"]}`
+				    	    dataChan <- addPackage(utils.FinalizeMessage(responseMap), "metadata", metadataPack)
+				    	    break
+				        }
 				}
 				dataPack := getDataPack(pathArray, filterList)
 				if len(dataPack) == 0 {
@@ -989,7 +1024,7 @@ func main() {
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
-				dataChan <- addDataPackage(utils.FinalizeMessage(responseMap), dataPack)
+				dataChan <- addPackage(utils.FinalizeMessage(responseMap), "data", dataPack)
 			case "subscribe":
 				var subscriptionState SubscriptionState
 				subscriptionState.subscriptionId = subscriptionId
@@ -1014,14 +1049,15 @@ func main() {
 			case "unsubscribe":
 				if requestMap["subscriptionId"] != nil {
 					status := -1
-					if subscriptId, ok := requestMap["subscriptionId"].(string); ok {
-						if ok == true {
-							status, subscriptionList = deactivateSubscription(subscriptionList, subscriptId)
-						}
+					subscriptId, ok := requestMap["subscriptionId"].(string)
+					if ok == true {
+						status, subscriptionList = deactivateSubscription(subscriptionList, subscriptId)
 						if status != -1 {
+							responseMap["subscriptionId"] = subscriptId
 							dataChan <- utils.FinalizeMessage(responseMap)
 							break
 						}
+					requestMap["subscriptionId"] = subscriptId
 					}
 				}
 				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsubscribe failed.", "Incorrect or missing subscription id.")

@@ -23,8 +23,10 @@ Get request with AT token (XXX must be replaced with actual token):
 {"action":"get","path":"Vehicle/ADAS/CruiseControl/Error","authorization":"XXX","requestId":"241"}
 {"action":"get","path":"Vehicle.Body.BodyType","authorization":"XXX","requestId":"243"}
 
-Service discovery request:
+Metadata request:
 {"action":"get","path":"Vehicle/ADAS/ABS","filter":{"type":"static-metadata","value":""},"requestId":"244"}
+{"action":"get","path":"Vehicle","filter":{"type":"dynamic-metadata","value":"server_capabilities"},"requestId":"244"}
+{"action":"get","path":"Vehicle/ADAS","filter":[{"type":"paths","value":["ABS/*","CruiseControl/Error"]},{"type":"dynamic-metadata","value":"availability"}],"requestId":"237"}
 
 Set request:
 {"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}

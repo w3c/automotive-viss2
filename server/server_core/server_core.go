@@ -30,8 +30,8 @@ import (
 	"strings"
 	"time"
 
-	gomodel "github.com/GENIVI/vss-tools/binary/go_parser/datamodel"
-	golib "github.com/GENIVI/vss-tools/binary/go_parser/parserlib"
+	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
+	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
 	"github.com/MEAE-GOT/WAII/utils"
 )
 
@@ -152,8 +152,11 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 			utils.Error.Println("Service datachannel read error:", err)
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
 		}
+utils.Info.Printf("RESPONSE=%s", string(response))
 		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
 		utils.Info.Printf("mgrIndex=%d", mgrIndex)
+protoBuf := utils.JsonToProtobuf(string(response), utils.PB_LEVEL1)  // !!!!!!!!!!!!! protobuf test on received response
+utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf, utils.PB_LEVEL1))
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
@@ -669,6 +672,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
 	rootPath := requestMap["path"].(string)
 	var searchPath []string
+	
 	if requestMap["filter"] != nil {
 		var filterList []utils.FilterObject
 		utils.UnpackFilter(requestMap["filter"], &filterList)
@@ -711,7 +715,10 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
-			//TODO: serve dynamic-metadata request
+			if filterList[i].Type == "dynamic-metadata" && filterList[i].Value == "server_capabilities" {
+			    serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // no further verification
+			    return
+			}
 		}
 	}
 	if requestMap["filter"] == nil || len(searchPath) == 0 {
@@ -866,6 +873,8 @@ func main() {
 		case request := <-transportDataChan[0]: // request from HTTP/HTTPS mgr
 			serveRequest(request, 0, 0)
 		case request := <-transportDataChan[1]: // request from WS/WSS mgr
+protoBuf := utils.JsonToProtobuf(request, utils.PB_LEVEL1)  // !!!!!!!!!!!!! protobuf test on received request
+utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf, utils.PB_LEVEL1))
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
