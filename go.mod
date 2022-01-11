@@ -13,9 +13,8 @@ go 1.16
 //replace github.com/MEAE-GOT/WAII/protobuf/protoc-out => ./protobuf/protoc-out
 
 require (
-	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20211207094201-7208d48f32b6
-	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20211207094201-7208d48f32b6
-	github.com/MEAE-GOT/WAII/protobuf/protoc-out v0.0.0-20220107173150-7b0d0a7a09f7 
+	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20220104185813-cad8492de65f
+	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20220104185813-cad8492de65f
 	github.com/akamensky/argparse v1.3.1
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/golang/protobuf v1.5.2
@@ -28,4 +27,5 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20211019152133-63b7e35f4404 // indirect
 	google.golang.org/grpc v1.41.0
+	google.golang.org/protobuf v1.27.1
 )
