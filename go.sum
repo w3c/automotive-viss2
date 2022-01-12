@@ -1,6 +1,11 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20211207094201-7208d48f32b6/go.mod h1:g2N97BLJNriANqodWem0usF9fKwwUFHP+VxG1dfSsZQ=
+github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20220104185813-cad8492de65f h1:gaBqDdz/4VY1CPnvZq1Ipb1XyAZJS9VKUEDCEGLUxHU=
+github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20220104185813-cad8492de65f/go.mod h1:g2N97BLJNriANqodWem0usF9fKwwUFHP+VxG1dfSsZQ=
+github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20220104185813-cad8492de65f h1:bM2SB/Z6Xzf70tZ9GOiilFD5XXT68wlTaivWK69TjXA=
+github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20220104185813-cad8492de65f/go.mod h1:rWjamgjPuXRJ5kKJrwibrR1Pe771seoUO/9OauCu/Y4=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/akamensky/argparse v1.3.1 h1:kP6+OyvR0fuBH6UhbE6yh/nskrDEIQgEA1SUXDPjx4g=
 github.com/akamensky/argparse v1.3.1/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
