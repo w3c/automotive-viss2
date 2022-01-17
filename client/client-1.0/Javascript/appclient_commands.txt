@@ -32,7 +32,7 @@ Set request:
 {"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}
 
 Subscribe request:
-{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","value":{"period":"3"}},"requestId":"246"}
+{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"246"}
 {"action":"subscribe","path":"Vehicle.Cabin.Door.Row1.Right.IsOpen","filter":{"type":"change","value":{"logic-op":"gt", "diff":"10"}},"requestId":"247"}
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"range","value":{"logic-op":"gt","boundary":"500"}},"requestId":"255"}
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"range","value":[{"logic-op":"gt","boundary":"500"},{"logic-op":"lt","boundary":"510"}]},"requestId":"265"}
