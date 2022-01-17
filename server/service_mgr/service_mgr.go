@@ -188,7 +188,7 @@ func activateInterval(subscriptionChannel chan int, subscriptionId int, interval
 		utils.Error.Printf("activateInterval: No available ticker.")
 		return
 	}
-	subscriptionTicker[index] = time.NewTicker(time.Duration(interval) * 1000 * time.Millisecond) // interval in seconds
+	subscriptionTicker[index] = time.NewTicker(time.Duration(interval) * time.Millisecond) // interval in milliseconds
 	go func() {
 		for range subscriptionTicker[index].C {
 			subscriptionChannel <- subscriptionId

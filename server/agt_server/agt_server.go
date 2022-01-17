@@ -36,7 +36,7 @@ type Payload struct {
 func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		utils.Info.Printf("agtServer:url=%s", req.URL.Path)
-		if req.URL.Path != "/agtserver" {
+		if req.URL.Path != "/agts" {
 			http.Error(w, "404 url path not found.", 404)
 		} else if req.Method != "POST" {
 			http.Error(w, "400 bad request method.", 400)
@@ -62,9 +62,9 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 }
 
 func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer(): :7500/agtserver")
+	utils.Info.Printf("initAtServer(): :7500/agts")
 	agtServerHandler := makeAgtServerHandler(serverChannel)
-	muxServer.HandleFunc("/agtserver", agtServerHandler)
+	muxServer.HandleFunc("/agts", agtServerHandler)
 	utils.Error.Fatal(http.ListenAndServe(":7500", muxServer))
 }
 
@@ -135,8 +135,12 @@ func generateAgt(payload Payload) string {
 		exp = iat + 7*24*60*60 // 1 week
 	}
 	jwtHeader := `{"alg":"ES256","typ":"JWT"}`
-	jwtPayload := `{"vin":"` + payload.Vin + `", "iat":` + strconv.Itoa(iat) + `, "exp":` + strconv.Itoa(exp) + `, "clx":"` + payload.Context + `"`
-	if len(payload.Key) != 0 {
+	jwtPayload := "{"
+	if len(payload.Vin) > 0 {
+		jwtPayload += `"vin":"` + payload.Vin + `", `
+	}	
+	jwtPayload += `"iat":` + strconv.Itoa(iat) + `, "exp":` + strconv.Itoa(exp) + `, "clx":"` + payload.Context + `"`
+	if len(payload.Key) > 0 {
 		jwtPayload += `, "pub": "` + payload.Key + `"`
 	}
 	jwtPayload += `, "aud": "w3.org/gen2", "jti":"` + string(uuid) + `"}`
