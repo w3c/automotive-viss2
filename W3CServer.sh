@@ -26,6 +26,7 @@ stopme() {
 		screen -X -S $service quit
 		#killall -9 $service	
 	done
+	sleep 1
 	screen -wipe
 }
 

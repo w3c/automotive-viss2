@@ -1,6 +1,10 @@
 {
     "transportSec": "no",
-    "secPort": "443",
+    "httpSecPort": "443",
+    "wsSecPort": "6443",
+    "mqttSecPort": "8883",
+    "agtsSecPort": "7443",
+    "atsSecPort": "8443",
     "caSecPath": "ca/",
     "serverSecPath": "server/",
     "serverCertOpt": "ClientCertVerification",
