@@ -95,7 +95,7 @@ func initVissV2WebSocket(compression string) *websocket.Conn {
 	portNum := "8080"
 	if secConfig.TransportSec == "yes" {
 		scheme = "wss"
-		portNum = secConfig.SecPort
+		portNum = secConfig.WsSecPort
 		websocket.DefaultDialer.TLSClientConfig = &tls.Config{
 			Certificates: []tls.Certificate{clientCert},
 			RootCAs:      &caCertPool,
