@@ -333,9 +333,9 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 		case "ne":
 			return currentValue != latestValue  // true->false OR false->true
 		case "gt":
-			return currentValue == "false" && currentValue != latestValue  // false->true
+			return latestValue == "false" && currentValue != latestValue  // false->true
 		case "lt":
-			return currentValue == "true" && currentValue != latestValue  // true->false
+			return latestValue == "true" && currentValue != latestValue  // true->false
 		}
 		return false
 	case 1: // int
@@ -433,11 +433,12 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		for i := range subscriptionList {
 			triggerDataPoint := getVehicleData(subscriptionList[i].path[0])
 			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestDataPoint, triggerDataPoint)
+			subscriptionList[i].latestDataPoint = triggerDataPoint
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.routerId
-				subscriptionList[i].latestDataPoint = triggerDataPoint
+//				subscriptionList[i].latestDataPoint = triggerDataPoint
 				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].path, nil))
 			}
 		}
