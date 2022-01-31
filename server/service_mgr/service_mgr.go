@@ -234,19 +234,19 @@ func setSubscriptionListThreads(subscriptionList []SubscriptionState, subThreads
 	return subscriptionList
 }
 
-func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) bool {
+func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) (bool, bool) {
 	for i := 0; i < len(filterList); i++ {
 		if filterList[i].Type == "paths" || filterList[i].Type == "timebased" || filterList[i].Type == "curvelog" {
 			continue
 		}
 		if filterList[i].Type == "range" {
-			return evaluateRangeFilter(filterList[i].Value, getDPValue(currentDataPoint))
+			return evaluateRangeFilter(filterList[i].Value, getDPValue(currentDataPoint)), false   // do not update latestValue
 		}
 		if filterList[i].Type == "change" {
 			return evaluateChangeFilter(filterList[i].Value, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
 		}
 	}
-	return false
+	return false, false
 }
 
 func getDPValue(dp string) string {
@@ -293,12 +293,13 @@ func evaluateRangeFilter(opValue string, currentValue string) bool {
 	}
 	evaluation := true
 	for i := 0; i < len(rangeFilter); i++ {
-		evaluation = evaluation && compareValues(rangeFilter[i].LogicOp, rangeFilter[i].Boundary, currentValue, "0") // currVal - 0 logic-op boundary
+		eval,_ := compareValues(rangeFilter[i].LogicOp, rangeFilter[i].Boundary, currentValue, "0") // currVal - 0 logic-op boundary
+		evaluation = evaluation && eval
 	}
 	return evaluation
 }
 
-func evaluateChangeFilter(opValue string, latestValue string, currentValue string) bool {
+func evaluateChangeFilter(opValue string, latestValue string, currentValue string) (bool, bool) {
 	//utils.Info.Printf("evaluateChangeFilter: opValue=%s", opValue)
 	type ChangeFilter struct {
 		LogicOp string `json:"logic-op"`
@@ -308,16 +309,16 @@ func evaluateChangeFilter(opValue string, latestValue string, currentValue strin
 	err := json.Unmarshal([]byte(opValue), &changeFilter)
 	if err != nil {
 		utils.Error.Printf("evaluateChangeFilter: Unmarshal error=%s", err)
-		return false
+		return false, false
 	}
 	return compareValues(changeFilter.LogicOp, latestValue, currentValue, changeFilter.Diff)
 }
 
-func compareValues(logicOp string, latestValue string, currentValue string, diff string) bool {
+func compareValues(logicOp string, latestValue string, currentValue string, diff string) (bool, bool) {
 	latestValueType := utils.AnalyzeValueType(latestValue)
 	if latestValueType != utils.AnalyzeValueType(currentValue) {
 		utils.Error.Printf("compareValues: Incompatible types, latVal=%s, curVal=%s", latestValue, currentValue)
-		return false
+		return false, false
 	}
 	switch latestValueType {
 	case 0:
@@ -325,82 +326,82 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 	case 2: // bool
 		if diff != "0" {
 		    utils.Error.Printf("compareValues: invalid parameter for boolean type")
-		    return false
+		    return false, false
 		}
 		switch logicOp {
 		case "eq":
-			return currentValue == latestValue
+			return currentValue == latestValue, true
 		case "ne":
-			return currentValue != latestValue  // true->false OR false->true
+			return currentValue != latestValue, true  // true->false OR false->true
 		case "gt":
-			return latestValue == "false" && currentValue != latestValue  // false->true
+			return latestValue == "false" && currentValue != latestValue, true  // false->true
 		case "lt":
-			return latestValue == "true" && currentValue != latestValue  // true->false
+			return latestValue == "true" && currentValue != latestValue, true  // true->false
 		}
-		return false
+		return false, false
 	case 1: // int
 		curVal, err := strconv.Atoi(currentValue)
 		if err != nil {
-			return false
+			return false, false
 		}
 		latVal, err := strconv.Atoi(latestValue)
 		if err != nil {
-			return false
+			return false, false
 		}
 		diffVal, err := strconv.Atoi(diff)
 		if err != nil {
-			return false
+			return false, false
 		}
 		//utils.Info.Printf("compareValues: value type=integer, cv=%d, lv=%d, diff=%d, logicOp=%s", curVal, latVal, diffVal, logicOp)
 		switch logicOp {
 		case "eq":
-			return curVal-diffVal == latVal
+			return curVal-diffVal == latVal, false
 		case "ne":
-			return curVal-diffVal != latVal
+			return curVal-diffVal != latVal, false
 		case "gt":
-			return curVal-diffVal > latVal
+			return curVal-diffVal > latVal, false
 		case "gte":
-			return curVal-diffVal >= latVal
+			return curVal-diffVal >= latVal, false
 		case "lt":
-			return curVal-diffVal < latVal
+			return curVal-diffVal < latVal, false
 		case "lte":
-			return curVal-diffVal <= latVal
+			return curVal-diffVal <= latVal, false
 		}
-		return false
+		return false, false
 	case 3: // float
 		f64Val, err := strconv.ParseFloat(currentValue, 32)
 		if err != nil {
-			return false
+			return false, false
 		}
 		curVal := float32(f64Val)
 		f64Val, err = strconv.ParseFloat(latestValue, 32)
 		if err != nil {
-			return false
+			return false, false
 		}
 		latVal := float32(f64Val)
 		f64Val, err = strconv.ParseFloat(diff, 32)
 		if err != nil {
-			return false
+			return false, false
 		}
 		diffVal := float32(f64Val)
 		//utils.Info.Printf("compareValues: value type=float, cv=%d, lv=%d, diff=%d, logicOp=%s", curVal, latVal, diffVal, logicOp)
 		switch logicOp {
 		case "eq":
-			return curVal-diffVal == latVal
+			return curVal-diffVal == latVal, false
 		case "ne":
-			return curVal-diffVal != latVal
+			return curVal-diffVal != latVal, false
 		case "gt":
-			return curVal-diffVal > latVal
+			return curVal-diffVal > latVal, false
 		case "gte":
-			return curVal-diffVal >= latVal
+			return curVal-diffVal >= latVal, false
 		case "lt":
-			return curVal-diffVal < latVal
+			return curVal-diffVal < latVal, false
 		case "lte":
-			return curVal-diffVal <= latVal
+			return curVal-diffVal <= latVal, false
 		}
-		return false
+		return false, false
 	}
-	return false
+	return false, false
 }
 
 func addPackage(incompleteMessage string, packName string, packValue string) string {
@@ -432,13 +433,15 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		// check if range or change notification triggered
 		for i := range subscriptionList {
 			triggerDataPoint := getVehicleData(subscriptionList[i].path[0])
-			doTrigger := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestDataPoint, triggerDataPoint)
-			subscriptionList[i].latestDataPoint = triggerDataPoint
+			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestDataPoint, triggerDataPoint)
+			if updateLatest == true {
+			    subscriptionList[i].latestDataPoint = triggerDataPoint
+			}
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.routerId
-//				subscriptionList[i].latestDataPoint = triggerDataPoint
+				subscriptionList[i].latestDataPoint = triggerDataPoint
 				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].path, nil))
 			}
 		}
