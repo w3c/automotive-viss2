@@ -275,25 +275,25 @@ func unpackDataPoint(dp string) (string, string) { // {"value":"Y", "ts":"Z"}
 
 func evaluateRangeFilter(opValue string, currentValue string) bool {
 	//utils.Info.Printf("evaluateRangeFilter: opValue=%s", opValue)
-	type ChangeFilter struct {
+	type RangeFilter struct {
 		LogicOp  string `json:"logic-op"`
 		Boundary string `json:"boundary"`
 	}
-	var changeFilter []ChangeFilter
+	var rangeFilter []RangeFilter
 	var err error
 	if strings.Contains(opValue, "[") == false {
-		changeFilter = make([]ChangeFilter, 1)
-		err = json.Unmarshal([]byte(opValue), &(changeFilter[0]))
+		rangeFilter = make([]RangeFilter, 1)
+		err = json.Unmarshal([]byte(opValue), &(rangeFilter[0]))
 	} else {
-		err = json.Unmarshal([]byte(opValue), &changeFilter)
+		err = json.Unmarshal([]byte(opValue), &rangeFilter)
 	}
 	if err != nil {
 		utils.Error.Printf("evaluateRangeFilter: Unmarshal error=%s", err)
 		return false
 	}
 	evaluation := true
-	for i := 0; i < len(changeFilter); i++ {
-		evaluation = evaluation && compareValues(changeFilter[i].LogicOp, changeFilter[i].Boundary, currentValue, "0") // currVal - 0 logic-op boundary
+	for i := 0; i < len(rangeFilter); i++ {
+		evaluation = evaluation && compareValues(rangeFilter[i].LogicOp, rangeFilter[i].Boundary, currentValue, "0") // currVal - 0 logic-op boundary
 	}
 	return evaluation
 }
@@ -314,24 +314,31 @@ func evaluateChangeFilter(opValue string, latestValue string, currentValue strin
 }
 
 func compareValues(logicOp string, latestValue string, currentValue string, diff string) bool {
-	if utils.AnalyzeValueType(latestValue) != utils.AnalyzeValueType(currentValue) {
+	latestValueType := utils.AnalyzeValueType(latestValue)
+	if latestValueType != utils.AnalyzeValueType(currentValue) {
 		utils.Error.Printf("compareValues: Incompatible types, latVal=%s, curVal=%s", latestValue, currentValue)
 		return false
 	}
-	switch utils.AnalyzeValueType(latestValue) {
+	switch latestValueType {
 	case 0:
 		fallthrough // string
 	case 2: // bool
-		//utils.Info.Printf("compareValues: value type=bool OR string")
+		if diff != "0" {
+		    utils.Error.Printf("compareValues: invalid parameter for boolean type")
+		    return false
+		}
 		switch logicOp {
 		case "eq":
 			return currentValue == latestValue
 		case "ne":
-			return currentValue != latestValue
+			return currentValue != latestValue  // true->false OR false->true
+		case "gt":
+			return currentValue == "false" && currentValue != latestValue  // false->true
+		case "lt":
+			return currentValue == "true" && currentValue != latestValue  // true->false
 		}
 		return false
 	case 1: // int
-		//utils.Info.Printf("compareValues: value type=integer, cv=%s, lv=%s, diff=%s", currentValue, latestValue, diff)
 		curVal, err := strconv.Atoi(currentValue)
 		if err != nil {
 			return false
@@ -361,7 +368,6 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 		}
 		return false
 	case 3: // float
-		//utils.Info.Printf("compareValues: value type=float")
 		f64Val, err := strconv.ParseFloat(currentValue, 32)
 		if err != nil {
 			return false
@@ -377,6 +383,7 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 			return false
 		}
 		diffVal := float32(f64Val)
+		//utils.Info.Printf("compareValues: value type=float, cv=%d, lv=%d, diff=%d, logicOp=%s", curVal, latVal, diffVal, logicOp)
 		switch logicOp {
 		case "eq":
 			return curVal-diffVal == latVal
