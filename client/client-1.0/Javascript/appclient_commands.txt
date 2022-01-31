@@ -33,7 +33,7 @@ Set request:
 
 Subscribe request:
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"246"}
-{"action":"subscribe","path":"Vehicle.Cabin.Door.Row1.Right.IsOpen","filter":{"type":"change","value":{"logic-op":"gt", "diff":"10"}},"requestId":"247"}
+{"action":"subscribe","path":"Vehicle.Cabin.Door.Row1.Right.IsOpen","filter":{"type":"change","value":{"logic-op":"ne", "diff":"0"}},"requestId":"247"}
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"range","value":{"logic-op":"gt","boundary":"500"}},"requestId":"255"}
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"range","value":[{"logic-op":"gt","boundary":"500"},{"logic-op":"lt","boundary":"510"}]},"requestId":"265"}
 {"action":"subscribe","path":"Vehicle.Powertrain.Transmission.Speed","filter":{"type":"curvelog","value":{"maxerr":"2","bufsize":"100"}},"requestId":"275"}
