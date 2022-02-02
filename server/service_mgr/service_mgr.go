@@ -545,7 +545,7 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 	if isStateStorage == true {
-		rows, err := db.Query("SELECT `value`, `timestamp` FROM VSS_MAP WHERE `path`=?", path)
+		rows, err := db.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
 		if err != nil {
 			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 		}
@@ -566,7 +566,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 
 func setVehicleData(path string, value string) string {
 	if isStateStorage == true {
-		stmt, err := db.Prepare("UPDATE VSS_MAP SET value=?, timestamp=? WHERE `path`=?")
+		stmt, err := db.Prepare("UPDATE VSS_MAP SET d_value=?, d_ts=? WHERE `path`=?")
 		if err != nil {
 			utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
 			return ""
