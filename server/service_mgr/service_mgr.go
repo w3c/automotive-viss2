@@ -932,7 +932,7 @@ func main() {
 	udsPath := parser.String("", "uds", &argparse.Options{
 		Required: false,
 		Help:     "Set UDS path and file",
-		Default:  "/tmp/vissv2/histctrlserver.sock"})
+		Default:  "/var/tmp/vissv2/histctrlserver.sock"})
 	dbFile := parser.String("", "dbfile", &argparse.Options{
 		Required: false,
 		Help:     "statestorage database filename",
@@ -944,7 +944,7 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	//os.Remove("/tmp/vissv2/histctrlserver.sock")
+	//os.Remove("/var/tmp/vissv2/histctrlserver.sock")
 	//listExists := createHistoryList("../vsspathlist.json") // file is created by core-server at startup
 
 	utils.InitLog("service-mgr-log.txt", "./logs", *logFile, *logLevel)
