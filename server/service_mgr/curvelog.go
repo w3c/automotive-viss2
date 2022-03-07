@@ -70,7 +70,7 @@ func getRingHead(aRingBuffer *RingBuffer) int {
 }
 
 func setRingTail(aRingBuffer *RingBuffer, tail int) {
-    aRingBuffer.Tail = aRingBuffer.Head - tail
+    aRingBuffer.Tail = aRingBuffer.Head - (tail + 1)  // Head points to next to be written
 }
 
 func writeRing(aRingBuffer *RingBuffer, value string, timestamp string) {
@@ -385,7 +385,7 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
     var dpMap = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
-    var finalDp bool
+    updatedTail := 0
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -407,23 +407,19 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
 	}
 	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer)
 	if (currentBufSize == bufSize) || (closeClSession == true) {
-	    data, updatedTail := clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
+	    var data string
+	    data, updatedTail = clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
             var clPack CLPack
             clPack.DataPack = `{"path":"`+ path + `","data":` + data + "}"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
-            if (updatedTail > 0) {
-	        setRingTail(&aRingBuffer, updatedTail)
-	        finalDp = true
-	    } else {
-	        finalDp = false
-	    }
+            setRingTail(&aRingBuffer, updatedTail)
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    if (finalDp == true) {
+    if (updatedTail > 0) {  // last datapoint in the buffer has not been saved
         returnSingleDp(clChan, subscriptionId, path)
     }
 }
@@ -542,7 +538,7 @@ func clCapture2dim(clChan chan CLPack, subscriptionId int, paths Dim2Elem, bufSi
     var dpMap2 = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
-    var finalDp bool
+    updatedTail := 0
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -573,19 +569,14 @@ func clCapture2dim(clChan chan CLPack, subscriptionId int, paths Dim2Elem, bufSi
             clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + data1 + "}," + `{"path":"`+ paths.Path2 + `","data":` + data2 + "}]"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
-            if (updatedTail > 0) {
-	        setRingTail(&aRingBuffer1, updatedTail)
-	        setRingTail(&aRingBuffer2, updatedTail)
-	        finalDp = true
-	    } else {
-	        finalDp = false
-	    }
+            setRingTail(&aRingBuffer1, updatedTail)
+	    setRingTail(&aRingBuffer2, updatedTail)
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    if (finalDp == true) {
+    if (updatedTail > 0) {
         returnSingleDp2(clChan, subscriptionId, paths)
     }
 }
@@ -667,7 +658,7 @@ func clCapture3dim(clChan chan CLPack, subscriptionId int, paths Dim3Elem, bufSi
     var dpMap3 = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
-    var finalDp bool
+    updatedTail := 0
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -703,20 +694,15 @@ func clCapture3dim(clChan chan CLPack, subscriptionId int, paths Dim3Elem, bufSi
             clPack.DataPack = `[{"path":"`+ paths.Path1 + `","data":` + data1 + `},{"path":"`+ paths.Path2 + `","data":` + data2 + `},{"path":"`+ paths.Path3 + `","data":` + data3 + "}]"
             clPack.SubscriptionId = subscriptionId
             clChan <- clPack
-            if (updatedTail > 0) {
-	        setRingTail(&aRingBuffer1, updatedTail)
-	        setRingTail(&aRingBuffer2, updatedTail)
-	        setRingTail(&aRingBuffer3, updatedTail)
-	        finalDp = true
-	    } else {
-	        finalDp = false
-	    }
+            setRingTail(&aRingBuffer1, updatedTail)
+            setRingTail(&aRingBuffer2, updatedTail)
+            setRingTail(&aRingBuffer3, updatedTail)
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    if (finalDp == true) {
+    if (updatedTail > 0) {
         returnSingleDp3(clChan, subscriptionId, paths)
     }
 }
