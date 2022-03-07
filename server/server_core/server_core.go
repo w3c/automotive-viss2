@@ -152,11 +152,9 @@ func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan stri
 			utils.Error.Println("Service datachannel read error:", err)
 			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
 		}
-utils.Info.Printf("RESPONSE=%s", string(response))
+//utils.Info.Printf("RESPONSE=%s", string(response))
 		mgrIndex := routerTableSearchForMgrIndex(getRouterId(string(response)))
 		utils.Info.Printf("mgrIndex=%d", mgrIndex)
-protoBuf := utils.JsonToProtobuf(string(response), utils.PB_LEVEL1)  // !!!!!!!!!!!!! protobuf test on received response
-utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf, utils.PB_LEVEL1))
 		backendChannel[mgrIndex] <- string(response)
 	}
 }
@@ -873,8 +871,6 @@ func main() {
 		case request := <-transportDataChan[0]: // request from HTTP/HTTPS mgr
 			serveRequest(request, 0, 0)
 		case request := <-transportDataChan[1]: // request from WS/WSS mgr
-protoBuf := utils.JsonToProtobuf(request, utils.PB_LEVEL1)  // !!!!!!!!!!!!! protobuf test on received request
-utils.Info.Printf("JSON message=%s", utils.ProtobufToJson(protoBuf, utils.PB_LEVEL1))
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
