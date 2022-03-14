@@ -52,6 +52,31 @@ type CLBufElement struct {
 	Timestamp int64
 }
 
+// posxType values: >0 => saved by PDR algo, 0 => not saved by PDR, -1 => empty
+type PostProcessBufElement1dim struct {
+    Data CLBufElement
+    Dp string
+    Type int
+}
+
+type PostProcessBufElement2dim struct {
+    Data1 CLBufElement
+    Data2 CLBufElement
+    Dp1 string
+    Dp2 string
+    Type int
+}
+
+type PostProcessBufElement3dim struct {
+    Data1 CLBufElement
+    Data2 CLBufElement
+    Data3 CLBufElement
+    Dp1 string
+    Dp2 string
+    Dp3 string
+    Type int
+}
+
 const MAXCLBUFSIZE = 240   // something large...
 const MAXCLSESSIONS = 100  // This value depends on the HW memory and performance
 var numOfClSessions int = 0
@@ -385,7 +410,9 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
     var dpMap = make(map[string]interface{})
     closeClSession := false
     oldTime := getCurrentUtcTime()
-    updatedTail := 0
+    lastSelected := 0 // index into ringBuffer; zero points to last dp stored in buffer, increasing values goes backwards in time
+    postProc := make([]PostProcessBufElement1dim, 3)
+//    { CLBufElement{0, 0}, "", -1, CLBufElement{0, 0}, "", -1, CLBufElement{0, 0}, "", -1 }
     for {
         newTime := getCurrentUtcTime()
         sleepPeriod := getSleepDuration(newTime, oldTime, 800)  // TODO: Iteration period should be configurable, set to less than sample freq of signal.
@@ -408,31 +435,41 @@ func clCapture1dim(clChan chan CLPack, subscriptionId int, path string, bufSize 
 	currentBufSize := getNumOfPopulatedRingElements(&aRingBuffer)
 	if (currentBufSize == bufSize) || (closeClSession == true) {
 	    var data string
-	    data, updatedTail = clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
+	    var extraData string  // the last dp in buffers with no other saved, if returned by postProcess1dim 
+	    var firstSelected int  // needed inpostProcess1dim
+	    data, lastSelected, firstSelected = clAnalyze1dim(&aRingBuffer, currentBufSize, maxError)
+	    extraData, postProc = postProcess1dim(&aRingBuffer, firstSelected, lastSelected, postProc, maxError)
             var clPack CLPack
-            clPack.DataPack = `{"path":"`+ path + `","data":` + data + "}"
             clPack.SubscriptionId = subscriptionId
-            clChan <- clPack
-            setRingTail(&aRingBuffer, updatedTail)
+            if (len(extraData) > 0) {
+                clPack.DataPack = `{"path":"`+ path + `","data":` + extraData + "}"
+                clChan <- clPack
+            }
+            if (lastSelected > 0) {
+                clPack.DataPack = `{"path":"`+ path + `","data":` + data + "}"
+                clChan <- clPack
+            }
+            setRingTail(&aRingBuffer, lastSelected) // update tail pointer
 	}
 	if (closeClSession == true) {
 	    break
 	}
     }
-    if (updatedTail > 0) {  // last datapoint in the buffer has not been saved
+//    if (lastSelected > 0) {  // last datapoint in the buffer has not been saved
         returnSingleDp(clChan, subscriptionId, path)
-    }
+//    }
 }
 
-func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (string, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
+func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (string, int, int) {  // [{"value":"X","ts":"Y"},..{}] ; square brackets optional
     clBuffer := make([]CLBufElement, bufSize)  // array holds transformed value/ts pairs, from latest to first captured
     clBuffer = transformDataPoints(aRingBuffer, clBuffer, bufSize)
     savedIndex := clReduction1Dim(clBuffer, 0, bufSize-1, maxError)
     dataPoint := ""
-    updatedTail := 0
+    lastSelected := 0  // index for last dp in ring buffer that is selected by RDP-algo, or last value in buffer if none selected
+    firstSelected := 0  // index for first dp in ring buffer that is selected by RDP-algo, or last value in buffer if none selected
     if (savedIndex != nil) {
         sort.Sort(sort.Reverse(sort.IntSlice(savedIndex)))
-        updatedTail = savedIndex[len(savedIndex)-1]
+        lastSelected = savedIndex[len(savedIndex)-1]
         if (len(savedIndex) > 1) {
             dataPoint += "["
         }
@@ -445,11 +482,12 @@ func clAnalyze1dim(aRingBuffer *RingBuffer, bufSize int, maxError float64) (stri
         if (len(savedIndex) > 1) {
             dataPoint += "]"
         }
+        firstSelected = savedIndex[0]
     } else {
             val, ts := readRing(aRingBuffer, 0)  // return latest sample (= head sample)
             dataPoint += `{"value":"` + val + `","ts":"` + ts + `"}`
     }
-    return dataPoint, updatedTail
+    return dataPoint, lastSelected, firstSelected
 }
 
 func clReduction1Dim(clBuffer []CLBufElement, firstIndex int, lastIndex int, maxError float64) []int {
@@ -484,23 +522,107 @@ func clReduction1Dim(clBuffer []CLBufElement, firstIndex int, lastIndex int, max
     return nil
 }
 
+/*
+* firstSelected/lastSelected = 0 => dp not saved by PDR algorithm
+* firstSelected/lastSelected > 0 => dp saved by PDR algorithm
+*/
+func postProcess1dim(aRingBuffer *RingBuffer, firstSelected int, lastSelected int, postProc []PostProcessBufElement1dim, maxError float64) (string, []PostProcessBufElement1dim) {
+    if (postProc[0].Type == -1) {  // init at startup
+        postProc = writePostProcElement1dim(aRingBuffer, lastSelected, postProc, 0)
+        return "", postProc
+    } else {
+        if (postProc[1].Type == -1) {
+            pos := 0
+            if (firstSelected == 0) {
+                pos = 1
+            }
+            postProc = writePostProcElement1dim(aRingBuffer, lastSelected, postProc, pos)
+            return "", postProc
+        } else {
+            postProc = writePostProcElement1dim(aRingBuffer, firstSelected, postProc, 2)
+            if (saveNonPdrDp(postProc, maxError) == true) {
+                if (firstSelected == 0) {
+                    postProc = movePostProcElement1dim(postProc, 1, 0)
+                    postProc = movePostProcElement1dim(postProc, 2, 1)
+                    postProc[2].Type = -1
+                    return postProc[0].Dp, postProc
+                } else {
+//                    postProc = movePostProcElement1dim(postProc, 2, 0)
+                    postProc = writePostProcElement1dim(aRingBuffer, lastSelected, postProc, 0) //move from 2 to 0, change to lastSelected
+                    postProc[1].Type = -1
+                    postProc[2].Type = -1
+                    return postProc[1].Dp, postProc
+                }
+            } else {
+                if (firstSelected == 0) {
+                    postProc = movePostProcElement1dim(postProc, 1, 0)
+                    postProc = movePostProcElement1dim(postProc, 2, 1)
+                    postProc[2].Type = -1
+                } else {
+                    postProc = writePostProcElement1dim(aRingBuffer, lastSelected, postProc, 0) //move from 2 to 0, change to lastSelected
+//                    postProc = movePostProcElement1dim(postProc, 2, 0)
+                    postProc[1].Type = -1
+                    postProc[2].Type = -1
+                }
+                    return "", postProc
+            }
+        }
+    }
+    return "", postProc  // should not happen
+}
+
+func writePostProcElement1dim(aRingBuffer *RingBuffer, firstSelected int, postProc []PostProcessBufElement1dim, pos int) []PostProcessBufElement1dim {
+    val, ts := readRing(aRingBuffer, firstSelected)
+    postProc[pos].Dp = `{"value":"`+ val + `","ts":"` + ts + `"}`
+    postProc[pos].Data, _ = transformDataPoint(aRingBuffer, firstSelected)
+    postProc[pos].Type = firstSelected
+    return postProc
+}
+
+func movePostProcElement1dim(postProc []PostProcessBufElement1dim, source int, dest int) []PostProcessBufElement1dim {
+    postProc[dest].Dp = postProc[source].Dp
+    postProc[dest].Data = postProc[source].Data
+    postProc[dest].Type = postProc[source].Type
+    return postProc
+}
+
+func saveNonPdrDp(postProc []PostProcessBufElement1dim, maxError float64) bool {
+    fraction := float64(postProc[1].Data.Timestamp - postProc[0].Data.Timestamp) / float64(postProc[2].Data.Timestamp - postProc[0].Data.Timestamp)
+    pos2InterpolatedValue := postProc[0].Data.Value + (postProc[2].Data.Value - postProc[0].Data.Value) * fraction
+    pos2Error := postProc[1].Data.Value - pos2InterpolatedValue
+    if (pos2Error < 0) {
+        pos2Error = -pos2Error
+    }
+    return pos2Error > maxError
+}
+
 func transformDataPoints(aRingBuffer *RingBuffer, clBuffer []CLBufElement, bufSize int) []CLBufElement {
-    for i := 0 ; i < bufSize ; i++ {
-        val, ts := readRing(aRingBuffer, i)
+    var status bool
+    for index := 0 ; index < bufSize ; index++ {
+        clBuffer[index], status = transformDataPoint(aRingBuffer, index)
+        if (status == false) {
+            return nil
+        }
+    }
+    return clBuffer
+}
+
+func transformDataPoint(aRingBuffer *RingBuffer, index int) (CLBufElement, bool) {
+        var cLBufElement CLBufElement 
+        val, ts := readRing(aRingBuffer, index)
         value, err := strconv.ParseFloat(val, 64)
 	if err != nil {
 		utils.Error.Printf("Curve logging failed to convert value=%s to float err=%s", val, err)
-		return nil
+		return cLBufElement, false
 	}
-        clBuffer[i].Value = (float64)(value)
+        cLBufElement.Value = (float64)(value)
         t, err := time.Parse(time.RFC3339, ts)
 	if err != nil {
 		utils.Error.Printf("Curve logging failed to convert time to Unix time err=%s", err)
-		return nil
+		return cLBufElement, false
 	}
-        clBuffer[i].Timestamp = t.Unix()  // sets the resolution to one sec, i. e. max sample freq to 1Hz. TODO: support for sample freq higher than 1Hz
-    }
-    return clBuffer
+        cLBufElement.Timestamp = t.Unix()  // sets the resolution to one sec, i. e. max sample freq to 1Hz. TODO: support for sample freq higher than 1Hz
+        return cLBufElement, true
 }
 
 func returnSingleDp(clChan chan CLPack, subscriptionId int, path string) {
