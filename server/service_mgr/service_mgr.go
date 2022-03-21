@@ -28,6 +28,7 @@ import (
 	"github.com/MEAE-GOT/WAII/utils"
 	"github.com/akamensky/argparse"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/go-redis/redis"
 )
 
 // one muxServer component for service registration, one for the data communication
@@ -71,7 +72,8 @@ var errorResponseMap = map[string]interface{}{
 
 var db *sql.DB
 var dbErr error
-var isStateStorage = false
+var redisClient *redis.Client
+var stateDbType string
 
 var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
 
@@ -544,7 +546,9 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 }
 
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
-	if isStateStorage == true {
+	switch stateDbType {
+	    case "sqlite":
+	    
 		rows, err := db.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
 		if err != nil {
 			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -556,16 +560,47 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		rows.Next()
 		err = rows.Scan(&value, &timestamp)
 		if err != nil {
-			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+			utils.Warning.Printf("Data not found.\n")
+//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+			return ""
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
-	} else {
+	    case "redis":
+		dp, err := redisClient.Get(path).Result()
+		if err != nil {
+		    if err.Error() != "redis: nil" {
+			utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
+			return ""
+		    } else {
+			utils.Warning.Printf("Data not found.\n")
+//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+			return ""
+		    }
+		} else {
+//		    utils.Info.Printf("Datapoint=%s\n", dp)
+		    type RedisDp struct {
+			Val string
+			Ts string
+		    }
+		    var currentDp RedisDp
+		    err := json.Unmarshal([]byte(dp), &currentDp)
+		    if err != nil {
+			utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
+			return ""
+		    } else {
+//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
+			return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
+		    }
+		}
+	    case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 	}
+	return ""
 }
 
 func setVehicleData(path string, value string) string {
-	if isStateStorage == true {
+	switch stateDbType {
+	    case "sqlite":
 		stmt, err := db.Prepare("UPDATE VSS_MAP SET d_value=?, d_ts=? WHERE `path`=?")
 		if err != nil {
 			utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
@@ -923,6 +958,8 @@ func getValidation(path string) string {
 func main() {
 	// Create new parser object
 	parser := argparse.NewParser("print", "Service Manager service")
+	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
+	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
@@ -944,18 +981,35 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
+	stateDbType = *stateDB
+
 	//os.Remove("/var/tmp/vissv2/histctrlserver.sock")
 	//listExists := createHistoryList("../vsspathlist.json") // file is created by core-server at startup
 
 	utils.InitLog("service-mgr-log.txt", "./logs", *logFile, *logLevel)
-	if utils.FileExists(*dbFile) {
-		db, dbErr = sql.Open("sqlite3", *dbFile)
-		if dbErr != nil {
+	switch stateDbType {
+	    case "sqlite":
+		if utils.FileExists(*dbFile) {
+		    db, dbErr = sql.Open("sqlite3", *dbFile)
+		    if dbErr != nil {
 			utils.Error.Printf("Could not open DB file = %s, err = %s", *dbFile, dbErr)
 			os.Exit(1)
+		    }
+		    defer db.Close()
 		}
-		defer db.Close()
-		isStateStorage = true
+	    case "redis":
+		redisClient = redis.NewClient(&redis.Options{
+		    Network:  "unix",
+		    Addr:     "/var/tmp/vissv2/redisDB.sock",
+		    Password: "",
+		    DB:       1,
+		})
+		err := redisClient.Ping().Err()
+		if err != nil {
+			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
+			os.Exit(1)
+		}
+	    default:
 	}
 
 	var regResponse utils.SvcRegResponse
