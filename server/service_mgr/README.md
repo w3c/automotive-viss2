@@ -69,7 +69,10 @@ If the MQTT transport protocol is to be used, the Redis database must be preprov
 In the redisVinFeeder directory:<br>
 $ go build<br>
 $ ./redisVinFeeder VIN<br>
-where VIN is any string representing the desired VIN.
+where VIN is any string representing the desired VIN.<br>
+
+If the state storage is started using the SQLite DB, the following must be prepared before starting the server.<br>
+- The SQLite DB file must be created and stored in the directory of the service manager. Creating it can be done using the Statestorage manager found at https://github.com/COVESA/ccs-components/tree/master/statestorage/sqlImpl. It must be generated with an identical copy of the vsspathlist.json file that the VISSv2 server creates at startup (from the vss_vissv2.binary file).
 
 
 ## Curve logging
