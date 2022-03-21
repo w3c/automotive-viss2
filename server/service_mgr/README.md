@@ -10,10 +10,6 @@ The vssPathList flag sets the path to a file containing a JSON list of all leaf 
 The flags can be set to any value by following the flag with the new value in the startup command.
 If one or both of the flags are left out in the command, requests for historic data always return an error message saying there is no historic data available. 
 
-At startup the VISSv2 service manager tries to read a DB file named statestorage.db, located in the same directory.
-If successful, then the signal value(s) being requested will first be searched for in this DB, if not found then dummy values will be returned instead. 
-Dummy values are always an integer, taken from a counter that is incremented every 37 msec, and wrapping to stay within the values 0 to 999.
-
 If a request contains an array of paths, then the response/notification will include values related to all elements of the array. 
 
 The service manager will do its best to interpret subscription filter expressions, but if unsuccessful it will return an error response without activating a subscription session.
@@ -23,6 +19,7 @@ The figure shows the internal architecture of the service manager when it comes 
 
 Each request for a curve logging subscription instantiates a Go routine that handles the request. An unsubscribe request kills the Go routine.<br>
 
+## Historic data
 A Go routine for handling of historic data is spawned at server start up. The vehicle system can via the History control interface control the saving of data for one o more signals via a Unix Domain Socket command with the socket address /var/tmp/vissv2/histctrlserver.sock.<br>
 The write commands available are:<br>
 1. {"action":"create", "path": X, "buf-size":"Y"}<br>
@@ -36,16 +33,44 @@ The start request initates capture of samples at the set frequency until the buf
 The stop request halts the capture of samples.<br>
 the delete request discards the buffer.<br>
 
-Data is captured from the statestorage, and it is only saved in the buffer if the timestamp differs from the previously latest saved. This polling paradigm may be replaces by an event driven paradigm if/when the statestorage supports it. With this polling paradigm, the capture frequency to be set must be higher than the actual update frequency of the signal in the statestorage. Other system latencies should also be taken into account when selecting this frequency as the frequency sets the sleep time in the capture loop.
+If a client issues a request for historic data, specifying a period from now and backwards in time, then the service manager will check if there is historic data saved, and select the part that matches the requested period. If there is no data saved, then the response will only contain the latest data point. 
 
-If a client issues a request for historic data, specifying a period from now and backwards in time, then the service manager will check if there is historic data saved, and select the part that matches the requested period. If there is no dat saved, then the response will only contain the latest data point. 
-
-This architecture supports a use case where a high frequency capture rate is applied to the battery voltage during cranking of the starter motor. The vehile can then stat saving of this data at a high capture frequency, and then issue a stop command when the motor has started. This data can then be available for some time so that a client has a resonable time to issue a request for it.<br>
+This architecture supports a use case where a high frequency capture rate is applied to the battery voltage during cranking of the starter motor. The vehile can then start the saving of this data at a high capture frequency, and then issue a stop command when the motor has started. This data can then be available for some time so that a client has a resonable time to issue a request for it.<br>
 
 Another use case could be that the vehicle temporarily loses its connection, maybe due to passage through a tunnel. If this is detected by the vehicle telematics unit, it may issue a request over the History control interface to start saving multiple selected signals, but with buf-size set to zero. The later means that the buffer size is automatically increased when it becomes full. 
 The saving of data will automatically stop at some max limit if no stop command is issued before that.
 
 A third use case could be that data related to electrical charging shall be saved, the vehicle system then uses the start and stop commands to record the appropriate signals during the charging session.
+
+## State storage
+The VISSv2 service manager is started with input on which state storage implementation to use:
+- SQLite (default)
+- Redis
+- None
+
+At startup,<br>
+- for SQLite it tries to read a DB file named statestorage.db, located in the same directory.
+- for Redis it tries to instantiate a Redis client for the configured Redis DB. 
+- For None, the server will instead of accessing data from a DB, instead generate a dummy integer value, see below.
+
+Dummy values are always an integer, taken from a counter that is incremented every 37 msec, and wrapping to stay within the values 0 to 999.
+
+Data is captured from the statestorage, and it is only saved in the buffer if the timestamp differs from the previously latest saved. This polling paradigm may be replaced by an event driven paradigm if/when the statestorage supports it. With this polling paradigm, the capture frequency to be set must be higher than the actual update frequency of the signal in the statestorage. Other system latencies should also be taken into account when selecting this frequency as the frequency sets the sleep time in the capture loop.
+
+If the state storage is started using the Redis DB, the following must be prepared before starting the server.<br>
+- The directory /var/tmp/vissv2 must exist.
+- The Redis DB must be initiated by building,  and running the redisInit executable as root.<br>
+In the redisInit directory:<br>
+$ go build<br>
+$ sudo ./redisInit<br>
+- The VISSv2 server startup shell script must have "redis" as a second parameter:<br>
+$ ./W3CServer.sh startup redis<br>
+If the MQTT transport protocol is to be used, the Redis database must be preprovisioned with a VIN, which is done by building and running the VIN feeder executable:<br>
+In the redisVinFeeder directory:<br>
+$ go build<br>
+$ ./redisVinFeeder VIN<br>
+where VIN is any string representing the desired VIN.
+
 
 ## Curve logging
 Geotab has opened up the curve logging patents for public use, see <a href="https://github.com/Geotab/curve">Curve logging library</a>.
