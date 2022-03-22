@@ -599,6 +599,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 }
 
 func setVehicleData(path string, value string) string {
+	ts := utils.GetRfcTime()
 	switch stateDbType {
 	    case "sqlite":
 		stmt, err := db.Prepare("UPDATE VSS_MAP SET d_value=?, d_ts=? WHERE `path`=?")
@@ -608,13 +609,23 @@ func setVehicleData(path string, value string) string {
 		}
 		defer stmt.Close()
 
-		ts := utils.GetRfcTime()
 		_, err = stmt.Exec(value, ts, path[1:len(path)-1]) // remove quotes surrounding path
 		if err != nil {
 			utils.Error.Printf("Could not update statestorage, err = %s", err)
 			return ""
 		}
 		return ts
+	    case "redis":
+		dp := `{"val":"` + value + `", "ts":"` + ts + `"}`
+		dPath := path + ".D"  // path to "desired" dp. Must be created identically by feeder reading it.
+		err := redisClient.Set(dPath, dp, time.Duration(0)).Err()
+		if err != nil {
+		    utils.Error.Printf("Could not update statestorage. Err=%s\n",err)
+		    return ""
+		} else {
+//		    utils.Error.Println("Datapoint=%s\n", dp)
+		    return ts
+		}
 	}
 	return ""
 }
