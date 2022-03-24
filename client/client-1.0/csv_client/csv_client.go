@@ -379,7 +379,7 @@ func displayOptions() {
     for i := 0 ; i < len(requestList.Request) ; i++ {
         fmt.Printf("%d: %s\n", i+1, requestList.Request[i])
     }
-    fmt.Printf("In the case of an ongoing subscription session, a RETURN key input will lead to unsubscribe.\n")
+    fmt.Printf("In the case of an ongoing subscription session, to unsubscribe please input the character 'q'.\n")
     fmt.Printf("\nOption number selected: ")
 }
 

@@ -49,7 +49,7 @@ type RingBuffer struct {
 
 type CLBufElement struct {
 	Value float64
-	Timestamp int64
+	Timestamp float64
 }
 
 // posxType values: >0 => saved by PDR algo, 0 => not saved by PDR, -1 => empty
@@ -547,7 +547,6 @@ func postProcess1dim(aRingBuffer *RingBuffer, firstSelected int, lastSelected in
                     postProc[2].Type = -1
                     return postProc[0].Dp, postProc
                 } else {
-//                    postProc = movePostProcElement1dim(postProc, 2, 0)
                     postProc = writePostProcElement1dim(aRingBuffer, lastSelected, postProc, 0) //move from 2 to 0, change to lastSelected
                     postProc[1].Type = -1
                     postProc[2].Type = -1
@@ -560,7 +559,6 @@ func postProcess1dim(aRingBuffer *RingBuffer, firstSelected int, lastSelected in
                     postProc[2].Type = -1
                 } else {
                     postProc = writePostProcElement1dim(aRingBuffer, lastSelected, postProc, 0) //move from 2 to 0, change to lastSelected
-//                    postProc = movePostProcElement1dim(postProc, 2, 0)
                     postProc[1].Type = -1
                     postProc[2].Type = -1
                 }
@@ -574,7 +572,7 @@ func postProcess1dim(aRingBuffer *RingBuffer, firstSelected int, lastSelected in
 func writePostProcElement1dim(aRingBuffer *RingBuffer, firstSelected int, postProc []PostProcessBufElement1dim, pos int) []PostProcessBufElement1dim {
     val, ts := readRing(aRingBuffer, firstSelected)
     postProc[pos].Dp = `{"value":"`+ val + `","ts":"` + ts + `"}`
-    postProc[pos].Data, _ = transformDataPoint(aRingBuffer, firstSelected)
+    postProc[pos].Data, _ = transformDataPoint(aRingBuffer, firstSelected, time.Now()) // time base not used
     postProc[pos].Type = firstSelected
     return postProc
 }
@@ -587,7 +585,7 @@ func movePostProcElement1dim(postProc []PostProcessBufElement1dim, source int, d
 }
 
 func saveNonPdrDp(postProc []PostProcessBufElement1dim, maxError float64) bool {
-    fraction := float64(postProc[1].Data.Timestamp - postProc[0].Data.Timestamp) / float64(postProc[2].Data.Timestamp - postProc[0].Data.Timestamp)
+    fraction := (postProc[1].Data.Timestamp - postProc[0].Data.Timestamp) / (postProc[2].Data.Timestamp - postProc[0].Data.Timestamp)
     pos2InterpolatedValue := postProc[0].Data.Value + (postProc[2].Data.Value - postProc[0].Data.Value) * fraction
     pos2Error := postProc[1].Data.Value - pos2InterpolatedValue
     if (pos2Error < 0) {
@@ -598,8 +596,10 @@ func saveNonPdrDp(postProc []PostProcessBufElement1dim, maxError float64) bool {
 
 func transformDataPoints(aRingBuffer *RingBuffer, clBuffer []CLBufElement, bufSize int) []CLBufElement {
     var status bool
+    _, tsBaseStr := readRing(aRingBuffer, bufSize-1)  // get ts for first dp in buffer
+    tsBase, _ := time.Parse(time.RFC3339, tsBaseStr)
     for index := 0 ; index < bufSize ; index++ {
-        clBuffer[index], status = transformDataPoint(aRingBuffer, index)
+        clBuffer[index], status = transformDataPoint(aRingBuffer, index, tsBase)
         if (status == false) {
             return nil
         }
@@ -607,7 +607,7 @@ func transformDataPoints(aRingBuffer *RingBuffer, clBuffer []CLBufElement, bufSi
     return clBuffer
 }
 
-func transformDataPoint(aRingBuffer *RingBuffer, index int) (CLBufElement, bool) {
+func transformDataPoint(aRingBuffer *RingBuffer, index int, tsBase time.Time) (CLBufElement, bool) {
         var cLBufElement CLBufElement 
         val, ts := readRing(aRingBuffer, index)
         value, err := strconv.ParseFloat(val, 64)
@@ -621,7 +621,7 @@ func transformDataPoint(aRingBuffer *RingBuffer, index int) (CLBufElement, bool)
 		utils.Error.Printf("Curve logging failed to convert time to Unix time err=%s", err)
 		return cLBufElement, false
 	}
-        cLBufElement.Timestamp = t.Unix()  // sets the resolution to one sec, i. e. max sample freq to 1Hz. TODO: support for sample freq higher than 1Hz
+        cLBufElement.Timestamp = t.Sub(tsBase).Seconds()
         return cLBufElement, true
 }
 
