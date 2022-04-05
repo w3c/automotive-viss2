@@ -1,7 +1,7 @@
 /**
 * (C) 2021 Geotab
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
+* All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"strconv"
 
-	pb "github.com/MEAE-GOT/WAII/protobuf/protoc-out"
+	pb "github.com/w3c/automotive-viss2/protobuf/protoc-out"
 	"github.com/golang/protobuf/proto"
 )
 
