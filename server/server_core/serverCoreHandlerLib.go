@@ -1,3 +1,13 @@
+/**
+* (C) 2020 Mitsubishi Electrics Automotive
+* (C) 2019 Geotab Inc
+* (C) 2019 Volvo Cars
+*
+* All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
+* are licensed under the provisions of the license provided by the LICENSE file in this repository.
+*
+**/
+
 package main
 
 import (
@@ -11,7 +21,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MEAE-GOT/WAII/utils"
+	"github.com/w3c/automotive-viss2/utils"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -54,11 +64,16 @@ func (pathList *PathList) vssPathListHandler(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		utils.Error.Printf("problems with json.Marshal, ", err)
 		http.Error(w, "Unable to fetch vsspathlist", http.StatusInternalServerError)
+	} else {
 	}
 
+	maxChars := len(bytes)
+	if (maxChars > 99) {
+		maxChars = 99
+	}
+	utils.Info.Printf("initVssPathListServer():Response=%s...(truncated to max 100 bytes)", bytes[0:maxChars])
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(bytes)
-	utils.Info.Printf("initVssPathListServer():Response=%s...(truncated to 100 bytes)", bytes[0:101])
 }
 
 func transportRegisterHandler(w http.ResponseWriter, r *http.Request) {
