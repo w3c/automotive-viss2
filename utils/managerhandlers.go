@@ -10,19 +10,15 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/json"
-	"flag"
 	"io/ioutil"
 
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
-	"net/url"
 
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -41,6 +37,12 @@ func ReadTransportSecConfig() {
 		return
 	}
 	Info.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
+}
+
+func AddRoutingForwardRequest(reqMessage string, mgrId int, clientId int, transportMgrChan chan string) {
+	newPrefix := "{ \"RouterId\":\"" + strconv.Itoa(mgrId) + "?" + strconv.Itoa(clientId) + "\", "
+	request := strings.Replace(reqMessage, "{", newPrefix, 1)
+	transportMgrChan <- request
 }
 
 func backendHttpAppSession(message string, w *http.ResponseWriter) {
@@ -155,69 +157,6 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	response := <-clientChannel                                                     //  and wait for response
 
 	backendHttpAppSession(response, &w)
-}
-
-func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", GetServerIP()+":"+strconv.Itoa(regData.Portnum), "http service address")
-	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: regData.Urlpath}
-	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
-	if err != nil {
-		Error.Fatal("Data session dial error:" + err.Error())
-	}
-	return dataConn
-}
-
-/**
-* registerAsTransportMgr:
-* Registers with servercore as WebSocket protocol manager, and stores response in regData
-**/
-func RegisterAsTransportMgr(regData *RegData, protocol string) {
-	url := "http://" + GetServerIP() + ":8081/transport/reg"
-
-	data := []byte(`{"protocol": "` + protocol + `"}`)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		Error.Fatal("registerAsTransportMgr: Error reading request. ", err)
-	}
-
-	// Set headers
-	req.Header.Set("Access-Control-Allow-Origin", "*")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", GetServerIP()+":8081")
-
-	// Set client timeout
-	client := &http.Client{Timeout: time.Second * 10}
-
-	// Validate headers are attached
-	Info.Println(req.Header)
-
-	// Send request loop until connection succeeds
-	var resp *http.Response
-	for {
-		resp, err = client.Do(req)
-		if err != nil {
-			Error.Error("registerAsTransportMgr: Error reading response. ", err)
-			time.Sleep(1 * time.Second)
-		} else {
-			break
-		}
-	}
-	defer resp.Body.Close()
-
-	Info.Println("response Status:", resp.Status)
-	Info.Println("response Headers:", resp.Header)
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		Error.Fatal("Error reading response. ", err)
-	}
-	Info.Printf("%s", body)
-
-	err = json.Unmarshal(body, regData)
-	if err != nil {
-		Error.Fatal("Error JSON decoding of response. ", err)
-	}
 }
 
 func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, compression Compression) {
@@ -347,9 +286,9 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 	}
 }
 
-func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
+func (server HttpServer) InitClientServer(muxServer *http.ServeMux, httpClientChan []chan string) {
 
-	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
+	appClientHandler := HttpChannel{}.makeappClientHandler(httpClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
 	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if secConfig.TransportSec == "yes" {
@@ -367,9 +306,9 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 	}
 }
 
-func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *int) {
+func (server WsServer) InitClientServer(muxServer *http.ServeMux, wsClientChan []chan string, serverIndex *int) {
 	*serverIndex = 0
-	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
+	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(wsClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
 	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if secConfig.TransportSec == "yes" {
@@ -431,32 +370,3 @@ func RemoveInternalData(response string) (string, int) { // "RouterId" : "mgrId?
 	return trimmedResponse, clientId
 }
 
-func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
-	for {
-		_, response, err := dataConn.ReadMessage()
-		if err != nil {
-			Error.Println("Datachannel read error:" + err.Error())
-			return // ??
-		}
-		Info.Printf("Server hub: HTTP response from server core:%s", string(response))
-		trimmedResponse, clientId := RemoveInternalData(string(response))
-		appClientChannel[clientId] <- trimmedResponse // no need for clientBackendChannel as subscription notifications not supported
-	}
-}
-
-func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
-	for {
-		_, response, err := dataConn.ReadMessage()
-		if err != nil {
-			Error.Println("Datachannel read error:", err)
-			return // ??
-		}
-		Info.Printf("Server hub: WS response from server core:%s", string(response))
-		trimmedResponse, clientId := RemoveInternalData(string(response))
-		if strings.Contains(trimmedResponse, "\"subscription\"") {
-			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
-		} else {
-			appClientChannel[clientId] <- trimmedResponse
-		}
-	}
-}

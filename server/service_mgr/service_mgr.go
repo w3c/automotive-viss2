@@ -562,7 +562,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		if err != nil {
 			utils.Warning.Printf("Data not found.\n")
 //			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
-			return ""
+			return `{"value":"Data-not-available", "ts":"` + utils.GetRfcTime() + `"}`
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	    case "redis":
@@ -574,7 +574,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		    } else {
 			utils.Warning.Printf("Data not found.\n")
 //			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
-			return ""
+			return `{"value":"Database-error", "ts":"` + utils.GetRfcTime() + `"}`
 		    }
 		} else {
 //		    utils.Info.Printf("Datapoint=%s\n", dp)

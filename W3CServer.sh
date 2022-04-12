@@ -1,6 +1,6 @@
 #!/bin/bash
 
-services=(server_core service_mgr at_server agt_server http_mgr ws_mgr mqtt_mgr)
+services=(vissv2server service_mgr at_server agt_server)
 
 usage() {
 	#    echo "usage: $0 startme|stopme|configureme" >&2

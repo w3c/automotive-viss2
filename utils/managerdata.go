@@ -1,5 +1,5 @@
 /**
-* (C) 2019 Geotab Inc
+* (C) 2022 Geotab Inc
 * (C) 2019 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
@@ -43,44 +43,10 @@ const (
 
 var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for app client HTTP sessions
-	http.NewServeMux(), // for data session with core server on port number provided at registration
+	http.NewServeMux(), // for app client WS sessions
 	http.NewServeMux(), // for history control HTTP sessions
 //	http.NewServeMux(), // for X transport sessions
 }
-
-// the number of channel array elements sets the limit for max number of parallel WS app clients
-var AppClientChan = []chan string{
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-	make(chan string),
-}
-
-type RegData struct {
-	Portnum int
-	Urlpath string
-	Mgrid   int
-}
-
-var TransportErrorMessage string
-
-//var RegisterData RegData
 
 var Upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -89,7 +55,7 @@ var Upgrader = websocket.Upgrader{
 
 var HostIP string
 
-/********************************************************************** Client response handlers **********************/
+/************ Client response handlers ********************************************************************************/
 type ClientHandler interface {
 	makeappClientHandler(appClientChannel []chan string) func(http.ResponseWriter, *http.Request)
 }
@@ -114,14 +80,3 @@ type WsServer struct {
 	ClientBackendChannel []chan string
 }
 
-/***********Server Core Communications ********************************************************************************/
-type TransportHubFrontendWSSession interface {
-	transportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string)
-}
-
-type HttpWSsession struct {
-}
-
-type WsWSsession struct {
-	ClientBackendChannel []chan string
-}

@@ -2,7 +2,7 @@
 * (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2020 Geotab Inc
 *
-* All files and artifacts in the repository at https://github.com/MEAE-GOT/WAII
+* All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
 **/
@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/MEAE-GOT/WAII/utils"
+	"github.com/w3c/automotive-viss2/utils"
 	"github.com/akamensky/argparse"
 )
 
