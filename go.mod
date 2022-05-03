@@ -7,10 +7,9 @@ go 1.16
 //replace github.com/w3c/automotive-viss2/utils => ./utils
 
 replace github.com/w3c/automotive-viss2/server/vissv2server/httpMgr => ./server/vissv2server/httpMgr
-
 replace github.com/w3c/automotive-viss2/server/vissv2server/wsMgr => ./server/vissv2server/wsMgr
-
 replace github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr => ./server/vissv2server/mqttMgr
+replace github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr => ./server/vissv2server/serviceMgr
 
 //replace (
 //	github.com/COVESA/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/datamodel

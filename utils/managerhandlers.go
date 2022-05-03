@@ -68,41 +68,6 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	}
 }
 
-func FrontendWSdataSession(conn *websocket.Conn, clientChannel chan string, backendChannel chan string) {
-	defer conn.Close()
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			Error.Printf("Service data read error: %s", err)
-			break
-		}
-		Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
-
-		clientChannel <- string(msg) // forward to mgr hub,
-		message := <-clientChannel   //  and wait for response
-
-		backendChannel <- message
-	}
-}
-
-func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
-	defer conn.Close()
-	for {
-		message := <-backendChannel
-
-		Info.Printf("Service:BackendWSdataSession(): message received=%s", message)
-		// Write message back to server core
-		response := []byte(message)
-
-		//		err := conn.WriteMessage(websocket.TextMessage, response)
-		err := conn.WriteMessage(websocket.BinaryMessage, response)
-		if err != nil {
-			Error.Printf("Service data write error: %s", err)
-			break
-		}
-	}
-}
-
 func splitToPathQueryKeyValue(path string) (string, string, string) {
 	delim := strings.Index(path, "?")
 	if delim != -1 {

@@ -20,7 +20,6 @@ import (
 
 	"github.com/akamensky/argparse"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 
 	"bytes"
 	"encoding/json"
@@ -34,6 +33,7 @@ import (
 	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -42,14 +42,12 @@ import (
 
 /*
 * Core-server main tasks:
-    - server for transportmgr registrations
-    - server for servicemgr registrations
     - server in transportmgr data channel requests
     - client in servicemgr data channel requests
     - router hub for request-response messages
     - request message path verification
     - request message access restriction control
-    - service discovery response synthesis
+    - signal discovery response synthesis
 */
 
 var VSSTreeRoot *gomodel.Node_t
@@ -59,10 +57,10 @@ const MAXFOUNDNODES = 1500
 
 // the server components started as threads by vissv2server. If a component is commented out, it will not be started
 var serverComponents []string = []string{
+	"serviceMgr",
 	"httpMgr",
 	"wsMgr",
 	"mqttMgr",
-//	"serviceMgr",
 //	"at-server",
 }
 
@@ -76,6 +74,9 @@ var transportMgrChannel = []chan string{
 	make(chan string),  // MQTT
 }
 
+var serviceMgrChannel = []chan string{
+	make(chan string), // Vehicle service
+}
 
 // add element to both channels if support for new transport protocol is added
 var transportDataChan = []chan string{
@@ -96,17 +97,6 @@ var serviceDataPortNum int = 8200 // port number interval [8200-]
 var serviceDataChan = []chan string{
 	make(chan string),
 	//	make(chan string),
-}
-
-/** muxServer[0] is assigned to transport registration server,
-*   muxServer[1] is assigned to service registration server,
-*   of the following the first part is assigned for transport data servers,
-*   and the second part is assigned for service data servers
-**/
-var muxServer = []*http.ServeMux{
-	http.NewServeMux(), // 0 = transport reg
-	http.NewServeMux(), // 1 = service reg
-	http.NewServeMux(), // 3 = service data
 }
 
 var errorResponseMap = map[string]interface{}{
@@ -135,24 +125,19 @@ func getRouterId(response string) string { // "RouterId" : "mgrId?clientId",
 	return response[routerIdValStart:routerIdValStop]
 }
 
-func frontendServiceDataComm(dataConn *websocket.Conn, request string) {
-	err := dataConn.WriteMessage(websocket.TextMessage, []byte(request))
-	if err != nil {
-		utils.Error.Print("Service datachannel write error:", err)
-	}
-}
-
-func backendServiceDataComm(dataConn *websocket.Conn, backendChannel []chan string, serviceIndex int) {
+func serviceDataSession(serviceMgrChannel chan string, serviceDataChannel chan string, backendChannel []chan string) {
 	for {
-		_, response, err := dataConn.ReadMessage()
-		utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
-		if err != nil {
-			utils.Error.Println("Service datachannel read error:", err)
-			response = []byte(utils.FinalizeMessage(errorResponseMap)) // needs improvement
-		}
-		mgrIndex := extractMgrId(getRouterId(string(response)))
-		utils.Info.Printf("mgrIndex=%d", mgrIndex)
-		backendChannel[mgrIndex] <- string(response)
+	    select {
+
+		case response := <- serviceMgrChannel:	
+		  utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
+		  mgrIndex := extractMgrId(getRouterId(string(response)))
+		  utils.Info.Printf("mgrIndex=%d", mgrIndex)
+		  backendChannel[mgrIndex] <- string(response)
+		case request := <- serviceDataChannel:
+		  utils.Info.Printf("Server core: Request to service:%s", request)
+		  serviceMgrChannel <- request
+	    }
 	}
 }
 
@@ -807,6 +792,16 @@ func main() {
 		Default:  "info"})
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
+	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
+	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
+	udsPath := parser.String("", "uds", &argparse.Options{
+		Required: false,
+		Help:     "Set UDS path and file",
+		Default:  "/var/tmp/vissv2/histctrlserver.sock"})
+	dbFile := parser.String("", "dbfile", &argparse.Options{
+		Required: false,
+		Help:     "statestorage database filename",
+		Default:  "serviceMgr/statestorage.db"})
 
 	// Parse input
 	err := parser.Parse(os.Args)
@@ -815,6 +810,34 @@ func main() {
 	}
 
 	utils.InitLog("servercore-log.txt", "./logs", *logFile, *logLevel)
+
+	if !initVssFile() {
+		utils.Error.Fatal(" Tree file not found")
+		return
+	}
+	createPathListFile(*vssJson) // save in server directory, where transport managers will expect it to be
+	if *dryRun {
+		utils.Info.Printf("vsspathlist.json created. Job done.")
+		return
+	}
+
+	router := mux.NewRouter()
+	router.HandleFunc("/vsspathlist", pathList.vssPathListHandler).Methods("GET")
+
+	srv := &http.Server{
+		Addr:         "0.0.0.0:8081",
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      router,
+	}
+
+	go func() {
+		utils.Info.Printf("Server is listening on %s", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil {
+			log.Fatal("ListenAndServe: ", err)
+		}
+	}()
 
 	for _, serverComponent := range serverComponents {
 	    switch serverComponent {
@@ -827,41 +850,11 @@ func main() {
 	        case "mqttMgr":
 		    go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
 		    go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
+	        case "serviceMgr":
+		    go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
+		    go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 	    }
 	}
-
-	if !initVssFile() {
-		utils.Error.Fatal(" Tree file not found")
-		return
-	}
-	createPathListFile(*vssJson) // save in server directory, where transport managers will expect it to be
-	if *dryRun {
-		utils.Info.Printf("vsspathlist.json created. Job done.")
-		return
-	}
-
-	serviceIndex := 0 // index assigned to registered services
-	router := mux.NewRouter()
-	router.HandleFunc("/vsspathlist", pathList.vssPathListHandler).Methods("GET")
-	router.HandleFunc("/service/reg", makeServiceRegisterHandler(&serviceIndex, backendChan)).Methods("POST")
-//	router.HandleFunc("/transport/reg", transportRegisterHandler).Methods("POST")
-//	router.HandleFunc("/transport/data/{protocol}", makeTransportDataHandler(transportDataChan, backendChan)).
-//		Headers("Upgrade", "websocket")
-
-	srv := &http.Server{
-		Addr:         "0.0.0.0:8081",
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
-		Handler:      router,
-	}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil {
-			log.Fatal("ListenAndServe: ", err)
-		}
-		utils.Info.Printf("Server is listening on %s", srv.Addr)
-	}()
 
 	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
@@ -872,7 +865,7 @@ func main() {
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
-			//  case xxx := <- transportMgrChannel[3]:  // implement when there is a 4th transport protocol mgr
+	    //  case request := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
 		}
 	}
 }

@@ -1,4 +1,5 @@
 /**
+* (C) 2022 Geotab Inc
 * (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
@@ -8,13 +9,11 @@
 *
 **/
 
-package main
+package serviceMgr
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -22,16 +21,12 @@ import (
 	"strconv"
 	"strings"
 
-	//	"sync"
 	"time"
 
 	"github.com/w3c/automotive-viss2/utils"
-	"github.com/akamensky/argparse"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/go-redis/redis"
 )
-
-// one muxServer component for service registration, one for the data communication
 
 type RegRequest struct {
 	Rootnode string
@@ -70,93 +65,28 @@ var errorResponseMap = map[string]interface{}{
 	"ts":        "yy",
 }
 
-var db *sql.DB
+var dbHandle *sql.DB
 var dbErr error
 var redisClient *redis.Client
 var stateDbType string
 
 var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
 
-func registerAsServiceMgr(hostIp string, regRequest RegRequest, regResponse *utils.SvcRegResponse) int {
-	url := "http://" + hostIp + ":8081/service/reg"
-	utils.Info.Printf("ServerCore URL %s", url)
-
-	data := []byte(`{"Rootnode": "` + regRequest.Rootnode + `"}`)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		utils.Error.Fatal("registerAsServiceMgr: Error creating request. ", err)
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", hostIp+":8081")
-
-	// Set client timeout
-	client := &http.Client{Timeout: time.Second * 10}
-
-	// Validate headers are attached
-	utils.Info.Println(req.Header)
-
-	// Send request loop until connection succeeds
-	var resp *http.Response
+func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
-		resp, err = client.Do(req)
-		if err != nil {
-			utils.Error.Error("registerAsServiceMgr: Error reading response. ", err)
-			time.Sleep(1 * time.Second)
-		} else {
-			break
-		}
+	  select {
+	    case request := <- serviceMgrChan:
+	      utils.Info.Printf("Service mgr request: %s", request)
+
+	      clientChannel <- request // forward to mgr hub,
+	      response := <-clientChannel   //  and wait for response
+	      utils.Info.Printf("Service mgr response: %s", response)
+	      serviceMgrChan <- response
+	    case notification := <- backendChannel:  // notification
+	      utils.Info.Printf("Service mgr notification: %s", notification)
+	      serviceMgrChan <- notification
+	  }
 	}
-	defer resp.Body.Close()
-
-	utils.Info.Println("response Status:", resp.Status)
-	utils.Info.Println("response Headers:", resp.Header)
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		utils.Error.Fatal("Error reading response. ", err)
-	}
-	utils.Info.Printf("%s\n", body)
-
-	err = json.Unmarshal(body, regResponse)
-	if err != nil {
-		utils.Error.Fatal("Service mgr: Error JSON decoding of response. ", err)
-	}
-
-	utils.Info.Printf("registerAsServiceMgr: response: port:%d, path=%s\n", regResponse.Portnum, regResponse.Urlpath)
-
-	if regResponse.Portnum <= 0 {
-		utils.Warning.Printf("Service registration denied.\n")
-		return 0
-	}
-	return 1
-}
-
-func makeServiceDataHandler(dataChannel chan string, backendChannel chan string) func(http.ResponseWriter, *http.Request) {
-	return func(w http.ResponseWriter, req *http.Request) {
-		if req.Header.Get("Upgrade") == "websocket" {
-			utils.Info.Printf("we are upgrading to a websocket connection.\n")
-			utils.Upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-			conn, err := utils.Upgrader.Upgrade(w, req, nil)
-			if err != nil {
-				utils.Error.Printf("upgrade: %s", err)
-				return
-			}
-			go utils.FrontendWSdataSession(conn, dataChannel, backendChannel)
-			go utils.BackendWSdataSession(conn, backendChannel)
-		} else {
-			utils.Warning.Printf("Client must set up a Websocket session.\n")
-		}
-	}
-}
-
-func initDataServer(muxServer *http.ServeMux, dataChannel chan string, backendChannel chan string, regResponse utils.SvcRegResponse) {
-	serviceDataHandler := makeServiceDataHandler(dataChannel, backendChannel)
-	muxServer.HandleFunc(regResponse.Urlpath, serviceDataHandler)
-	utils.Info.Printf("initDataServer: URL:%s, Portno:%d\n", regResponse.Urlpath, regResponse.Portnum)
-	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(regResponse.Portnum), muxServer))
 }
 
 const MAXTICKERS = 255 // total number of active subscription and history tickers
@@ -546,10 +476,11 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 }
 
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
+utils.Info.Printf("stateDbType=%s, path=%s", stateDbType, path)
 	switch stateDbType {
 	    case "sqlite":
 	    
-		rows, err := db.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
+		rows, err := dbHandle.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
 		if err != nil {
 			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 		}
@@ -602,7 +533,7 @@ func setVehicleData(path string, value string) string {
 	ts := utils.GetRfcTime()
 	switch stateDbType {
 	    case "sqlite":
-		stmt, err := db.Prepare("UPDATE VSS_MAP SET d_value=?, d_ts=? WHERE `path`=?")
+		stmt, err := dbHandle.Prepare("UPDATE VSS_MAP SET d_value=?, d_ts=? WHERE `path`=?")
 		if err != nil {
 			utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
 			return ""
@@ -966,47 +897,21 @@ func getValidation(path string) string {
     return "read-write"  //dummy return
 }
 
-func main() {
-	// Create new parser object
-	parser := argparse.NewParser("print", "Service Manager service")
-	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
-	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
-	// Create string flag
-	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
-	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
-		Required: false,
-		Help:     "changes log output level",
-		Default:  "info"})
-	udsPath := parser.String("", "uds", &argparse.Options{
-		Required: false,
-		Help:     "Set UDS path and file",
-		Default:  "/var/tmp/vissv2/histctrlserver.sock"})
-	dbFile := parser.String("", "dbfile", &argparse.Options{
-		Required: false,
-		Help:     "statestorage database filename",
-		Default:  "statestorage.db"})
+func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
+	stateDbType = stateStorageType
 
-	// Parse input
-	err := parser.Parse(os.Args)
-	if err != nil {
-		fmt.Print(parser.Usage(err))
-	}
-
-	stateDbType = *stateDB
-
-	//os.Remove("/var/tmp/vissv2/histctrlserver.sock")
-	//listExists := createHistoryList("../vsspathlist.json") // file is created by core-server at startup
-
-	utils.InitLog("service-mgr-log.txt", "./logs", *logFile, *logLevel)
 	switch stateDbType {
 	    case "sqlite":
-		if utils.FileExists(*dbFile) {
-		    db, dbErr = sql.Open("sqlite3", *dbFile)
+		if utils.FileExists(dbFile) {
+		    dbHandle, dbErr = sql.Open("sqlite3", dbFile)
 		    if dbErr != nil {
-			utils.Error.Printf("Could not open DB file = %s, err = %s", *dbFile, dbErr)
+			utils.Error.Printf("Could not open state storage file = %s, err = %s", dbFile, dbErr)
 			os.Exit(1)
+		    } else {
+		        utils.Info.Printf("SQLite state storage initialised.")
 		    }
-		    defer db.Close()
+		} else {
+			utils.Error.Printf("Could not find state storage file = %s", dbFile)
 		}
 	    case "redis":
 		redisClient = redis.NewClient(&redis.Options{
@@ -1019,14 +924,15 @@ func main() {
 		if err != nil {
 			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
 			os.Exit(1)
-		}
+		    } else {
+		        utils.Info.Printf("Redis state storage initialised.")
+		    }
 	    default:
+		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
 
-	var regResponse utils.SvcRegResponse
 	dataChan := make(chan string)
 	backendChan := make(chan string)
-	regRequest := RegRequest{Rootnode: "Vehicle"}
 	subscriptionChan := make(chan int)
 	historyAccessChannel = make(chan string)
 	CLChannel = make(chan CLPack, 5) // allow some buffering...
@@ -1035,13 +941,9 @@ func main() {
 
 	var serverCoreIP string = utils.GetModelIP(2)
 
-	if registerAsServiceMgr(serverCoreIP, regRequest, &regResponse) == 0 {
-		return
-	}
-
 	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
-	go initDataServer(utils.MuxServer[1], dataChan, backendChan, regResponse)
-	go historyServer(historyAccessChannel, *udsPath, vss_data)
+	go initDataServer(serviceMgrChan, dataChan, backendChan)
+	go historyServer(historyAccessChannel, udsPath, vss_data)
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
 
 	for {

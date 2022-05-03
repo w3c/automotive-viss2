@@ -1,6 +1,6 @@
 #!/bin/bash
 
-services=(vissv2server service_mgr at_server agt_server)
+services=(vissv2server at_server agt_server)
 
 usage() {
 	#    echo "usage: $0 startme|stopme|configureme" >&2
@@ -12,15 +12,7 @@ startme() {
 	for service in "${services[@]}"; do
 		echo "Starting $service"
 		mkdir -p logs
-		if [ $service == "service_mgr" ]; then
-		        if [ $1 -eq 2 ]; then
-                               screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service -s $2 &> ./logs/$service-log.txt && popd"
-		        else
-                               screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
-                       fi
-		else
-			screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
-		fi
+		screen -S $service -dm bash -c "pushd server/$service && go build && mkdir -p logs && ./$service &> ./logs/$service-log.txt && popd"
 	done
 	screen -list
 }
