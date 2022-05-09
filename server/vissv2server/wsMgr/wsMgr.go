@@ -18,6 +18,7 @@ var wsClientChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
+/*	make(chan string),
 	make(chan string),
 	make(chan string),
 	make(chan string),
@@ -33,8 +34,7 @@ var wsClientChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
-	make(chan string),
-	make(chan string),
+	make(chan string),*/
 }
 
 // array size same as for wsClientChan
@@ -42,6 +42,7 @@ var clientBackendChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
+/*	make(chan string),
 	make(chan string),
 	make(chan string),
 	make(chan string),
@@ -57,11 +58,10 @@ var clientBackendChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
-	make(chan string),
-	make(chan string),
+	make(chan string),*/
 }
 
-var serverIndex int
+var wsClientIndex int
 
 const isClientLocal = false
 
@@ -77,14 +77,14 @@ func RemoveRoutingForwardResponse(response string, transportMgrChan chan string)
 func WsMgrInit(mgrId int, transportMgrChan chan string) {
 	utils.ReadTransportSecConfig()
 
-	go utils.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(utils.MuxServer[1], wsClientChan, &serverIndex) // go routine needed due to listenAndServe call...
+	go utils.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(utils.MuxServer[1], wsClientChan, mgrId, &wsClientIndex) // go routine needed due to listenAndServe call...
 
 	utils.Info.Println("WS manager data session initiated.")
 
 	for {
 		select {
 		case respMessage := <-transportMgrChan:
-			utils.Info.Printf("WS mgr hub: Response from server core:%s\n", respMessage)
+			utils.Info.Printf("WS mgr hub: Response from server core:%s", respMessage)
 			RemoveRoutingForwardResponse(respMessage, transportMgrChan)
 		case reqMessage := <-wsClientChan[0]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 0, transportMgrChan)
@@ -92,7 +92,7 @@ func WsMgrInit(mgrId int, transportMgrChan chan string) {
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 1, transportMgrChan)
 		case reqMessage := <-wsClientChan[2]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 2, transportMgrChan)
-		case reqMessage := <-wsClientChan[3]:
+/*		case reqMessage := <-wsClientChan[3]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 3, transportMgrChan)
 		case reqMessage := <-wsClientChan[4]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 4, transportMgrChan)
@@ -125,7 +125,7 @@ func WsMgrInit(mgrId int, transportMgrChan chan string) {
 		case reqMessage := <-wsClientChan[18]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 18, transportMgrChan)
 		case reqMessage := <-wsClientChan[19]:
-			utils.AddRoutingForwardRequest(reqMessage, mgrId, 19, transportMgrChan)
+			utils.AddRoutingForwardRequest(reqMessage, mgrId, 19, transportMgrChan)*/
 		}
 	}
 }

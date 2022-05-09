@@ -513,6 +513,10 @@ func validRequest(request string, action string) bool {
 		return isValidSubscribeParams(request)
 	case "unsubscribe":
 		return isValidUnsubscribeParams(request)
+	default:
+		if (action == "internal-killsubscriptions") {
+			return true
+		}
 	}
 	return false
 }
@@ -637,6 +641,10 @@ utils.Info.Printf("serveRequest():request=%s", request)
 }
 
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
+	if (requestMap["action"] == "internal-killsubscriptions") {
+		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // internal message
+		return
+	}
 	rootPath := requestMap["path"].(string)
 	var searchPath []string
 	

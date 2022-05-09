@@ -53,6 +53,30 @@ var Upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+// len of WsClientIndexList must match the number of select cases in wsMgr
+var WsClientIndexList = []bool{ // true = free to use, false = occupied by client; number of elements = max no of simultaneous WS sessions
+    true,
+    true,
+    true,
+/*    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,*/
+}
+
 var HostIP string
 
 /************ Client response handlers ********************************************************************************/
@@ -65,7 +89,8 @@ type HttpChannel struct {
 
 type WsChannel struct {
 	clientBackendChannel []chan string
-	serverIndex          *int
+	mgrIndex             int
+	clientIndex          *int
 }
 
 /**********Client server initialization *******************************************************************************/

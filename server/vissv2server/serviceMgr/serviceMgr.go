@@ -33,12 +33,12 @@ type RegRequest struct {
 }
 
 type SubscriptionState struct {
-	subscriptionId      int
+	SubscriptionId      int
 	SubscriptionThreads int //only used by subs that spawn multiple threads that return notifications
-	routerId            string
-	path                []string
-	filterList          []utils.FilterObject
-	latestDataPoint     string
+	RouterId            string
+	Path                []string
+	FilterList          []utils.FilterObject
+	LatestDataPoint     string
 }
 
 var subscriptionId int
@@ -79,9 +79,11 @@ func initDataServer(serviceMgrChan chan string, clientChannel chan string, backe
 	      utils.Info.Printf("Service mgr request: %s", request)
 
 	      clientChannel <- request // forward to mgr hub,
-	      response := <-clientChannel   //  and wait for response
-	      utils.Info.Printf("Service mgr response: %s", response)
-	      serviceMgrChan <- response
+	      if (strings.Contains(request, "internal-killsubscriptions") == false) { // no response on kill sub
+	          response := <-clientChannel   //  and wait for response
+	          utils.Info.Printf("Service mgr response: %s", response)
+	          serviceMgrChan <- response
+	      }
 	    case notification := <- backendChannel:  // notification
 	      utils.Info.Printf("Service mgr notification: %s", notification)
 	      serviceMgrChan <- notification
@@ -151,13 +153,14 @@ func deactivateHistory(signalId int) {
 }
 
 func getSubcriptionStateIndex(subscriptionId int, subscriptionList []SubscriptionState) int {
-	//utils.Info.Printf("getSubcriptionStateIndex: subscriptionId=%d, len(subscriptionList)=%d", subscriptionId, len(subscriptionList))
+	index := -1
 	for i := 0; i < len(subscriptionList); i++ {
-		if subscriptionList[i].subscriptionId == subscriptionId {
-			return i
+		if subscriptionList[i].SubscriptionId == subscriptionId {
+			index = i
+			break
 		}
 	}
-	return -1
+	return index
 }
 
 func setSubscriptionListThreads(subscriptionList []SubscriptionState, subThreads SubThreads) []SubscriptionState {
@@ -346,10 +349,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 	subscriptionMap["ts"] = utils.GetRfcTime()
 	select {
 	case subscriptionId := <-subscriptionChannel: // interval notification triggered
+//utils.Info.Printf("checkSubscription():interval triggered, subscriptionId=%d", subscriptionId)
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
-		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-		subscriptionMap["RouterId"] = subscriptionState.routerId
-		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionState.path, nil))
+		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
+		subscriptionMap["RouterId"] = subscriptionState.RouterId
+		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionState.Path, nil))
 	case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		//subscriptionState := subscriptionList[index]
@@ -358,23 +362,23 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 			subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 			closeClSubId = -1
 		}
-		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionList[index].subscriptionId)
-		subscriptionMap["RouterId"] = subscriptionList[index].routerId
+		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionList[index].SubscriptionId)
+		subscriptionMap["RouterId"] = subscriptionList[index].RouterId
 		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", clPack.DataPack)
 	default:
 		// check if range or change notification triggered
 		for i := range subscriptionList {
-			triggerDataPoint := getVehicleData(subscriptionList[i].path[0])
-			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].filterList, subscriptionList[i].latestDataPoint, triggerDataPoint)
+			triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
+			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
 			if updateLatest == true {
-			    subscriptionList[i].latestDataPoint = triggerDataPoint
+			    subscriptionList[i].LatestDataPoint = triggerDataPoint
 			}
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
-				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.subscriptionId)
-				subscriptionMap["RouterId"] = subscriptionState.routerId
-				subscriptionList[i].latestDataPoint = triggerDataPoint
-				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].path, nil))
+				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
+				subscriptionMap["RouterId"] = subscriptionState.RouterId
+				subscriptionList[i].LatestDataPoint = triggerDataPoint
+				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].Path, nil))
 			}
 		}
 	}
@@ -387,15 +391,15 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 	if index == -1 {
 		return -1, subscriptionList
 	}
-	if getOpType(subscriptionList[index].filterList, "timebased") == true {
-		deactivateInterval(subscriptionList[index].subscriptionId)
-	} else if getOpType(subscriptionList[index].filterList, "curvelog") == true {
+	if getOpType(subscriptionList[index].FilterList, "timebased") == true {
+		deactivateInterval(subscriptionList[index].SubscriptionId)
+	} else if getOpType(subscriptionList[index].FilterList, "curvelog") == true {
 		mcloseClSubId.Lock()
-		closeClSubId = subscriptionList[index].subscriptionId
+		closeClSubId = subscriptionList[index].SubscriptionId
 		utils.Info.Printf("deactivateSubscription: closeClSubId set to %d", closeClSubId)
 		mcloseClSubId.Unlock()
 	}
-	if getOpType(subscriptionList[index].filterList, "curvelog") == false {
+	if getOpType(subscriptionList[index].FilterList, "curvelog") == false {
 		subscriptionList = removeFromsubscriptionList(subscriptionList, index)
 	}
 	return 1, subscriptionList
@@ -404,6 +408,7 @@ func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId
 func removeFromsubscriptionList(subscriptionList []SubscriptionState, index int) []SubscriptionState {
 	subscriptionList[index] = subscriptionList[len(subscriptionList)-1] // Copy last element to index i.
 	subscriptionList = subscriptionList[:len(subscriptionList)-1]       // Truncate slice.
+	utils.Info.Printf("Killed subscription, listno=%d", index)
 	return subscriptionList
 }
 
@@ -476,7 +481,6 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 }
 
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
-utils.Info.Printf("stateDbType=%s, path=%s", stateDbType, path)
 	switch stateDbType {
 	    case "sqlite":
 	    
@@ -1006,23 +1010,23 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				dataChan <- addPackage(utils.FinalizeMessage(responseMap), "data", dataPack)
 			case "subscribe":
 				var subscriptionState SubscriptionState
-				subscriptionState.subscriptionId = subscriptionId
-				subscriptionState.routerId = requestMap["RouterId"].(string)
-				subscriptionState.path = unpackPaths(requestMap["path"].(string))
+				subscriptionState.SubscriptionId = subscriptionId
+				subscriptionState.RouterId = requestMap["RouterId"].(string)
+				subscriptionState.Path = unpackPaths(requestMap["path"].(string))
 				if requestMap["filter"] == nil || requestMap["filter"] == "" {
 					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
-				utils.UnpackFilter(requestMap["filter"], &(subscriptionState.filterList))
-				if len(subscriptionState.filterList) == 0 {
+				utils.UnpackFilter(requestMap["filter"], &(subscriptionState.FilterList))
+				if len(subscriptionState.FilterList) == 0 {
 					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 				}
-				subscriptionState.latestDataPoint = getVehicleData(subscriptionState.path[0])
+				subscriptionState.LatestDataPoint = getVehicleData(subscriptionState.Path[0])
 				subscriptionList = append(subscriptionList, subscriptionState)
 				responseMap["subscriptionId"] = strconv.Itoa(subscriptionId)
-				activateIfIntervalOrCL(subscriptionState.filterList, subscriptionChan, CLChannel, subscriptionId, subscriptionState.path)
+				activateIfIntervalOrCL(subscriptionState.FilterList, subscriptionChan, CLChannel, subscriptionId, subscriptionState.Path)
 				subscriptionId++ // not to be incremented elsewhere
 				dataChan <- utils.FinalizeMessage(responseMap)
 			case "unsubscribe":
@@ -1041,6 +1045,11 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				}
 				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsubscribe failed.", "Incorrect or missing subscription id.")
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
+			case "internal-killsubscriptions":
+				isRemoved := true
+				for isRemoved == true {
+					isRemoved, subscriptionList = scanAndRemoveListItem(subscriptionList, requestMap["RouterId"].(string))
+				}
 			default:
 				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unknown action.", "")
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
@@ -1057,4 +1066,16 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			time.Sleep(50 * time.Millisecond)
 		} // select
 	} // for
+}
+
+func scanAndRemoveListItem(subscriptionList []SubscriptionState, routerId string) (bool, []SubscriptionState) {
+	removed := false
+	for i := 0 ; i < len(subscriptionList) ; i++ {
+		if (subscriptionList[i].RouterId == routerId) {
+			_, subscriptionList = deactivateSubscription(subscriptionList, strconv.Itoa(subscriptionList[i].SubscriptionId))
+			removed = true
+			break
+		}
+	}
+	return removed, subscriptionList
 }

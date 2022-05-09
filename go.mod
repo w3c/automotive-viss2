@@ -4,7 +4,7 @@ go 1.16
 
 //example on how to use replace to point to fork or local path
 //replace github.com/w3c/automotive-viss2/utils => github.com/MagnusGun/WAII/utils master
-//replace github.com/w3c/automotive-viss2/utils => ./utils
+replace github.com/w3c/automotive-viss2/utils => ./utils
 
 replace github.com/w3c/automotive-viss2/server/vissv2server/httpMgr => ./server/vissv2server/httpMgr
 replace github.com/w3c/automotive-viss2/server/vissv2server/wsMgr => ./server/vissv2server/wsMgr
