@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/MEAE-GOT/WAII/utils"
+	"github.com/w3c/automotive-viss2/utils"
 	"github.com/akamensky/argparse"
 	log "github.com/sirupsen/logrus"
 )
