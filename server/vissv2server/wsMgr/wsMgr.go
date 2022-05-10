@@ -18,7 +18,6 @@ var wsClientChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
-/*	make(chan string),
 	make(chan string),
 	make(chan string),
 	make(chan string),
@@ -34,7 +33,8 @@ var wsClientChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
-	make(chan string),*/
+	make(chan string),
+	make(chan string),
 }
 
 // array size same as for wsClientChan
@@ -42,7 +42,6 @@ var clientBackendChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
-/*	make(chan string),
 	make(chan string),
 	make(chan string),
 	make(chan string),
@@ -58,7 +57,8 @@ var clientBackendChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
-	make(chan string),*/
+	make(chan string),
+	make(chan string),
 }
 
 var wsClientIndex int
@@ -92,7 +92,7 @@ func WsMgrInit(mgrId int, transportMgrChan chan string) {
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 1, transportMgrChan)
 		case reqMessage := <-wsClientChan[2]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 2, transportMgrChan)
-/*		case reqMessage := <-wsClientChan[3]:
+		case reqMessage := <-wsClientChan[3]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 3, transportMgrChan)
 		case reqMessage := <-wsClientChan[4]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 4, transportMgrChan)
@@ -125,7 +125,7 @@ func WsMgrInit(mgrId int, transportMgrChan chan string) {
 		case reqMessage := <-wsClientChan[18]:
 			utils.AddRoutingForwardRequest(reqMessage, mgrId, 18, transportMgrChan)
 		case reqMessage := <-wsClientChan[19]:
-			utils.AddRoutingForwardRequest(reqMessage, mgrId, 19, transportMgrChan)*/
+			utils.AddRoutingForwardRequest(reqMessage, mgrId, 19, transportMgrChan)
 		}
 	}
 }

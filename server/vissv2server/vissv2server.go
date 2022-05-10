@@ -34,6 +34,7 @@ import (
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -61,7 +62,7 @@ var serverComponents []string = []string{
 	"httpMgr",
 	"wsMgr",
 	"mqttMgr",
-//	"at-server",
+	"atServer",
 }
 
 /*
@@ -861,6 +862,8 @@ func main() {
 	        case "serviceMgr":
 		    go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
 		    go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
+	        case "atServer":
+		    go atServer.AtServerInit() //communicates over UDS
 	    }
 	}
 

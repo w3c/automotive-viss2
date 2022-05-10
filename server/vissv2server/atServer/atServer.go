@@ -6,12 +6,11 @@
 *
 **/
 
-package main
+package atServer
 
 import (
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -19,28 +18,16 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 
+	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
+	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
 	"github.com/w3c/automotive-viss2/utils"
-	"github.com/akamensky/argparse"
 )
 
-// #include <stdlib.h>
-// #include <stdint.h>
-// #include <stdio.h>
-// #include <stdbool.h>
-// #include "cparserlib.h"
-import "C"
-
-var VSSTreeRoot C.long
+var VSSTreeRoot *gomodel.Node_t
 
 // set to MAXFOUNDNODES in cparserlib.h
 const MAXFOUNDNODES = 1500
-
-type searchData_t struct { // searchData_t defined in cparserlib.h
-	path            [512]byte // cparserlib.h: #define MAXCHARSPATH 512; typedef char path_t[MAXCHARSPATH];
-	foundNodeHandle int64     // defined as long in cparserlib.h
-}
 
 const theAgtSecret = "averysecretkeyvalue1" //shared with agt-server
 const theAtSecret = "averysecretkeyvalue2"  //not shared
@@ -107,11 +94,9 @@ type ScopeElement struct {
 
 func initVssFile() bool {
 	filePath := "vss_vissv2.binary"
-	cfilePath := C.CString(filePath)
-	VSSTreeRoot = C.VSSReadTree(cfilePath)
-	C.free(unsafe.Pointer(cfilePath))
+	VSSTreeRoot = golib.VSSReadTree(filePath)
 
-	if VSSTreeRoot == 0 {
+	if VSSTreeRoot == nil {
 		utils.Error.Println("Tree file not found")
 		return false
 	}
@@ -177,17 +162,14 @@ func validateRequestAccess(purpose string, action string, paths []string) int {
 	numOfPaths := len(paths)
 	var pathSubList []string
 	for i := 0; i < numOfPaths; i++ {
+		var searchData []golib.SearchData_t
 		numOfWildcardPaths := 1
 		if strings.Contains(paths[i], "*") == true {
-			searchData := [MAXFOUNDNODES]searchData_t{}
-			// call int VSSSearchNodes(char* searchPath, long rootNode, int maxFound, searchData_t* searchData, bool anyDepth, bool leafNodesOnly, int listSize, noScopeList_t* noScopeList, int* validation);
-			cpath := C.CString(paths[i])
-			numOfWildcardPaths := int(C.VSSSearchNodes(cpath, VSSTreeRoot, MAXFOUNDNODES, (*C.struct_searchData_t)(unsafe.Pointer(&searchData)), true, true, 0, nil, nil))
-			C.free(unsafe.Pointer(cpath))
+			searchData, numOfWildcardPaths = golib.VSSsearchNodes(paths[i], VSSTreeRoot, MAXFOUNDNODES, true, true, 0, nil, nil)
 			pathSubList = make([]string, numOfWildcardPaths)
-			for j := 0; j < numOfWildcardPaths; j++ {
-				pathLen := getPathLen(string(searchData[j].path[:]))
-				pathSubList[j] = string(searchData[j].path[:pathLen])
+			for j := 0 ; j < numOfWildcardPaths ; j++ {
+				pathLen := getPathLen(string(searchData[j].NodePath[:]))
+				pathSubList[j] = string(searchData[j].NodePath[:pathLen])
 			}
 		} else {
 			pathSubList = make([]string, 1)
@@ -299,10 +281,10 @@ func extractAtValidatePayloadLevel1(atValidateMap map[string]interface{}, atVali
 	for k, v := range atValidateMap {
 		switch vv := v.(type) {
 		case []interface{}:
-			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+//			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
 			extractAtValidatePayloadLevel2(vv, atValidatePayload)
 		case string:
-			utils.Info.Println(k, "is a string:")
+//			utils.Info.Println(k, "is a string:")
 			if (k == "token") {
 			    atValidatePayload.Token = v.(string)
 			} else if (k == "action") {
@@ -325,7 +307,7 @@ func extractAtValidatePayloadLevel2(pathList []interface{}, atValidatePayload *A
 	for k, v := range pathList {
 		switch v.(type) {
 		case string:
-			utils.Info.Println(k, "is a string:")
+//			utils.Info.Println(k, "is a string:")
 			atValidatePayload.Paths[i] = v.(string)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -488,7 +470,7 @@ func generateAt(payload AtGenPayload, context string) string {
 }
 
 func initPurposelist() {
-	data, err := ioutil.ReadFile("purposelist.json")
+	data, err := ioutil.ReadFile("atServer/purposelist.json")
 	if err != nil {
 		utils.Error.Printf("Error reading purposelist.json\n")
 		os.Exit(-1)
@@ -505,10 +487,10 @@ func extractPurposeElementsLevel1(purposeList map[string]interface{}) {
 	for k, v := range purposeList {
 		switch vv := v.(type) {
 		case []interface{}:
-			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+//			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
 			extractPurposeElementsLevel2(vv)
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractPurposeElementsLevel3(0, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -522,7 +504,7 @@ func extractPurposeElementsLevel2(purposeList []interface{}) {
 	for k, v := range purposeList {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractPurposeElementsLevel3(i, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -535,14 +517,14 @@ func extractPurposeElementsLevel3(index int, purposeElem map[string]interface{})
 	for k, v := range purposeElem {
 		switch vv := v.(type) {
 		case string:
-			utils.Info.Println(k, "is string", vv)
+//			utils.Info.Println(k, "is string", vv)
 			if k == "short" {
 				pList[index].Short = vv
 			} else {
 				pList[index].Long = vv
 			}
 		case []interface{}:
-			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+//			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
 			if k == "contexts" {
 				pList[index].Context = make([]ContextElement, len(vv))
 				extractPurposeElementsL4ContextL1(index, vv)
@@ -551,7 +533,7 @@ func extractPurposeElementsLevel3(index int, purposeElem map[string]interface{})
 				extractPurposeElementsL4SignalAccessL1(index, vv)
 			}
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			if k == "contexts" {
 				pList[index].Context = make([]ContextElement, 1)
 				extractPurposeElementsL4ContextL2(0, index, vv)
@@ -569,7 +551,7 @@ func extractPurposeElementsL4ContextL1(index int, contextElem []interface{}) {
 	for k, v := range contextElem {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractPurposeElementsL4ContextL2(k, index, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -579,7 +561,7 @@ func extractPurposeElementsL4ContextL1(index int, contextElem []interface{}) {
 
 func extractPurposeElementsL4ContextL2(k int, index int, contextElem map[string]interface{}) {
 	for i, u := range contextElem {
-		utils.Info.Println(i, u)
+//		utils.Info.Println(i, u)
 		switch vvv := u.(type) {
 		case string:
 			if i == "user" {
@@ -594,8 +576,8 @@ func extractPurposeElementsL4ContextL2(k int, index int, contextElem map[string]
 			}
 		case []interface{}:
 			m := 0
-			for l, t := range vvv {
-				utils.Info.Println(l, t)
+			for _, t := range vvv {
+//				utils.Info.Println(l, t)
 				switch t.(type) {
 				case string:
 					if i == "user" {
@@ -615,7 +597,7 @@ func extractPurposeElementsL4ContextL2(k int, index int, contextElem map[string]
 						pList[index].Context[k].Actor[2].Role[m] = t.(string)
 					}
 				default:
-					utils.Info.Println(k, "is of an unknown type")
+//					utils.Info.Println(k, "is of an unknown type")
 				}
 				m++
 			}
@@ -629,7 +611,7 @@ func extractPurposeElementsL4SignalAccessL1(index int, accessElem []interface{})
 	for k, v := range accessElem {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractPurposeElementsL4SignalAccessL2(k, index, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -639,7 +621,7 @@ func extractPurposeElementsL4SignalAccessL1(index int, accessElem []interface{})
 
 func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[string]interface{}) {
 	for i, u := range accessElem {
-		utils.Info.Println(i, u)
+//		utils.Info.Println(i, u)
 		if i == "path" {
 			pList[index].Access[k].Path = u.(string)
 		} else {
@@ -649,7 +631,7 @@ func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[str
 }
 
 func initScopeList() {
-	data, err := ioutil.ReadFile("scopelist.json")
+	data, err := ioutil.ReadFile("atServer/scopelist.json")
 	if err != nil {
 		utils.Info.Printf("scopelist.json not found")
 		return
@@ -666,10 +648,10 @@ func extractScopeElementsLevel1(scopeList map[string]interface{}) {
 	for k, v := range scopeList {
 		switch vv := v.(type) {
 		case []interface{}:
-			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+//			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
 			extractScopeElementsLevel2(vv)
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractScopeElementsLevel3(0, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -683,7 +665,7 @@ func extractScopeElementsLevel2(scopeList []interface{}) {
 	for k, v := range scopeList {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractScopeElementsLevel3(i, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -699,7 +681,7 @@ func extractScopeElementsLevel3(index int, scopeElem map[string]interface{}) {
 			sList[index].NoAccess = make([]string, 1)
 			sList[index].NoAccess[0] = vv
 		case []interface{}:
-			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
+//			utils.Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
 			if k == "contexts" {
 				sList[index].Context = make([]ContextElement, len(vv))
 				extractScopeElementsL4ContextL1(index, vv)
@@ -708,7 +690,7 @@ func extractScopeElementsLevel3(index int, scopeElem map[string]interface{}) {
 				extractScopeElementsL4NoAccessL1(index, vv)
 			}
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			sList[index].Context = make([]ContextElement, 1)
 			extractScopeElementsL4ContextL2(0, index, vv)
 		default:
@@ -721,7 +703,7 @@ func extractScopeElementsL4ContextL1(index int, contextElem []interface{}) {
 	for k, v := range contextElem {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-			utils.Info.Println(k, "is a map:")
+//			utils.Info.Println(k, "is a map:")
 			extractScopeElementsL4ContextL2(k, index, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -731,7 +713,7 @@ func extractScopeElementsL4ContextL1(index int, contextElem []interface{}) {
 
 func extractScopeElementsL4ContextL2(k int, index int, contextElem map[string]interface{}) {
 	for i, u := range contextElem {
-		utils.Info.Println(i, u)
+//		utils.Info.Println(i, u)
 		switch vvv := u.(type) {
 		case string:
 			if i == "user" {
@@ -746,8 +728,8 @@ func extractScopeElementsL4ContextL2(k int, index int, contextElem map[string]in
 			}
 		case []interface{}:
 			m := 0
-			for l, t := range vvv {
-				utils.Info.Println(l, t)
+			for _, t := range vvv {
+//				utils.Info.Println(l, t)
 				switch t.(type) {
 				case string:
 					if i == "user" {
@@ -781,7 +763,7 @@ func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
 	for k, v := range noAccessElem {
 		switch vv := v.(type) {
 		case string:
-			utils.Info.Println(vv)
+//			utils.Info.Println(vv)
 			sList[index].NoAccess[k] = vv
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -789,26 +771,10 @@ func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
 	}
 }
 
-func main() {
-	// Create new parser object
-	parser := argparse.NewParser("print", "AT Server")
-	// Create string flag
-	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
-	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
-		Required: false,
-		Help:     "changes log output level",
-		Default:  "info"})
-
-	// Parse input
-	err := parser.Parse(os.Args)
-	if err != nil {
-		fmt.Print(parser.Usage(err))
-	}
-
+func AtServerInit() {
 	serverChan := make(chan string)
 	muxServer := http.NewServeMux()
 
-	utils.InitLog("atserver-log.txt", "./logs", *logFile, *logLevel)
 	initPurposelist()
 	initScopeList()
 	initVssFile()

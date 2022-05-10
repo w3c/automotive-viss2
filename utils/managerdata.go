@@ -58,7 +58,6 @@ var WsClientIndexList = []bool{ // true = free to use, false = occupied by clien
     true,
     true,
     true,
-/*    true,
     true,
     true,
     true,
@@ -74,7 +73,8 @@ var WsClientIndexList = []bool{ // true = free to use, false = occupied by clien
     true,
     true,
     true,
-    true,*/
+    true,
+    true,
 }
 
 var HostIP string
