@@ -68,7 +68,13 @@ For more information see https://github.com/golang/go/wiki/Modules#when-should-i
 
 Make sure not to push modified go.mod, go.sum files since that would probably break the master branch.
 
+### Multi-process vs single-process server implementation
+The components mentioned above that together realizes the server is available in two different implementations:
+- Components are built and deployed as separate processes/binaries, and communicate using Websocket.<br>
+- Components are built and deployed as threads within one common process/binary, and communicate using Go channels.<br>
 
+These implementations are found at the branches multi-process and single-process, respectively. 
+The master branch is currently identical to the multi-process branch.
 
 ### Using Docker-Compose to launch a W3CServer instance
 
