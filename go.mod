@@ -6,10 +6,9 @@ go 1.16
 //replace github.com/w3c/automotive-viss2/utils => github.com/MagnusGun/WAII/utils master
 replace github.com/w3c/automotive-viss2/utils => ./utils
 
-
 replace (
-	github.com/COVESA/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/datamodel
-	github.com/COVESA/vss-tools/binary/go_parser/parserlib => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/parserlib
+	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20220524163944-c753a539973f
+	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20220524163944-c753a539973f
 	github.com/w3c/automotive-viss2/server/vissv2server/atServer => ./server/vissv2server/atServer
 	github.com/w3c/automotive-viss2/server/vissv2server/httpMgr => ./server/vissv2server/httpMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr => ./server/vissv2server/mqttMgr
@@ -31,9 +30,8 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/mattn/go-sqlite3 v1.14.9
 	github.com/sirupsen/logrus v1.8.1
+	github.com/stretchr/testify v1.7.0 // indirect
 	golang.org/x/net v0.0.0-20211020060615-d418f374d309 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20211019152133-63b7e35f4404 // indirect
-	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
 )
