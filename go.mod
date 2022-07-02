@@ -4,11 +4,18 @@ go 1.16
 
 //example on how to use replace to point to fork or local path
 //replace github.com/w3c/automotive-viss2/utils => github.com/MagnusGun/WAII/utils master
-//replace github.com/w3c/automotive-viss2/utils => ./utils
-//replace (
-//	github.com/COVESA/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/datamodel
-//	github.com/COVESA/vss-tools/binary/go_parser/parserlib => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/parserlib
-//)
+replace github.com/w3c/automotive-viss2/utils => ./utils
+
+
+replace (
+	github.com/COVESA/vss-tools/binary/go_parser/datamodel => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/datamodel
+	github.com/COVESA/vss-tools/binary/go_parser/parserlib => /home/ulfbjorkengren/Proj/covesa/vss-tools/binary/go_parser/parserlib
+	github.com/w3c/automotive-viss2/server/vissv2server/atServer => ./server/vissv2server/atServer
+	github.com/w3c/automotive-viss2/server/vissv2server/httpMgr => ./server/vissv2server/httpMgr
+	github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr => ./server/vissv2server/mqttMgr
+	github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr => ./server/vissv2server/serviceMgr
+	github.com/w3c/automotive-viss2/server/vissv2server/wsMgr => ./server/vissv2server/wsMgr
+)
 
 //replace github.com/w3c/automotive-viss2/protobuf/protoc-out => ./protobuf/protoc-out
 
@@ -17,8 +24,8 @@ require (
 	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20220104185813-cad8492de65f
 	github.com/akamensky/argparse v1.3.1
 	github.com/eclipse/paho.mqtt.golang v1.3.5
-	github.com/go-redis/redis v6.15.9+incompatible // indirect
-	github.com/go-redis/redis/v8 v8.11.5 // indirect
+	github.com/go-redis/redis v6.15.9+incompatible
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/protobuf v1.5.2
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
