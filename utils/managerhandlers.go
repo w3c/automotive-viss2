@@ -10,15 +10,12 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/json"
-	"flag"
 	"io/ioutil"
 
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
-	"net/url"
 
 	"strconv"
 	"strings"
@@ -26,6 +23,24 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+const backendTermination = "internal-backend-termination"
+
+func getWsClientIndex() int {
+    freeIndex := -1
+    for i := range WsClientIndexList {
+        if (WsClientIndexList[i] == true) {
+            WsClientIndexList[i] = false
+            freeIndex = i
+            break
+        }
+    }
+    return freeIndex
+}
+
+func ReturnWsClientIndex(index int) {
+    WsClientIndexList[index] = true
+}
 
 func ReadTransportSecConfig() {
 	data, err := ioutil.ReadFile(trSecConfigPath + "transportSec.json")
@@ -41,6 +56,18 @@ func ReadTransportSecConfig() {
 		return
 	}
 	Info.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
+}
+
+func createRouterIdProperty(mgrId int, clientId int) string {
+	return "\"RouterId\":\"" + strconv.Itoa(mgrId) + "?" + strconv.Itoa(clientId) + "\""
+}
+
+func AddRoutingForwardRequest(reqMessage string, mgrId int, clientId int, transportMgrChan chan string) {
+//	newPrefix := "{ \"RouterId\":\"" + strconv.Itoa(mgrId) + "?" + strconv.Itoa(clientId) + "\", "
+	newPrefix := "{" + createRouterIdProperty(mgrId, clientId) + ", "
+	request := strings.Replace(reqMessage, "{", newPrefix, 1)
+Info.Printf("AddRoutingForwardRequest: %s", request)
+	transportMgrChan <- request
 }
 
 func backendHttpAppSession(message string, w *http.ResponseWriter) {
@@ -63,41 +90,6 @@ func backendHttpAppSession(message string, w *http.ResponseWriter) {
 	written, err := (*w).Write(resp)
 	if err != nil {
 		Error.Printf("HTTP manager error on response write.Written bytes=%d. Error=%s", written, err.Error())
-	}
-}
-
-func FrontendWSdataSession(conn *websocket.Conn, clientChannel chan string, backendChannel chan string) {
-	defer conn.Close()
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			Error.Printf("Service data read error: %s", err)
-			break
-		}
-		Info.Printf("%s request: %s", conn.RemoteAddr(), string(msg))
-
-		clientChannel <- string(msg) // forward to mgr hub,
-		message := <-clientChannel   //  and wait for response
-
-		backendChannel <- message
-	}
-}
-
-func BackendWSdataSession(conn *websocket.Conn, backendChannel chan string) {
-	defer conn.Close()
-	for {
-		message := <-backendChannel
-
-		Info.Printf("Service:BackendWSdataSession(): message received=%s", message)
-		// Write message back to server core
-		response := []byte(message)
-
-		//		err := conn.WriteMessage(websocket.TextMessage, response)
-		err := conn.WriteMessage(websocket.BinaryMessage, response)
-		if err != nil {
-			Error.Printf("Service data write error: %s", err)
-			break
-		}
 	}
 }
 
@@ -157,75 +149,16 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	backendHttpAppSession(response, &w)
 }
 
-func InitDataSession(muxServer *http.ServeMux, regData RegData) (dataConn *websocket.Conn) {
-	var addr = flag.String("addr", GetServerIP()+":"+strconv.Itoa(regData.Portnum), "http service address")
-	dataSessionUrl := url.URL{Scheme: "ws", Host: *addr, Path: regData.Urlpath}
-	dataConn, _, err := websocket.DefaultDialer.Dial(dataSessionUrl.String(), nil)
-	if err != nil {
-		Error.Fatal("Data session dial error:" + err.Error())
-	}
-	return dataConn
-}
-
-/**
-* registerAsTransportMgr:
-* Registers with servercore as WebSocket protocol manager, and stores response in regData
-**/
-func RegisterAsTransportMgr(regData *RegData, protocol string) {
-	url := "http://" + GetServerIP() + ":8081/transport/reg"
-
-	data := []byte(`{"protocol": "` + protocol + `"}`)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		Error.Fatal("registerAsTransportMgr: Error reading request. ", err)
-	}
-
-	// Set headers
-	req.Header.Set("Access-Control-Allow-Origin", "*")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", GetServerIP()+":8081")
-
-	// Set client timeout
-	client := &http.Client{Timeout: time.Second * 10}
-
-	// Validate headers are attached
-	Info.Println(req.Header)
-
-	// Send request loop until connection succeeds
-	var resp *http.Response
-	for {
-		resp, err = client.Do(req)
-		if err != nil {
-			Error.Error("registerAsTransportMgr: Error reading response. ", err)
-			time.Sleep(1 * time.Second)
-		} else {
-			break
-		}
-	}
-	defer resp.Body.Close()
-
-	Info.Println("response Status:", resp.Status)
-	Info.Println("response Headers:", resp.Header)
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		Error.Fatal("Error reading response. ", err)
-	}
-	Info.Printf("%s", body)
-
-	err = json.Unmarshal(body, regData)
-	if err != nil {
-		Error.Fatal("Error JSON decoding of response. ", err)
-	}
-}
-
-func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, compression Compression) {
+func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clientBackendChannel chan string, clientId int, compression Compression) {
 	defer conn.Close()
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			Error.Printf("App client read error: %s", err)
+			clientChannel <- `{"action":"internal-killsubscriptions"}`
+			time.Sleep(100 * time.Millisecond) // to allow for outstanding notifications before backend is killed
+			clientBackendChannel <- backendTermination
+			ReturnWsClientIndex(clientId)
 			break
 		}
 
@@ -238,7 +171,6 @@ func frontendWSAppSession(conn *websocket.Conn, clientChannel chan string, clien
 		    payload = string(msg)
 		}
 		Info.Printf("%s request: %s, len=%d", conn.RemoteAddr(), payload, len(payload))
-		Info.Printf("Compression variant=%d", compression)
 
 		clientChannel <- payload    // forward to mgr hub,
 		response := <-clientChannel //  and wait for response
@@ -251,9 +183,12 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string,
 	defer conn.Close()
 	for {
 		message := <-clientBackendChannel
-
 		Info.Printf("backendWSAppSession(): Message received=%s", message)
-		// Write message back to app client
+		if (message == backendTermination) {
+			Error.Print("App client websocket session error.")
+			break
+		}
+		// Write response/notification back to app client
 		var response []byte
 	        var messageType int
 
@@ -270,7 +205,7 @@ func backendWSAppSession(conn *websocket.Conn, clientBackendChannel chan string,
 	        err := conn.WriteMessage(messageType, response)
 		if err != nil {
 			Error.Print("App client write error:", err)
-			break
+//			break  // likely to be followed by a read error which trigger the termination above.
 		}
 	}
 }
@@ -288,8 +223,13 @@ func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string) fu
 
 func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
+		*wsH.clientIndex = getWsClientIndex()
+		if (*wsH.clientIndex == -1) {
+		    Warning.Printf("WS session not started, too many clients")
+		    return
+		}
 		if req.Header.Get("Upgrade") == "websocket" {
-			Info.Printf("we are upgrading to a websocket connection. Server index=%d", *wsH.serverIndex)
+			Info.Printf("we are upgrading to a websocket connection.")
 			Upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 			var compression Compression
 			compression = NONE
@@ -328,18 +268,18 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 			      break
 			   }
 			}
-			conn, err := Upgrader.Upgrade(w, req, h)
-			if err != nil {
-				Error.Print("upgrade error:", err)
-				return
-			}
-			Info.Printf("len(appClientChannel)=%d", len(appClientChannel))
-			if *wsH.serverIndex < len(appClientChannel) {
-				go frontendWSAppSession(conn, appClientChannel[*wsH.serverIndex], wsH.clientBackendChannel[*wsH.serverIndex], compression)
-				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.serverIndex], compression)
-				*wsH.serverIndex += 1
-			} else {
-				Error.Printf("not possible to start more app client sessions.")
+//			*wsH.clientIndex = getWsClientIndex()
+			Info.Printf("ClientIndex=%d", *wsH.clientIndex)
+			if *wsH.clientIndex >= 0 {
+				conn, err := Upgrader.Upgrade(w, req, h)
+				if err != nil {
+					Error.Print("upgrade error:", err)
+					return
+				}
+				Info.Printf("WS session started, compression variant=%d", compression)
+				go frontendWSAppSession(conn, appClientChannel[*wsH.clientIndex], wsH.clientBackendChannel[*wsH.clientIndex], 
+							*wsH.clientIndex, compression)
+				go backendWSAppSession(conn, wsH.clientBackendChannel[*wsH.clientIndex], compression)
 			}
 		} else {
 			Error.Printf("Client must set up a Websocket session.")
@@ -347,9 +287,9 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 	}
 }
 
-func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
+func (server HttpServer) InitClientServer(muxServer *http.ServeMux, httpClientChan []chan string) {
 
-	appClientHandler := HttpChannel{}.makeappClientHandler(AppClientChan)
+	appClientHandler := HttpChannel{}.makeappClientHandler(httpClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
 	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if secConfig.TransportSec == "yes" {
@@ -367,9 +307,9 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux) {
 	}
 }
 
-func (server WsServer) InitClientServer(muxServer *http.ServeMux, serverIndex *int) {
-	*serverIndex = 0
-	appClientHandler := WsChannel{server.ClientBackendChannel, serverIndex}.makeappClientHandler(AppClientChan)
+func (server WsServer) InitClientServer(muxServer *http.ServeMux, wsClientChan []chan string, mgrIndex int, clientIndex *int) {
+	*clientIndex = 0
+	appClientHandler := WsChannel{server.ClientBackendChannel, mgrIndex, clientIndex}.makeappClientHandler(wsClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
 	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if secConfig.TransportSec == "yes" {
@@ -421,42 +361,14 @@ func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *t
 	}
 }
 
-func RemoveInternalData(response string) (string, int) { // "RouterId" : "mgrId?clientId",
+func RemoveInternalData(response string) (string, int) { // "RouterId":"mgrId?clientId",
 	routerIdStart := strings.Index(response, "RouterId") - 1
 	clientIdStart := strings.Index(response[routerIdStart:], "?") + 1 + routerIdStart
 	clientIdStop := NextQuoteMark([]byte(response), clientIdStart)
 	clientId, _ := strconv.Atoi(response[clientIdStart:clientIdStop])
 	routerIdStop := strings.Index(response[clientIdStop:], ",") + 1 + clientIdStop
 	trimmedResponse := response[:routerIdStart] + response[routerIdStop:]
+//Info.Printf("response=%s, trimmedResponse=%s, clientId=%d", response, trimmedResponse, clientId)
 	return trimmedResponse, clientId
 }
 
-func (httpCoreSocketSession HttpWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
-	for {
-		_, response, err := dataConn.ReadMessage()
-		if err != nil {
-			Error.Println("Datachannel read error:" + err.Error())
-			return // ??
-		}
-		Info.Printf("Server hub: HTTP response from server core:%s", string(response))
-		trimmedResponse, clientId := RemoveInternalData(string(response))
-		appClientChannel[clientId] <- trimmedResponse // no need for clientBackendChannel as subscription notifications not supported
-	}
-}
-
-func (wsCoreSocketSession WsWSsession) TransportHubFrontendWSsession(dataConn *websocket.Conn, appClientChannel []chan string) {
-	for {
-		_, response, err := dataConn.ReadMessage()
-		if err != nil {
-			Error.Println("Datachannel read error:", err)
-			return // ??
-		}
-		Info.Printf("Server hub: WS response from server core:%s", string(response))
-		trimmedResponse, clientId := RemoveInternalData(string(response))
-		if strings.Contains(trimmedResponse, "\"subscription\"") {
-			wsCoreSocketSession.ClientBackendChannel[clientId] <- trimmedResponse //subscription notification
-		} else {
-			appClientChannel[clientId] <- trimmedResponse
-		}
-	}
-}

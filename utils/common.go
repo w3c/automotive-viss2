@@ -23,17 +23,6 @@ import (
 const IpModel = 0 // IpModel = [0,1,2] = [localhost,extIP,envVarIP]
 const IpEnvVarName = "GEN2MODULEIP"
 
-type SvcRegResponse struct {
-	Portnum int
-	Urlpath string
-}
-
-type TranspRegResponse struct {
-	Portnum int
-	Urlpath string
-	Mgrid   int
-}
-
 func GetServerIP() string {
 	if value, ok := os.LookupEnv(IpEnvVarName); ok {
 		Info.Println("ServerIP:", value)
