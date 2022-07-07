@@ -29,12 +29,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
+	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
 	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
-	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
-	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
+	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -68,11 +68,11 @@ var serverComponents []string = []string{
 /*
  * For communication between transport manager threads and vissv2server thread.
  * If support for new transport protocol is added, add element to channel
-*/
+ */
 var transportMgrChannel = []chan string{
-	make(chan string),  // HTTP
-	make(chan string),  // WS
-	make(chan string),  // MQTT
+	make(chan string), // HTTP
+	make(chan string), // WS
+	make(chan string), // MQTT
 }
 
 var serviceMgrChannel = []chan string{
@@ -128,31 +128,31 @@ func getRouterId(response string) string { // "RouterId" : "mgrId?clientId",
 
 func serviceDataSession(serviceMgrChannel chan string, serviceDataChannel chan string, backendChannel []chan string) {
 	for {
-	    select {
+		select {
 
-		case response := <- serviceMgrChannel:	
-		  utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
-		  mgrIndex := extractMgrId(getRouterId(string(response)))
-		  utils.Info.Printf("mgrIndex=%d", mgrIndex)
-		  backendChannel[mgrIndex] <- string(response)
-		case request := <- serviceDataChannel:
-		  utils.Info.Printf("Server core: Request to service:%s", request)
-		  serviceMgrChannel <- request
-	    }
+		case response := <-serviceMgrChannel:
+			utils.Info.Printf("Server core: Response from service mgr:%s", string(response))
+			mgrIndex := extractMgrId(getRouterId(string(response)))
+			utils.Info.Printf("mgrIndex=%d", mgrIndex)
+			backendChannel[mgrIndex] <- string(response)
+		case request := <-serviceDataChannel:
+			utils.Info.Printf("Server core: Request to service:%s", request)
+			serviceMgrChannel <- request
+		}
 	}
 }
 
 func transportDataSession(transportMgrChannel chan string, transportDataChannel chan string, backendChannel chan string) {
 	for {
-	    select {
+		select {
 
-		case msg := <- transportMgrChannel:	
-		  utils.Info.Printf("request: %s", msg)
-		  transportDataChannel <- msg // send request to server hub
+		case msg := <-transportMgrChannel:
+			utils.Info.Printf("request: %s", msg)
+			transportDataChannel <- msg // send request to server hub
 		case message := <-backendChannel:
-		  utils.Info.Printf("Transport mgr server: message= %s", message)
-		  transportMgrChannel <- message
-	    }
+			utils.Info.Printf("Transport mgr server: message= %s", message)
+			transportMgrChannel <- message
+		}
 	}
 }
 
@@ -515,7 +515,7 @@ func validRequest(request string, action string) bool {
 	case "unsubscribe":
 		return isValidUnsubscribeParams(request)
 	default:
-		if (action == "internal-killsubscriptions") {
+		if action == "internal-killsubscriptions" {
 			return true
 		}
 	}
@@ -605,7 +605,7 @@ func isValidUnsubscribeParams(request string) bool {
 }
 
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
-utils.Info.Printf("serveRequest():request=%s", request)
+	utils.Info.Printf("serveRequest():request=%s", request)
 	var requestMap = make(map[string]interface{})
 	if utils.MapRequest(request, &requestMap) != 0 {
 		utils.Error.Printf("serveRequest():invalid JSON format=%s", request)
@@ -642,13 +642,13 @@ utils.Info.Printf("serveRequest():request=%s", request)
 }
 
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
-	if (requestMap["action"] == "internal-killsubscriptions") {
+	if requestMap["action"] == "internal-killsubscriptions" {
 		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // internal message
 		return
 	}
 	rootPath := requestMap["path"].(string)
 	var searchPath []string
-	
+
 	if requestMap["filter"] != nil {
 		var filterList []utils.FilterObject
 		utils.UnpackFilter(requestMap["filter"], &filterList)
@@ -692,8 +692,8 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 				return
 			}
 			if filterList[i].Type == "dynamic-metadata" && filterList[i].Value == "server_capabilities" {
-			    serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // no further verification
-			    return
+				serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // no further verification
+				return
 			}
 		}
 	}
@@ -801,8 +801,8 @@ func main() {
 		Default:  "info"})
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
-	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
-	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
+	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
+		Help: "Statestorage must be either sqlite, redis, or none", Default: "sqlite"})
 	udsPath := parser.String("", "uds", &argparse.Options{
 		Required: false,
 		Help:     "Set UDS path and file",
@@ -849,22 +849,22 @@ func main() {
 	}()
 
 	for _, serverComponent := range serverComponents {
-	    switch serverComponent {
-	        case "httpMgr":
-		    go httpMgr.HttpMgrInit(0, transportMgrChannel[0])
-		    go transportDataSession(transportMgrChannel[0], transportDataChan[0], backendChan[0])
-	        case "wsMgr":
-		    go wsMgr.WsMgrInit(1, transportMgrChannel[1])
-		    go transportDataSession(transportMgrChannel[1], transportDataChan[1], backendChan[1])
-	        case "mqttMgr":
-		    go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
-		    go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
-	        case "serviceMgr":
-		    go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
-		    go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
-	        case "atServer":
-		    go atServer.AtServerInit() //communicates over UDS
-	    }
+		switch serverComponent {
+		case "httpMgr":
+			go httpMgr.HttpMgrInit(0, transportMgrChannel[0])
+			go transportDataSession(transportMgrChannel[0], transportDataChan[0], backendChan[0])
+		case "wsMgr":
+			go wsMgr.WsMgrInit(1, transportMgrChannel[1])
+			go transportDataSession(transportMgrChannel[1], transportDataChan[1], backendChan[1])
+		case "mqttMgr":
+			go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
+			go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
+		case "serviceMgr":
+			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
+			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
+		case "atServer":
+			go atServer.AtServerInit() //communicates over UDS
+		}
 	}
 
 	utils.Info.Printf("main():starting loop for channel receptions...")
@@ -876,7 +876,7 @@ func main() {
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
-	    //  case request := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
+			//  case request := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
 		}
 	}
 }
