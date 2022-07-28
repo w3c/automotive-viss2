@@ -1,0 +1,3 @@
+{"request":[{"action":"subscribe","path":"Vehicle.CurrentLocation.Latitude","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"246"},
+{"action":"subscribe","path":"Vehicle.CurrentLocation.Longitude","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"247"},
+{"action":"subscribe","path":"Vehicle.Speed","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"248"}]}
