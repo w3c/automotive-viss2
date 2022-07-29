@@ -105,9 +105,6 @@ func main() {
 
 	readTransportSecConfig()
 	utils.Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
-	if secConfig.TransportSec == "yes" {
-		caCertPool = *prepareTransportSecConfig()
-	}
 
 	muxServer = http.NewServeMux()
 

@@ -205,14 +205,14 @@ func initDataTransfer(dataChannel chan string, requestList []string) {
 func initVissV2WebSocket() *websocket.Conn {
 	scheme := "ws"
 	portNum := "8080"
-	if secConfig.TransportSec == "yes" {
+/*	if secConfig.TransportSec == "yes" {
 		scheme = "wss"
 		portNum = secConfig.WsSecPort
 		websocket.DefaultDialer.TLSClientConfig = &tls.Config{
 			Certificates: []tls.Certificate{clientCert},
 			RootCAs:      &caCertPool,
 		}
-	}
+	}*/ //communication VEC - VES is currently run without TLS
 	var addr = flag.String("addr", vissv2Url+":"+portNum, "http service address")
 	dataSessionUrl := url.URL{Scheme: scheme, Host: *addr, Path: ""}
 	connectionEstablished := false

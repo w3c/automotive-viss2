@@ -12,9 +12,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"fmt"
-	"os"
-	"crypto/tls"
-	"crypto/x509"
+//	"os"
+//	"crypto/tls"
+//	"crypto/x509"
 )
 
 
@@ -47,25 +47,5 @@ func readTransportSecConfig() {
 	    return
 	}
         fmt.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
-}
-
-func prepareTransportSecConfig() *x509.CertPool{
-	var err error
-	clientCertFile := trSecConfigPath + secConfig.ClientSecPath + "client.crt"
-	clientKeyFile := trSecConfigPath + secConfig.ClientSecPath + "client.key"
-
-	clientCert, err = tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
-	if err != nil {
-	    fmt.Printf("Error creating x509 keypair from client cert file %s and client key file %s\n", clientCertFile, clientKeyFile)
-	    os.Exit(1)
-	}
-	caCert, err := ioutil.ReadFile(trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt")
-	if err != nil {
-	    fmt.Printf("Error opening cert file %s, Error: %s", trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt", err)
-	    os.Exit(1)
-	}
-	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
-	return caCertPool
 }
 
