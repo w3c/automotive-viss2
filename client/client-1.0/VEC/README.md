@@ -28,6 +28,6 @@ Usage of the VEC client leads to that the vehicle-to-cloud communication does no
 However, in cases where the vehicle blocks all attempts for an in-vehicle server to be connected to by an external client, 
 usage of the VEC client, together with a CEC client in the cloud, enables a communication of vehicle data from the vehicle to the cloud.<br>
 How the configuration file that sets which vehicle signals that are to be communicated is out of scope, and needs to be solved by the vehicle OEM.<br>
-The in-vehicle VISSv2 server can possibly still be used by a clietn deployed in a mobile device, if the mobile device is a host in the vehicle subnet. 
-Also a client deployed as an app in e. g. an infotainment based app ecosystem could possibly connect to the VISSv2 server.<br>
-The file containing the requests that the VEC issues to the server is currently restricted to subscribe requests, read requests is not supported.
+The in-vehicle VISSv2 server can still be used by a client deployed in a mobile device, if the mobile device is a host in the vehicle subnet. 
+Also a client deployed as an app in e. g. an infotainment based app ecosystem could also connect to the VISSv2 server.<br>
+The file containing the requests that the VEC issues to the server is currently restricted to subscribe requests, read or update requests are not supported.
