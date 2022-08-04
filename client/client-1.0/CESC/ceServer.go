@@ -13,7 +13,7 @@ import (
 	"os"
 
 	"crypto/tls"
-//	"crypto/x509"
+	"crypto/x509"
 	"net/http"
 
 	"strconv"
@@ -26,8 +26,19 @@ import (
 	"github.com/w3c/automotive-viss2/utils"
 )
 
-func InitCecServer(dpCountChan chan int) {
-	cecHandler := makeCecHandler(dpCountChan)
+const MAX_ACCUMULATED_DPS = 25  // 500?
+const MAX_VINS = 100   // max no of different VINs on list / in OVDS
+type AccumulatedData struct { 
+	VinId string
+	LatestIngestedTs string
+	DpCount int
+}
+var accumulatedData []AccumulatedData
+
+func InitCecServer(vinIdChan chan string) {
+	accumulatedData = make([]AccumulatedData, MAX_VINS)
+	initAccumulatedData()
+	cecHandler := makeCecHandler(vinIdChan)
 	muxServer.HandleFunc("/", cecHandler)
 	utils.Info.Printf("initCecServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if secConfig.TransportSec == "yes" {
@@ -45,61 +56,96 @@ func InitCecServer(dpCountChan chan int) {
 	}
 }
 
-func makeCecHandler(dpCountChan chan int) func(http.ResponseWriter, *http.Request) {
+func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
+	var caCert []byte
+	var err error
+	var caCertPool *x509.CertPool
+	if certOpt > tls.RequestClientCert {
+		caCert, err = ioutil.ReadFile(caCertFile)
+		if err != nil {
+			utils.Error.Printf("Error opening cert file", caCertFile, ", error ", err)
+			return nil
+		}
+		caCertPool = x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
+
+	return &tls.Config{
+		ServerName: host,
+		ClientAuth: certOpt,
+		ClientCAs:  caCertPool,
+		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
+	}
+}
+
+func certOptToInt(serverCertOpt string) int {
+	if serverCertOpt == "NoClientCert" {
+		return 0
+	}
+	if serverCertOpt == "ClientCertNoVerification" {
+		return 2
+	}
+	if serverCertOpt == "ClientCertVerification" {
+		return 4
+	}
+	return 4 // if unclear, apply max security
+}
+
+func makeCecHandler(vinIdChan chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Header.Get("Upgrade") == "websocket" {
 			http.Error(w, "400 Incorrect protocol", http.StatusBadRequest)
 			utils.Warning.Printf("Client call to incorrect protocol.")
 			return
 		}
-		cecRequestHandler(w, req, dpCountChan)
+		cecRequestHandler(w, req, vinIdChan)
 	}
 }
 
-func cecRequestHandler(w http.ResponseWriter, req *http.Request, dpCountChan chan int) {
+func cecRequestHandler(w http.ResponseWriter, req *http.Request, vinIdChan chan string) {
 	body, _ := ioutil.ReadAll(req.Body)
-	numOfDpsWritten := writeToDb(string(body))
-//	utils.Info.Printf("Data points written to DB=%d", numOfDpsWritten)
-	dpCountChan <- numOfDpsWritten
+	writeToDb(string(body))
+	for i := range accumulatedData {
+		if accumulatedData[i].DpCount > MAX_ACCUMULATED_DPS {
+			vinIdChan <- accumulatedData[i].VinId
+		}
+	}
 }
 
-func writeToDb(dataResponse string) int { // {"vin":"xxx","data": <see the four possible formats for "data" in the VISSv2 spec>}
+func writeToDb(dataResponse string) { // {"vin":"xxx","data": <see the four possible formats for "data" in the VISSv2 spec>}
     var responseMap = make(map[string]interface{})
     utils.MapRequest(dataResponse, &responseMap)
-    return processDataLevel1(responseMap["vin"].(string), responseMap["data"])
+    processDataLevel1(responseMap["vin"].(string), responseMap["data"])
 }
 
-func processDataLevel1(vinId string, dataObject interface{}) int { // data or []data level
-	numOfDpsWritten := 0
+func processDataLevel1(vinId string, dataObject interface{}) { // data or []data level
 	switch vv := dataObject.(type) {
 	case []interface{}: // []data
 //		utils.Info.Println(dataObject, "is an array:, len=", strconv.Itoa(len(vv)))
-		numOfDpsWritten = processDataLevel2(vinId, vv)
+		processDataLevel2(vinId, vv)
 	case map[string]interface{}:
 //		utils.Info.Println(dataObject, "is a map:")
-		numOfDpsWritten = processDataLevel3(vinId, vv)
+		processDataLevel3(vinId, vv)
 	default:
 		utils.Info.Println(dataObject, "is of an unknown type")
 	}
-	return numOfDpsWritten
+	return
 }
 
-func processDataLevel2(vinId string, dataArray []interface{}) int { // []data level
-	numOfDpsWritten := 0
+func processDataLevel2(vinId string, dataArray []interface{}) { // []data level
 	for k, v := range dataArray {
 		switch vv := v.(type) {
 		case map[string]interface{}:
 //			utils.Info.Println(k, "is a map:")
-			numOfDpsWritten = processDataLevel3(vinId, vv)
+			processDataLevel3(vinId, vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
 		}
 	}
-	return numOfDpsWritten
+	return
 }
 
-func processDataLevel3(vinId string, data map[string]interface{}) int { // inside data, dp or []dp level
-	numOfDpsWritten := 0
+func processDataLevel3(vinId string, data map[string]interface{}) { // inside data, dp or []dp level
 	path := ""
 	callLevel4 := false
 	callLevel5 := false
@@ -123,29 +169,28 @@ func processDataLevel3(vinId string, data map[string]interface{}) int { // insid
 		}
 	}
 	if (callLevel4 == true) {
-		numOfDpsWritten = processDataLevel4(vinId, dpArray, path)
+		processDataLevel4(vinId, dpArray, path)
 	} else if (callLevel5 == true) {
-		numOfDpsWritten = processDataLevel5(vinId, dp, path)
+		processDataLevel5(vinId, dp, path)
 	}
-	return numOfDpsWritten
+	return
 }
 
 
-func processDataLevel4(vinId string, dpArray []interface{}, path string) int { // []dp level
-	var numOfDpsWritten int
+func processDataLevel4(vinId string, dpArray []interface{}, path string) { // []dp level
 	for k, v := range dpArray {
 		switch vv := v.(type) {
 		case map[string]interface{}:
 //			utils.Info.Println(k, "is a map:")
-			numOfDpsWritten = processDataLevel5(vinId, vv, path)
+			processDataLevel5(vinId, vv, path)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
 		}
 	}
-	return numOfDpsWritten
+	return
 }
 
-func processDataLevel5(vinId string, dp map[string]interface{}, path string) int { // inside dp level
+func processDataLevel5(vinId string, dp map[string]interface{}, path string) { // inside dp level
 	var value, ts string
 	for k, v := range dp {
 		switch vv := v.(type) {
@@ -158,11 +203,77 @@ func processDataLevel5(vinId string, dp map[string]interface{}, path string) int
 			}
 		default:
 			utils.Info.Println(k, "is of an unknown type")
-			return 0
+			return
 		}
 	}
-	writeDpToDB(vinId, path, value, ts)
-	return 1
+	if incAccumulatedDataDpCount(vinId) {
+		writeDpToDB(vinId, path, value, ts)
+	}
+}
+
+func incAccumulatedDataDpCount(vinId string) bool {  // if on list, inc DpCount for that entry, else create a new entry and inc
+	for i := range accumulatedData {
+		if accumulatedData[i].VinId == vinId {
+			accumulatedData[i].DpCount++
+			return true
+		}
+	}
+	for j := range accumulatedData {
+		if len(accumulatedData[j].VinId) == 0 {
+			accumulatedData[j].VinId = vinId
+			accumulatedData[j].DpCount++
+			return true
+		}
+	}
+	utils.Error.Printf("accumulatedData list is full, vin id=%s missed", vinId)
+	return false
+}
+
+func initAccumulatedData() {
+	for i := range accumulatedData {
+		accumulatedData[i].VinId = ""
+		accumulatedData[i].DpCount = 0
+		accumulatedData[i].LatestIngestedTs = "1957-04-15T13:37:00Z" // start with a very old ts"
+	}
+}
+
+func updateAccumulatedData(vinId string, latestTsIngested string) {
+	for i := range accumulatedData {
+		if accumulatedData[i].VinId == vinId {
+			accumulatedData[i].LatestIngestedTs = latestTsIngested
+			accumulatedData[i].DpCount = 0
+			return
+		}
+	}
+	for j := range accumulatedData {
+		if len(accumulatedData[j].VinId) == 0 {
+			accumulatedData[j].VinId = vinId
+			accumulatedData[j].DpCount = 0
+			accumulatedData[j].LatestIngestedTs = latestTsIngested
+			return
+		}
+	}
+	utils.Error.Printf("accumulatedData list is full, vin id=%s missed", vinId)
+}
+
+func getAccumulatedDataTs(vinId string) string {
+	for i := range accumulatedData {
+		if accumulatedData[i].VinId == vinId {
+			return accumulatedData[i].LatestIngestedTs
+		}
+	}
+	utils.Error.Printf("getAccumulatedDataTs: vin id=%s not found", vinId)
+	return ""
+}
+
+func getAccumulatedDataDpCount(vinId string) int {
+	for i := range accumulatedData {
+		if accumulatedData[i].VinId == vinId {
+			return accumulatedData[i].DpCount
+		}
+	}
+	utils.Error.Printf("getAccumulatedDataDpCount: vin id=%s not found", vinId)
+	return 0
 }
 
 func writeDpToDB(vinId string, path string, value string, ts string) {

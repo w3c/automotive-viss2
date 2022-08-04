@@ -107,8 +107,9 @@ func jsonToStructList(jsonList string) int {
         requestList.Request = make([]string, 1)
   	requestList.Request[0] = retrieveRequest(vv)
       default:
-//        utils.Info.Println(vv, "is of an unknown type")
+        utils.Info.Println(vv, "is of an unknown type")
     }
+utils.Info.Printf("Length of request list=%d", len(requestList.Request))
     return len(requestList.Request)
 }
 
