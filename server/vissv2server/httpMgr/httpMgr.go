@@ -22,7 +22,8 @@ func RemoveRoutingForwardResponse(response string, transportMgrChan chan string)
 	HttpClientChan[clientId] <- trimmedResponse
 }
 
-func HttpMgrInit(mgrId int, transportMgrChan chan string) {
+func HttpMgrInit(mgrId int, transportMgrChan chan string, trSecConfigPath string) {
+//	utils.ReadTransportSecConfig(trSecConfigPath)
 	utils.ReadTransportSecConfig()
 
 	go utils.HttpServer{}.InitClientServer(utils.MuxServer[0], HttpClientChan) // go routine needed due to listenAndServe call...

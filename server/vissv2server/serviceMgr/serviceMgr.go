@@ -12,20 +12,20 @@
 package serviceMgr
 
 import (
-	"database/sql"
 	"encoding/json"
 	"io/ioutil"
 	"net"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
 
 	"time"
 
-	"github.com/w3c/automotive-viss2/utils"
-	_ "github.com/mattn/go-sqlite3"
+	"database/sql"
+	_ "modernc.org/sqlite"
+//	_ "github.com/mattn/go-sqlite3"
 	"github.com/go-redis/redis"
+	"github.com/w3c/automotive-viss2/utils"
 )
 
 type RegRequest struct {
@@ -353,7 +353,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.RouterId
-		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionState.Path, nil))
+		dataPack := getDataPack(subscriptionState.Path, nil)
+		if strings.Contains(dataPack, "Database-busy") {
+			break
+		}
+		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", dataPack)
 	case clPack := <-CLChan: // curve logging notification
 		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
 		//subscriptionState := subscriptionList[index]
@@ -369,6 +373,9 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 		// check if range or change notification triggered
 		for i := range subscriptionList {
 			triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
+			if strings.Contains(triggerDataPoint, "Database-") {  // busy or error
+				continue
+			}
 			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
 			if updateLatest == true {
 			    subscriptionList[i].LatestDataPoint = triggerDataPoint
@@ -378,7 +385,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
 				subscriptionMap["RouterId"] = subscriptionState.RouterId
 				subscriptionList[i].LatestDataPoint = triggerDataPoint
-				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].Path, nil))
+				dataPack := getDataPack(subscriptionList[i].Path, nil)
+				if strings.Contains(dataPack, "Database-busy") {
+					continue
+				}
+				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", dataPack)
 			}
 		}
 	}
@@ -483,10 +494,14 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 	switch stateDbType {
 	    case "sqlite":
-	    
 		rows, err := dbHandle.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
 		if err != nil {
-			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+			if strings.Contains(err.Error(), "SQLITE_BUSY") {
+				return `{"value":"Database-busy", "ts":"` + utils.GetRfcTime() + `"}`
+			} else {
+				utils.Error.Printf("DB query failed. Error=%s", err)
+				return `{"value":"Database-error", "ts":"` + utils.GetRfcTime() + `"}`
+			}
 		}
 		defer rows.Close()
 		value := ""
@@ -499,12 +514,13 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 //			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 			return `{"value":"Data-not-available", "ts":"` + utils.GetRfcTime() + `"}`
 		}
-		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
+		return `{"value":"` + value + `", "ts":"` + utils.GetRfcTime() + `"}`  // for OLU testing, simulating stream of dps
+//		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	    case "redis":
 		dp, err := redisClient.Get(path).Result()
 		if err != nil {
 		    if err.Error() != "redis: nil" {
-			utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
+			utils.Error.Printf("Job failed. Error()=%s", err.Error())
 			return ""
 		    } else {
 			utils.Warning.Printf("Data not found.\n")
@@ -842,39 +858,12 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	return dataPack
 }
 
-func getVssPathList(host string, port int, path string) []byte {
-	url := "http://" + host + ":" + strconv.Itoa(port) + path
-	utils.Info.Printf("url = %s", url)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func getVssPathList(fname string) []byte {
+	data, err := ioutil.ReadFile(fname)
 	if err != nil {
-		utils.Error.Fatal("getVssPathList: Error creating request:: ", err)
+		utils.Error.Printf("Error reading %s: %s\n", fname, err)
+		return nil
 	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", host+":"+strconv.Itoa(port))
-
-	// Set client timeout
-	client := &http.Client{Timeout: time.Second * 10}
-
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		utils.Error.Fatal("getVssPathList: Error reading response:: ", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		utils.Error.Fatal("getVssPathList::response Status: ", resp.Status)
-	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		utils.Error.Fatal("getVssPathList::Error reading response. ", err)
-	}
-
-	utils.Info.Printf("getVssPathList fetched %d bytes", len(data))
 	return data
 }
 
@@ -901,13 +890,14 @@ func getValidation(path string) string {
     return "read-write"  //dummy return
 }
 
-func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
+func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, histCtrlSocketFile string, redisSocketFile string, dbFile string, pathListFileName string) {
 	stateDbType = stateStorageType
 
 	switch stateDbType {
 	    case "sqlite":
 		if utils.FileExists(dbFile) {
-		    dbHandle, dbErr = sql.Open("sqlite3", dbFile)
+		    dbHandle, dbErr = sql.Open("sqlite", dbFile)
+//		    dbHandle, dbErr = sql.Open("sqlite3", dbFile)
 		    if dbErr != nil {
 			utils.Error.Printf("Could not open state storage file = %s, err = %s", dbFile, dbErr)
 			os.Exit(1)
@@ -920,7 +910,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	    case "redis":
 		redisClient = redis.NewClient(&redis.Options{
 		    Network:  "unix",
-		    Addr:     "/var/tmp/vissv2/redisDB.sock",
+		    Addr:     udsPath + redisSocketFile,
 		    Password: "",
 		    DB:       1,
 		})
@@ -943,18 +933,15 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	subscriptionList := []SubscriptionState{}
 	subscriptionId = 1 // do not start with zero!
 
-	var serverCoreIP string = utils.GetModelIP(2)
-
-	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
+	vss_data := getVssPathList(pathListFileName)
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
-	go historyServer(historyAccessChannel, udsPath, vss_data)
+	go historyServer(historyAccessChannel, udsPath + histCtrlSocketFile, vss_data)
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
 
 	for {
 		select {
 		case request := <-dataChan: // request from server core
 			utils.Info.Printf("Service manager: Request from Server core:%s\n", request)
-			// TODO: interact with underlying subsystem to get the value
 			var requestMap = make(map[string]interface{})
 			var responseMap = make(map[string]interface{})
 			utils.MapRequest(request, &requestMap)
@@ -1063,7 +1050,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			subscriptionList = setSubscriptionListThreads(subscriptionList, subThreads)
 		default:
 			subscriptionList = checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(123 * time.Millisecond)
 		} // select
 	} // for
 }

@@ -15,12 +15,12 @@ import (
 	//   "fmt"
 
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/akamensky/argparse"
-	"github.com/gorilla/mux"
+	"github.com/go-redis/redis"
 
+	"os/exec"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -35,6 +35,7 @@ import (
 	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
+	"vissv2-server/ecuFeeder"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -61,8 +62,9 @@ var serverComponents []string = []string{
 	"serviceMgr",
 	"httpMgr",
 	"wsMgr",
-	"mqttMgr",
-	"atServer",
+//	"mqttMgr",
+//	"atServer",
+	"ecuFeeder",
 }
 
 /*
@@ -156,8 +158,7 @@ func transportDataSession(transportMgrChannel chan string, transportDataChannel 
 	}
 }
 
-func initVssFile() bool {
-	filePath := "vss_vissv2.binary"
+func initVssFile(filePath string) bool {
 	VSSTreeRoot = golib.VSSReadTree(filePath)
 
 	if VSSTreeRoot == nil {
@@ -771,12 +772,12 @@ var pathList PathList
 func sortPathList(listFname string) {
 	data, err := ioutil.ReadFile(listFname)
 	if err != nil {
-		utils.Error.Printf("Error reading %s: %s\n", listFname, err)
+		utils.Error.Printf("Error reading %s: %s", listFname, err)
 		return
 	}
 	err = json.Unmarshal([]byte(data), &pathList)
 	if err != nil {
-		utils.Error.Printf("Error unmarshal json=%s\n", err)
+		utils.Error.Printf("Error unmarshal json=%s", err)
 		return
 	}
 	sort.Strings(pathList.LeafPaths)
@@ -790,84 +791,132 @@ func createPathListFile(listFname string) {
 	sortPathList(listFname)
 }
 
+func initRedis(redisUdsPath string) bool {
+    var status bool
+    client := redis.NewClient(&redis.Options{
+        Network:  "unix",
+        Addr:     redisUdsPath + "redisDB.sock",
+        Password: "",
+        DB:       1,
+    })
+    err := client.Ping().Err()
+    if err != nil {
+        out, err := exec.Command("redis-server", "/etc/redis/redis.conf").Output()
+        if err != nil {
+            utils.Error.Printf("Starting redis server failed. Err=%s\n", err)
+            status = false
+        } else {
+            utils.Info.Printf("Redis server started.%s\n", out)
+            status = true
+        }
+    } else {
+            utils.Info.Printf("Redis server is running.\n")
+            status = true
+    }
+    return status
+}
+
+func initEnvParams(target string) {
+	if (target == "ecu") {
+		defaultPathListFileName = "vsspathlist.json"
+		defaultStateStorageFileName = "statestorage.db"
+		defaultVssBinaryFileName = "vss_vissv2.binary"
+		defaultUdsPath = ""
+		defaultLogPath = ""
+		histCtrlSocketFile = "histctrlserver.sock"
+		redisSocketFile = "redisDB.sock"
+		trSecConfigPath = "transport_sec/"
+	} else {
+		defaultPathListFileName = "../vsspathlist.json"
+		defaultStateStorageFileName = "serviceMgr/statestorage.db"
+		defaultVssBinaryFileName = "vss_vissv2.binary"
+		defaultUdsPath = "/var/tmp/vissv2/"
+		defaultLogPath = ""
+		histCtrlSocketFile = "histctrlserver.sock"
+		redisSocketFile = "redisDB.sock"
+		trSecConfigPath = "../transport_sec/"
+	}
+}
+
+var defaultPathListFileName string
+var defaultStateStorageFileName string
+var defaultVssBinaryFileName string
+var defaultUdsPath string
+var defaultLogPath string
+var histCtrlSocketFile string
+var redisSocketFile string
+var trSecConfigPath string
+
 func main() {
 	// Create new parser object
-	parser := argparse.NewParser("print", "Server Core")
+	parser := argparse.NewParser("print", "VISSv2 Server")
 	// Create string flag
-	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in defaultLogPath folder", Default:true})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
 		Required: false,
 		Help:     "changes log output level",
-		Default:  "info"})
+		Default:  "error"})
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
-	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
 	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
 	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
-	udsPath := parser.String("", "uds", &argparse.Options{
-		Required: false,
-		Help:     "Set UDS path and file",
-		Default:  "/var/tmp/vissv2/histctrlserver.sock"})
-	dbFile := parser.String("", "dbfile", &argparse.Options{
-		Required: false,
-		Help:     "statestorage database filename",
-		Default:  "serviceMgr/statestorage.db"})
+	target := parser.Selector("t", "target", []string{"ubuntu", "ecu"}, &argparse.Options{Required: false, 
+	                        Help: "Target must be either ubuntu, or ecu", Default:"ecu"})
 
 	// Parse input
 	err := parser.Parse(os.Args)
 	if err != nil {
 		fmt.Print(parser.Usage(err))
 	}
+	
+	initEnvParams(*target)
 
-	utils.InitLog("servercore-log.txt", "./logs", *logFile, *logLevel)
+	utils.InitLog("log.txt", defaultLogPath, *logFile, *logLevel)
 
-	if !initVssFile() {
+	if !initVssFile(defaultVssBinaryFileName) {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
-	createPathListFile(*vssJson) // save in server directory, where transport managers will expect it to be
+
+	createPathListFile(defaultPathListFileName)
 	if *dryRun {
-		utils.Info.Printf("vsspathlist.json created. Job done.")
+		time.Sleep(2000 * time.Millisecond)
+		utils.Info.Printf("%s created. Server terminates.", defaultPathListFileName)
 		return
 	}
 
-	router := mux.NewRouter()
-	router.HandleFunc("/vsspathlist", pathList.vssPathListHandler).Methods("GET")
-
-	srv := &http.Server{
-		Addr:         "0.0.0.0:8081",
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
-		Handler:      router,
-	}
-
-	go func() {
-		utils.Info.Printf("Server is listening on %s", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil {
-			log.Fatal("ListenAndServe: ", err)
+/*	switch *stateDB {
+	    case "sqlite":
+	    case "redis":
+		redisStatus := initRedis(defaultUdsPath + "redisDB.sock")
+		if (redisStatus == false) {
+		    utils.Error.Printf("Intitializing Redis falied.")
+		    return
 		}
-	}()
+	    default:
+		utils.Error.Printf("Unknown state storage type = %s", *stateDB)
+	}*/
 
 	for _, serverComponent := range serverComponents {
 	    switch serverComponent {
 	        case "httpMgr":
-		    go httpMgr.HttpMgrInit(0, transportMgrChannel[0])
+		    go httpMgr.HttpMgrInit(0, transportMgrChannel[0], trSecConfigPath)
 		    go transportDataSession(transportMgrChannel[0], transportDataChan[0], backendChan[0])
 	        case "wsMgr":
-		    go wsMgr.WsMgrInit(1, transportMgrChannel[1])
+		    go wsMgr.WsMgrInit(1, transportMgrChannel[1], trSecConfigPath)
 		    go transportDataSession(transportMgrChannel[1], transportDataChan[1], backendChan[1])
 	        case "mqttMgr":
 		    go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
 		    go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
 	        case "serviceMgr":
-		    go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
+		    go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, defaultUdsPath, histCtrlSocketFile, redisSocketFile, defaultStateStorageFileName, defaultPathListFileName)
 		    go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 	        case "atServer":
 		    go atServer.AtServerInit() //communicates over UDS
+	        case "ecuFeeder":
+		    go ecuFeeder.EcuFeederInit(*stateDB, defaultUdsPath, redisSocketFile, defaultStateStorageFileName, *target)
 	    }
 	}
 
-	utils.Info.Printf("Server IP address=%s", utils.GetModelIP(3))
 	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
 		select {

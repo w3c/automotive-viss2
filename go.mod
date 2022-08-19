@@ -14,6 +14,7 @@ replace (
 	github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr => ./server/vissv2server/mqttMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr => ./server/vissv2server/serviceMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/wsMgr => ./server/vissv2server/wsMgr
+	vissv2-server/ecuFeeder => ./server/vissv2server/ecuFeeder
 )
 
 //replace github.com/w3c/automotive-viss2/protobuf/protoc-out => ./protobuf/protoc-out
@@ -26,12 +27,13 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/protobuf v1.5.2
-	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
-	github.com/mattn/go-sqlite3 v1.14.9
+	github.com/mattn/go-sqlite3 v1.14.14
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0 // indirect
 	golang.org/x/net v0.0.0-20211020060615-d418f374d309 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1
+	modernc.org/sqlite v1.18.1
+	vissv2-server/ecuFeeder v0.0.0-00010101000000-000000000000
 )

@@ -74,7 +74,8 @@ func RemoveRoutingForwardResponse(response string, transportMgrChan chan string)
 	}
 }
 
-func WsMgrInit(mgrId int, transportMgrChan chan string) {
+func WsMgrInit(mgrId int, transportMgrChan chan string, trSecConfigPath string) {
+//	utils.ReadTransportSecConfig(trSecConfigPath)
 	utils.ReadTransportSecConfig()
 
 	go utils.WsServer{ClientBackendChannel: clientBackendChan}.InitClientServer(utils.MuxServer[1], wsClientChan, mgrId, &wsClientIndex) // go routine needed due to listenAndServe call...

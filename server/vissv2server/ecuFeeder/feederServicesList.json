@@ -1,0 +1,7 @@
+{"feederServices":[
+{"feederService":"GpsLocation","vssPaths":["Vehicle.CurrentLocation.Latitude","Vehicle.CurrentLocation.Longitude","Vehicle.CurrentLocation.Heading"]},
+{"feederService":"VehicleSpeed","vssPaths":"Vehicle.Speed"},
+{"feederService":"OdometerValue","vssPaths":"Vehicle.TravelledDistance"},
+{"feederService":"VehicleIdentificationNumber","vssPaths":"Vehicle.VehicleIdentification.VIN"},
+{"feederService":"Ignition","vssPaths":"Vehicle.LowVoltageSystemState"}
+]}
