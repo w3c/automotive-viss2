@@ -9,7 +9,7 @@ For OVDS info see <a href="https://github.com/COVESA/ccs-components/tree/master/
 
 The in-vehicle VEC requests vehicle data from the in-vehicle VISSv2 server, and then pushes the data to the CESC in the cloud.<br>
 
-The CESC listens for HTTPS(/HTTP) requests on port 4443 (8000 if TLS is not configured), where the payload of the POST requests are expected to have the following JSON based format:<br>
+The CESC listens for HTTPS(/HTTP) requests on port 8765 (8000 if TLS is not configured), where the payload of the POST requests are expected to have the following JSON based format:<br>
 {"vin":"XXX","data":YYY}<br>
 where XXX is the vehicle identification that the VISSv2 server responds to on a request for the VSS path "Vehicle.VehicleIdentification.VIN", 
 and YYY is one of the four possible data objects that is specified in the W3C VISSv2 specification.<br>

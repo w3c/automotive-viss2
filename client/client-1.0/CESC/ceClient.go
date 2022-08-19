@@ -14,13 +14,14 @@ import (
 	"io/ioutil"
 //	"bytes"
 	"os"
+	"os/exec"
 
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
 
 	"strconv"
-//	"strings"
+	"strings"
 	"time"
 
 	"database/sql"
@@ -28,6 +29,8 @@ import (
 	"github.com/akamensky/argparse"
 	"github.com/w3c/automotive-viss2/utils"
 )
+
+const IGNITION_ON_PATH = "Vehicle.LowVoltageSystemState"
 
 var muxServer *http.ServeMux
 var clientCert tls.Certificate
@@ -40,22 +43,31 @@ var vinId string
 const MAX_ACCUMULATED_TIME = 30  // in seconds
 const ovdsDbFileName = "ovdsCESC.db"
 
-var digToken string
-var refreshDigToken string
-
 type DataMapItem struct {
 	VssPath string `json:"VssPath"`
-	CloudName string `json:"CloudName"`
 	CloudType string `json:"CloudType"`
+	CloudKey string `json:"CloudKey"`
+	CloudValue string `json:"CloudValue"`
 }
 type DataMapList struct {
 	DataMap []DataMapItem
 }
 var dataMapList DataMapList
 
-func initCloudApi(tokenChan chan string) {
-	digToken = "abc" // TODO obtain token from DIG
-	tokenChan <- digToken
+type GpsData struct {
+	Value string
+	Ts string
+}
+var lat GpsData  //TODO This set of variables should be per vehicle Id
+var long GpsData
+var ignitionOn string
+var speed string
+
+func initCeClient() {
+	lat.Ts = ""
+	long.Ts = ""
+	ignitionOn = "OFF"
+	speed = "0"
 }
 
 func writeDpsToCloud(tokenChan chan string, vinId string) {
@@ -67,9 +79,20 @@ func writeDpsToCloud(tokenChan chan string, vinId string) {
 func ingestDps(vinId string) string {  // retrieve all new data points for vinId, issue ingest request to DIG
 	latestTsIngested := getAccumulatedDataTs(vinId)
 	payload, newLatestTs := retrieveDigPayload(vinId, latestTsIngested)
-utils.Info.Printf("ingestDps: Payload = %s ", payload)
+	url := "https://dig.geotab.com:443/records"
 
-/* !!!commented only for testing purpose
+	curl := exec.Command("curl", "--header", "Authorization: Bearer " + digData.Token, "--header", "content-type:application/json", "--data", payload, url)
+	resp, err := curl.Output()
+	    if err != nil {
+	    utils.Error.Printf("curl error=%s", err)
+	    utils.Error.Printf("ingestDps:Payload related to the error = %s ", payload)
+	    return latestTsIngested
+	}
+	utils.Info.Printf("ingestDps: Ingest response = %s ", string(resp))
+	utils.Info.Printf("ingestDps: Successful ingest of payload = %s", payload)
+	return newLatestTs
+
+/*
 	url := "https://dig.geotab.com:443/records"
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(payload)))
 	if err != nil {
@@ -81,7 +104,7 @@ utils.Info.Printf("ingestDps: Payload = %s ", payload)
 	req.Header.Set("Access-Control-Allow-Origin", "*")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Host", "dig.geotab.com:443")
-	req.Header.Set("Authorization", digToken)
+	req.Header.Set("Authorization", tokenData.Token)
 
 	// Configure client
 	t := &http.Transport{
@@ -94,18 +117,33 @@ utils.Info.Printf("ingestDps: Payload = %s ", payload)
 
 	// Send request
 	resp, err := client.Do(req)
-	if err != nil {
-		utils.Error.Printf("ingestDps: Error in issuing request= %s ", err)
-		return latestTsIngested
-	}
+//	if err != nil {
+//		utils.Error.Printf("ingestDps: Error in issuing request= %s ", err)
+//		return latestTsIngested
+//	}
 	defer resp.Body.Close()
 
-	_, err = ioutil.ReadAll(resp.Body)
+	switch resp.StatusCode {
+		case 202:
+			return newLatestTs
+		case 400:
+			utils.Error.Printf("Bad request error = %s ", err)
+		case 401:
+			utils.Error.Printf("Payload too large error = %s ", err)
+		case 413:
+			utils.Error.Printf("Unauthorized error = %s ", err)
+		default:
+			utils.Error.Printf("Unknown error = %s ", err)
+	}
+	utils.Error.Printf("Payload related to the error = %s ", payload)
+	return latestTsIngested
+*/
+/*	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Printf("sendCecRequest: Error in reading response= %s ", err)
 		return latestTsIngested
-	}*/ 
-	return newLatestTs
+	}
+	return newLatestTs*/
 }
 
 func retrieveDigPayload(vinId string, from string) (string, string) {
@@ -123,6 +161,7 @@ func retrieveDigPayload(vinId string, from string) (string, string) {
 	var path string
 	var value string
 	var timestamp string
+	var mapIndex int
 	payload := "["
 	numOfDatapoints := 0
 	for rows.Next() {
@@ -131,9 +170,33 @@ func retrieveDigPayload(vinId string, from string) (string, string) {
 			utils.Error.Printf("retrieveDigPayload: Error in reading DB result= %s ", err)
 			return "", from
 		}
-		payload += `{"DateTime":"` + timestamp + `","SerialNo":"`+ serialNo + `","Type":"` + getGenericStatusRecord(path) + `","Code":` + 
-			    getGeotabCode(path) + `,"Value":` + transformValue(path, value) + "},"
-		numOfDatapoints++
+		mapIndex = getMapIndex(path)
+		if mapIndex == -1 {
+			utils.Error.Printf("retrieveDigPayload: Unsupported cloud type= %s ", dataMapList.DataMap[mapIndex].CloudType)
+			continue
+		}
+		switch dataMapList.DataMap[mapIndex].CloudType {
+			case "GpsRecord":
+				pLoad := getGpsRecord(serialNo, path, value, timestamp, ignitionOn, speed)
+				if len(pLoad) > 0 {
+					payload += pLoad
+					numOfDatapoints++
+				}
+			case "GenericStatusRecord":
+				payload += getGenericStatusRecord(serialNo, path, value, timestamp)
+				numOfDatapoints++
+			case "VinRecord":
+				payload += getVinRecord(serialNo, path, value, timestamp)
+				numOfDatapoints++
+			default:
+				utils.Error.Printf("retrieveDigPayload: Unsupported cloud type= %s ", dataMapList.DataMap[mapIndex].CloudType)
+		}
+		if path == IGNITION_ON_PATH {
+			ignitionOn = value
+		} else if path == "Vehicle.Speed" {
+			speed = value
+		}
+
 	}
 	if (numOfDatapoints == 0) {
  	    utils.Warning.Printf("retrieveDigPayload: Data not found.")
@@ -145,21 +208,70 @@ func retrieveDigPayload(vinId string, from string) (string, string) {
 	return payload, timestamp
 }
 
-func transformValue(path string, value string) string {
-	if path == "Vehicle.LowVoltageSystemState" { //     allowed = ['UNDEFINED', 'LOCK', 'OFF', 'ACC', 'ON', 'START']
-		if value == "ON" {
-			return "1" // boolean true
+func getGpsRecord(serialNo string, path string, value string, timestamp string, ignitionOn string, speed string) string {
+	var payload string
+	if path == "Vehicle.CurrentLocation.Latitude" {
+		if timestamp == long.Ts {
+			payload += `{"DateTime":"` + timestamp + `","SerialNo":"`+ serialNo + `","Type":"GpsRecord", "IsGpsValid": true, "IsIgnitionOn":` + 
+			 transformIgnitionOn(ignitionOn, false) + `, "Latitude":` + value + `, "Longitude":` + long.Value + `, "Speed":` + speed + "},"
+			return payload
 		} else {
-			return "0" // boolean false
+			lat.Ts = timestamp
+			lat.Value = value
+			return ""
+		}
+	} else if path == "Vehicle.CurrentLocation.Longitude" {
+		if timestamp == lat.Ts {
+			payload += `{"DateTime":"` + timestamp + `","SerialNo":"`+ serialNo + `","Type":"GpsRecord", "IsGpsValid": true, "IsIgnitionOn":` + 
+			 transformIgnitionOn(ignitionOn, false) + `, "Latitude":` + lat.Value + `, "Longitude":` + value + `, "Speed":` + speed + "},"
+			return payload
+		} else {
+			long.Ts = timestamp
+			long.Value = value
+			return ""
+		}
+	}
+	return ""
+}
+
+func getGenericStatusRecord(serialNo string, path string, value string, timestamp string) string {
+	return `{"DateTime":"` + timestamp + `","SerialNo":"`+ serialNo + `","Type":"` + getCloudType(path) + `","Code":` + 
+				    getGeotabCode(path) + `,"Value":` + transformGsrValue(path, value) + "},"
+}
+
+func getVinRecord(serialNo string, path string, value string, timestamp string) string {
+	return `{"DateTime":"` + timestamp + `","SerialNo":"`+ serialNo + `","Type":"` + getCloudType(path) + `","VehicleIdentificationNumber":` + value + "},"
+}
+
+func transformGsrValue(path string, value string) string { // specific for GenericStatusRecord
+	if path == IGNITION_ON_PATH {
+		if value == "ON" {
+			return transformIgnitionOn(value, true)
 		}
 	}
 	if value == "true" {
 		return "1"
 	} else if value == "false"{
 		return "0"
-	} else {
-		return value
 	}
+	if strings.Contains(value, ".") {
+		dotIndex := strings.Index(value, ".")
+		return value[:dotIndex]
+	}
+	return value
+}
+
+func transformIgnitionOn(value string, isGsr bool) string { // allowed = ['UNDEFINED', 'LOCK', 'OFF', 'ACC', 'ON', 'START']
+	trueVal := "true"
+	falseVal := "false"
+	if isGsr {
+		trueVal = "1"
+		falseVal = "0"
+	} 
+	if value == "ON" {
+		return trueVal
+	}
+	return falseVal
 }
 
 func getVinIndex(vinId string) int {
@@ -178,7 +290,16 @@ func getVinIndex(vinId string) int {
 	return vinIndex
 }
 
-func getGenericStatusRecord(path string) string {
+func getMapIndex(path string) int {
+	for i := range dataMapList.DataMap {
+		if dataMapList.DataMap[i].VssPath == path {
+			return i
+		}
+	}
+	return -1
+}
+
+func getCloudType(path string) string {
 	for i := range dataMapList.DataMap {
 		if dataMapList.DataMap[i].VssPath == path {
 			return dataMapList.DataMap[i].CloudType
@@ -190,41 +311,28 @@ func getGenericStatusRecord(path string) string {
 func getGeotabCode(path string) string {
 	for i := range dataMapList.DataMap {
 		if dataMapList.DataMap[i].VssPath == path {
-			return dataMapList.DataMap[i].CloudName
+			return dataMapList.DataMap[i].CloudValue
 		}
 	}
 	return ""
 }
 
 func getSerialNo(vinId string) string {
-	return "12345"  // out of band provisioned by cloud service provider
+	return "CX0B21338D8D"  // out of band provisioned by cloud service provider
 }
 
-func checkToken(tokenChan chan string) {  // update token, if fresh token available
+func checkToken(tokenChan chan string) {
+	for true {
 		select {
-		  case digToken = <- tokenChan: //update if new token is available
-		  default:  // if no new token available, no update is needed
+		  case digData.Token = <- tokenChan: //update, if new token is available
+		  	return
+		  default:
+		  	if len(digData.Token) > 0 {
+		  		return  // if no new token, but token is initialised, no update is needed
+		  	}
 		}
-}
-
-func initTokenMgr(tokenChan chan string) {  // keeps the DIG token fresh, provides new over tokenChan
-	var digToken string
-	var refreshToken string
-	digToken, refreshToken = acquireToken(digToken, refreshToken)
-	tokenChan <- digToken	
-	for {
-		sleepUntilRefresh(digToken)
-		digToken, refreshToken = acquireToken(digToken, refreshToken)
-		tokenChan <- digToken	
+	  	time.Sleep(5 * time.Second)
 	}
-}
-
-func sleepUntilRefresh(digToken string) { //check expiry time, and sleep until x mins before expiry
-	time.Sleep(30 * time.Second)
-}
-
-func acquireToken(digToken string, refreshToken string) (string, string) {  // aquire tokens from DIG authentication mgr
-	return "abc", "def"
 }
 
 func getOvdsVins() []string {
@@ -290,10 +398,12 @@ func retrieveMap(mapItem map[string]interface{}) DataMapItem {
 //			utils.Info.Println(k, "is string", vv)
 			if k == "VssPath" {
 				dataMapItem.VssPath = vv
-			} else if k == "CloudName" {
-				dataMapItem.CloudName = vv
-			} else {
+			} else if k == "CloudType" {
 				dataMapItem.CloudType = vv
+			} else if k == "CloudKey" {
+				dataMapItem.CloudKey = vv
+			} else {
+				dataMapItem.CloudValue = vv
 			}
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -338,9 +448,10 @@ func main() {
 
 	tokenChan := make(chan string)
 	go initTokenMgr(tokenChan)
+	initCeClient()
 	accumulatedTimeTicker := time.NewTicker(MAX_ACCUMULATED_TIME * time.Second)
 
-	utils.Info.Println("**** Cloud Edge Client started... ****")
+	utils.Info.Println("**** Cloud Edge Server/Client started... ****")
 	for {
 		select {
 		case vinId := <- vinIdChan:

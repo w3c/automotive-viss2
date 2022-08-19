@@ -867,6 +867,7 @@ func main() {
 	    }
 	}
 
+	utils.Info.Printf("Server IP address=%s", utils.GetModelIP(3))
 	utils.Info.Printf("main():starting loop for channel receptions...")
 	for {
 		select {

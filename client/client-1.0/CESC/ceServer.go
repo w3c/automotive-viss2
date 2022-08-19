@@ -40,6 +40,7 @@ func InitCecServer(vinIdChan chan string) {
 	initAccumulatedData()
 	cecHandler := makeCecHandler(vinIdChan)
 	muxServer.HandleFunc("/", cecHandler)
+	utils.Info.Printf("CecServer:IP address=%s", utils.GetModelIP(3))
 	utils.Info.Printf("initCecServer():secConfig.TransportSec=%s", secConfig.TransportSec)
 	if secConfig.TransportSec == "yes" {
 		secPortNum, _ := strconv.Atoi(secConfig.HttpSecPort)
@@ -107,6 +108,7 @@ func cecRequestHandler(w http.ResponseWriter, req *http.Request, vinIdChan chan 
 	writeToDb(string(body))
 	for i := range accumulatedData {
 		if accumulatedData[i].DpCount > MAX_ACCUMULATED_DPS {
+			utils.Info.Printf("Max no of data points written is reached")
 			vinIdChan <- accumulatedData[i].VinId
 		}
 	}
@@ -277,14 +279,17 @@ func getAccumulatedDataDpCount(vinId string) int {
 }
 
 func writeDpToDB(vinId string, path string, value string, ts string) {
+utils.Info.Printf("Entering writeDpToDB")
 	vinIndex := readVinIndex(vinId)
 	if vinIndex == -1 {
 		err := writeVIN(vinId)
 		if err != 0 {
+			utils.Error.Printf("writeDpToDB: vin id=%s failed to be added to DB", vinId)
 			return
 		}
 		vinIndex = readVinIndex(vinId)
 		if vinIndex == -1 {
+			utils.Error.Printf("writeDpToDB: vin id=%s could not be found in DB", vinId)
 			return
 		}
 		createTvVin(vinIndex)
@@ -311,15 +316,17 @@ func readVinIndex(vin string) int {
 		return -1
 	}
 	defer rows.Close()
-	var vinId int
 
-	rows.Next()
-	err = rows.Scan(&vinId)
-	if err != nil {
-		utils.Error.Printf("OVDS DB scan() failed, err = %s", err)
-		return -1
+	var vinId int
+	if rows.Next() {
+		err = rows.Scan(&vinId)
+		if err != nil {
+			utils.Error.Printf("OVDS DB scan() failed, err = %s", err)
+			return -1
+		}
+		return vinId
 	}
-	return vinId
+	return -1
 }
 
 func writeVIN(vin string) int {
@@ -342,7 +349,7 @@ func createTvVin(vinId int) {
 	sqlString := "CREATE TABLE " + tableName + " (`value` TEXT NOT NULL, `timestamp` TEXT NOT NULL, `path` TEXT, UNIQUE(`path`, `timestamp`) ON CONFLICT IGNORE)"
 	stmt, err := dbHandle.Prepare(sqlString)
 	if err != nil {
-		utils.Error.Printf("OVDS DB prepare() failed, err = %s", err)
+		utils.Error.Printf("OVDS DB prepare() for VIN index = %d failed, err = %s", vinId, err)
 		return
 	}
 	_, err = stmt.Exec()

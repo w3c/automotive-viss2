@@ -200,12 +200,13 @@ func initDataTransfer(dataChannel chan string, requestList []string) {
 	conn := initVissV2WebSocket()
 	go receiveNotifications(conn, dataChannel)
 	getVinId(conn)
+	time.Sleep(2 * time.Second)  // to minimize risk of SQL_BUSY for VIN id
 	subscribeToPaths(conn, requestList)
 }
 
 func initVissV2WebSocket() *websocket.Conn {
 	scheme := "ws"
-	portNum := "8080"
+	portNum := "8081"
 /*	if secConfig.TransportSec == "yes" {
 		scheme = "wss"
 		portNum = secConfig.WsSecPort
@@ -243,8 +244,9 @@ func receiveNotifications(conn *websocket.Conn, dataChannel chan string) {
 //			utils.Info.Printf("Subscription response:%s", message)
 		} else if strings.Contains(message, "\"get\"") {
 			vinId = extractValue(message)
-			utils.Info.Printf("VIN Id=%s", vinId)
+			utils.Info.Printf("VIN Id=%s, message=%s", vinId, message)
 		} else {
+			utils.Info.Printf("Notification=%s", message)
 			dataChannel <- message
 		}
 	}
@@ -283,8 +285,9 @@ func main() {
 		Required: false,
 		Help:     "changes log output level",
 		Default:  "info"})
-	url_cec := parser.String("u", "cecUrl", &argparse.Options{Required: true, Help: "IP/URL to CEC cloud end point (REQUIRED)"})
-	url_viss := parser.String("w", "vissv2Url", &argparse.Options{Required: true, Help: "IP/URL to W3C VISS v2 server (REQUIRED)"})
+	url_cec := parser.String("u", "cecUrl", &argparse.Options{Required: false, Help: "IP/URL to CEC cloud end point", Default:  "128.30.54.132"}) //IP addr of puppis.w3.org
+//	url_cec := parser.String("u", "cecUrl", &argparse.Options{Required: false, Help: "IP/URL to CEC cloud end point", Default:  "puppis.w3.org"})
+	url_viss := parser.String("w", "vissv2Url", &argparse.Options{Required: false, Help: "IP/URL to W3C VISS v2 server", Default:  "127.0.0.1"})
 
 	// Parse input
 	err := parser.Parse(os.Args)

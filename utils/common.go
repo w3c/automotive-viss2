@@ -44,7 +44,7 @@ func GetModelIP(ipModel int) string {
 		Error.Printf("Environment variable %s error.", IpEnvVarName)
 		return "localhost" //fallback
 	}
-	conn, err := net.Dial("udp", "8.8.8.8:80")
+/*	conn, err := net.Dial("udp", "8.8.8.8:80")
 	if err != nil {
 		Error.Fatal(err.Error())
 	}
@@ -53,14 +53,38 @@ func GetModelIP(ipModel int) string {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	Info.Println("Host IP:", localAddr.IP)
 
-	return localAddr.IP.String()
+	return localAddr.IP.String() */
+ifaces, err := net.Interfaces()
+	if err != nil {
+		Error.Printf("net.Interfaces() error:%s", err)
+		return ""
+	}
+for _, i := range ifaces {
+    addrs, err := i.Addrs()
+	if err != nil {
+		Error.Printf("i.Addrs() error:%s", err)
+		return ""
+	}
+    for _, addr := range addrs {
+        var ip net.IP
+        switch v := addr.(type) {
+        case *net.IPNet:
+                ip = v.IP
+        case *net.IPAddr:
+                ip = v.IP
+        }
+        // process IP address
+        return ip.String()
+    }
+}
+	return ""
 }
 
 func MapRequest(request string, rMap *map[string]interface{}) int {
 	decoder := json.NewDecoder(strings.NewReader(request))
 	err := decoder.Decode(rMap)
 	if err != nil {
-		Error.Printf("extractPayload: JSON decode failed for request:%s\n", request)
+		Error.Printf("extractPayload: JSON decode failed for request:%s", request)
 		return -1
 	}
 	return 0
