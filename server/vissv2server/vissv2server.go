@@ -855,12 +855,12 @@ func main() {
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
 		Required: false,
 		Help:     "changes log output level",
-		Default:  "error"})
+		Default:  "info"})
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
 	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
 	target := parser.Selector("t", "target", []string{"ubuntu", "ecu"}, &argparse.Options{Required: false, 
-	                        Help: "Target must be either ubuntu, or ecu", Default:"ecu"})
+	                        Help: "Target must be either ubuntu, or ecu", Default:"ubuntu"})
 
 	// Parse input
 	err := parser.Parse(os.Args)

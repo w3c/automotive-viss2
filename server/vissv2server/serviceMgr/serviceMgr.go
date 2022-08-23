@@ -169,7 +169,7 @@ func setSubscriptionListThreads(subscriptionList []SubscriptionState, subThreads
 	return subscriptionList
 }
 
-func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) (bool, bool) {
+func checkDpStateFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) (bool, bool) {  // change/range/no-filter types
 	for i := 0; i < len(filterList); i++ {
 		if filterList[i].Type == "paths" || filterList[i].Type == "timebased" || filterList[i].Type == "curvelog" {
 			continue
@@ -179,6 +179,12 @@ func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint str
 		}
 		if filterList[i].Type == "change" {
 			return evaluateChangeFilter(filterList[i].Value, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
+		}
+		if filterList[i].Type == "no-filter" {
+			if getDPTs(latestDataPoint) != getDPTs(currentDataPoint) && getDPValue(currentDataPoint) != "Data-not-available" {
+				return true,true
+			}
+			return false, true
 		}
 	}
 	return false, false
@@ -350,7 +356,11 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 	select {
 	case subscriptionId := <-subscriptionChannel: // interval notification triggered
 //utils.Info.Printf("checkSubscription():interval triggered, subscriptionId=%d", subscriptionId)
-		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
+		subcriptionStateIndex := getSubcriptionStateIndex(subscriptionId, subscriptionList)
+		if subcriptionStateIndex < 0 {
+			break
+		}
+		subscriptionState := subscriptionList[subcriptionStateIndex]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.RouterId
 		dataPack := getDataPack(subscriptionState.Path, nil)
@@ -376,7 +386,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 			if strings.Contains(triggerDataPoint, "Database-") {  // busy or error
 				continue
 			}
-			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
+			doTrigger, updateLatest := checkDpStateFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
 			if updateLatest == true {
 			    subscriptionList[i].LatestDataPoint = triggerDataPoint
 			}
@@ -514,8 +524,8 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 //			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 			return `{"value":"Data-not-available", "ts":"` + utils.GetRfcTime() + `"}`
 		}
-		return `{"value":"` + value + `", "ts":"` + utils.GetRfcTime() + `"}`  // for OLU testing, simulating stream of dps
-//		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
+//		return `{"value":"` + value + `", "ts":"` + utils.GetRfcTime() + `"}`  // for ECU testing, simulating stream of dps
+		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	    case "redis":
 		dp, err := redisClient.Get(path).Result()
 		if err != nil {
@@ -1001,14 +1011,17 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				subscriptionState.RouterId = requestMap["RouterId"].(string)
 				subscriptionState.Path = unpackPaths(requestMap["path"].(string))
 				if requestMap["filter"] == nil || requestMap["filter"] == "" {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
-					dataChan <- utils.FinalizeMessage(errorResponseMap)
-					break
-				}
-				utils.UnpackFilter(requestMap["filter"], &(subscriptionState.FilterList))
-				if len(subscriptionState.FilterList) == 0 {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
-					dataChan <- utils.FinalizeMessage(errorResponseMap)
+					subscriptionState.FilterList = make([]utils.FilterObject, 1)
+					subscriptionState.FilterList[0].Type = "no-filter"
+//					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
+//					dataChan <- utils.FinalizeMessage(errorResponseMap)
+//					break
+				} else {
+					utils.UnpackFilter(requestMap["filter"], &(subscriptionState.FilterList))
+					if len(subscriptionState.FilterList) == 0 {
+						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
+						dataChan <- utils.FinalizeMessage(errorResponseMap)
+					}
 				}
 				subscriptionState.LatestDataPoint = getVehicleData(subscriptionState.Path[0])
 				subscriptionList = append(subscriptionList, subscriptionState)
