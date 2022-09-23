@@ -438,10 +438,11 @@ func (popToken PopToken) CheckIat(gap int, lifetime int) (bool, string) {
 		return false, "Bad iat claim"
 	}
 	if !(act < iat+gap+lifetime) {
-		return false, "Expired"
+		return false, fmt.Sprintf("Expired, act time: %d", act)
 	}
+	Info.Printf("\n\n %d ", act)
 	if !(act > iat-gap) { // Check if token is still valid
-		return false, "Created in future time"
+		return false, fmt.Sprintf("Created in future time, act time: %d", act)
 	}
 	return true, "OK"
 }
