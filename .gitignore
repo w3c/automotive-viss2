@@ -6,11 +6,12 @@
 *.dylib
 .DS_Store
 
-# cert files
+# cert and key files
 *.crt
 *.srl
 *.key
 *.csr
+*.rsa
 
 #log files
 ws-mgr-log.txt

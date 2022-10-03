@@ -9,9 +9,12 @@
 package main
 
 import (
-	"encoding/base64"
+	"crypto/rsa"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -20,40 +23,68 @@ import (
 	"strings"
 	"time"
 
-	"github.com/w3c/automotive-viss2/utils"
 	"github.com/akamensky/argparse"
+	"github.com/google/uuid"
+	"github.com/w3c/automotive-viss2/utils"
 )
 
-const theAgtSecret = "averysecretkeyvalue1" // shared with at-server
+const LT_DURATION = 4 * 24 * 60 * 60 // 4 days
+const ST_DURATION = 4 * 60 * 60      // 4 hours
+const PRIV_KEY_DIRECTORY = "agt_private_key.rsa"
+const PUB_KEY_DIRECTORY = "agt_public_key.rsa"
+const GAP = 3           // Used for PoP Checking
+const LIFETIME = 5 * 60 // Used for PoP Checking
+const PORT = 7500
+
+var privKey *rsa.PrivateKey
+
+// Stores a cache of the jwt ids received to not be reused
+var jtiCache map[string]struct{}
 
 type Payload struct {
 	Vin     string `json:"vin"`
 	Context string `json:"context"`
 	Proof   string `json:"proof"`
-	Key     string `json:"key"`
+	//Key     utils.JsonWebKey `json:"key"`
+	Key string `json:"key"`
 }
 
+// Handles the request depending on the url and the method for the request
 func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		utils.Info.Printf("agtServer:url=%s", req.URL.Path)
 		if req.URL.Path != "/agts" {
 			http.Error(w, "404 url path not found.", 404)
 		} else if req.Method != "POST" {
-			http.Error(w, "400 bad request method.", 400)
+			//CORS POLICY, necessary for web client
+			if req.Method == "OPTIONS" {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Headers", "PoP")
+				w.Header().Set("Access-Control-Allow-Methods", "POST")
+				w.Header().Set("Access-Control-Max-Age", "57600")
+			} else {
+				http.Error(w, "400 bad request method.", 400)
+			}
 		} else {
 			bodyBytes, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				http.Error(w, "400 request unreadable.", 400)
-			} else {
+			} else { // POST REQUEST TO /agts
 				utils.Info.Printf("agtServer:received POST request=%s\n", string(bodyBytes))
-				serverChannel <- string(bodyBytes)
+				serverChannel <- string(bodyBytes) // Sends to serverChannel the body of the request
+				pop := string(req.Header.Get("PoP"))
+				if pop != "" {
+					utils.Info.Printf("agtServer: received PoP = %s", pop)
+				}
+				serverChannel <- pop // Sends the pop to serverChannel
 				response := <-serverChannel
 				utils.Info.Printf("agtServer:POST response=%s", response)
+				// Response generation
 				if len(response) == 0 {
 					http.Error(w, "400 bad input.", 400)
 				} else {
 					w.Header().Set("Access-Control-Allow-Origin", "*")
-					//				    w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("Content-Type", "application/json")
 					w.Write([]byte(response))
 				}
 			}
@@ -61,68 +92,179 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 	}
 }
 
+// Initializes the AGT Server to work on the port desired
 func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer(): :7500/agts")
-	agtServerHandler := makeAgtServerHandler(serverChannel)
+	utils.Info.Printf("initAgtServer(): Starting AGT server")
+	utils.ReadTransportSecConfig()                          // loads the secure configuration file
+	agtServerHandler := makeAgtServerHandler(serverChannel) // Generates handlers for the AGT server
 	muxServer.HandleFunc("/agts", agtServerHandler)
-	utils.Error.Fatal(http.ListenAndServe(":7500", muxServer))
+	// Initializes the AGT Server depending on sec configuration
+	if utils.SecureConfiguration.TransportSec == "yes" {
+		server := http.Server{
+			Addr:    ":" + utils.SecureConfiguration.AgtsSecPort,
+			Handler: muxServer,
+			TLSConfig: utils.GetTLSConfig("localhost", "../../../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),
+		}
+		utils.Info.Printf("initAgtServer():Starting AGT Server with TLS on %s/agts", utils.SecureConfiguration.AgtsSecPort)
+		utils.Info.Printf("initAgtServer():HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)
+		utils.Error.Fatal(server.ListenAndServeTLS("../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
+			"../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
+	} else { // No TLS
+		utils.Info.Printf("initAgtServer():Starting AGT Server without TLS on %s/agts", PORT)
+		utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
+	}
 }
 
-func generateResponse(input string) string {
+// Load key from file, if not, creates new key file
+func initKey() {
+	if err := utils.ImportRsaKey(PRIV_KEY_DIRECTORY, &privKey); err != nil {
+		utils.Error.Printf("Error importing private key: %s, generating one.", err)
+		if err := utils.GenRsaKey(256, &privKey); err != nil {
+			utils.Error.Printf("Error generating private key: %s. Signature not avaliable", err)
+			return
+		}
+		// Key generated, must export it
+		utils.Info.Printf("RSA key generated correctly")
+		if err := os.Remove(PRIV_KEY_DIRECTORY); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			utils.Error.Printf("Error exporting private key, cannot remove previous file: %s", err)
+		} else if err := utils.ExportKeyPair(privKey, PRIV_KEY_DIRECTORY, PUB_KEY_DIRECTORY); err != nil {
+			utils.Error.Printf("Error exporting private key: %s", err)
+		}
+		utils.Info.Printf("RSA key exported")
+		return
+	}
+	utils.Info.Printf("RSA key imported correctly")
+}
+
+// GenerateResponse must unmarshall the payload, then ask for AGT Generation
+func generateResponse(input string, pop string) string {
 	var payload Payload
 	err := json.Unmarshal([]byte(input), &payload)
 	if err != nil {
 		utils.Error.Printf("generateResponse:error input=%s", input)
 		return `{"error": "Client request malformed"}`
 	}
-	if authenticateClient(payload) == true {
-		return generateAgt(payload)
+	if authenticateClient(payload) {
+		if pop != "" {
+			return generateLTAgt(payload, pop) // In case a pop claim appears, a LT agt must be generated
+		}
+		return generateAgt(payload) // In case no pop claim appears, an ST AGT is issued
 	}
 	return `{"error": "Client authentication failed"}`
 }
 
+// Client roles checking
 func checkUserRole(userRole string) bool {
 	if userRole != "OEM" && userRole != "Dealer" && userRole != "Independent" && userRole != "Owner" && userRole != "Driver" && userRole != "Passenger" {
 		return false
 	}
 	return true
 }
-
 func checkAppRole(appRole string) bool {
 	if appRole != "OEM" && appRole != "Third party" {
 		return false
 	}
 	return true
 }
-
 func checkDeviceRole(deviceRole string) bool {
 	if deviceRole != "Vehicle" && deviceRole != "Nomadic" && deviceRole != "Cloud" {
 		return false
 	}
 	return true
 }
-
 func checkRoles(context string) bool {
 	if strings.Count(context, "+") != 2 {
 		return false
 	}
 	delimiter1 := strings.Index(context, "+")
 	delimiter2 := strings.Index(context[delimiter1+1:], "+")
-	if checkUserRole(context[:delimiter1]) == false || checkAppRole(context[delimiter1+1:delimiter1+1+delimiter2]) == false || checkDeviceRole(context[delimiter1+1+delimiter2+1:]) == false {
+	if !checkUserRole(context[:delimiter1]) || !checkAppRole(context[delimiter1+1:delimiter1+1+delimiter2]) || !checkDeviceRole(context[delimiter1+1+delimiter2+1:]) {
 		return false
 	}
 	return true
 
 }
 
+// Checks client context + Proof of context => Not implemented a complex validation
 func authenticateClient(payload Payload) bool {
-	if checkRoles(payload.Context) == true && payload.Proof == "ABC" { // a bit too simple validation...
+	if checkRoles(payload.Context) && payload.Proof == "ABC" { // a bit too simple validation...
 		return true
 	}
 	return false
 }
 
+// Checks if jwt id exist in cache, if it does, return false. If not, it adds it and automatically clear it from cache when it expires
+func addCheckJti(jti string) bool {
+	if jtiCache == nil { // If map is empty (first time), it doesnt even check, initializes and add
+		jtiCache = make(map[string]struct{})
+		jtiCache[jti] = struct{}{}
+		go deleteJti(jti)
+		return true
+	}
+	if _, ok := jtiCache[jti]; ok { // Check if jti exist in cache
+		return false
+	}
+	// If we get here, it does not exist in cache
+	jtiCache[jti] = struct{}{}
+	go deleteJti(jti)
+	return true
+}
+
+// Deletes the JTI from cache
+func deleteJti(jti string) {
+	time.Sleep((GAP + LIFETIME + 5) * time.Second)
+	delete(jtiCache, jti)
+}
+
+// Generates Long Term AGT after doing all the checks related to it
+func generateLTAgt(payload Payload, pop string) string {
+	var popToken utils.PopToken
+	err := popToken.Unmarshal(pop)
+	if err != nil {
+		utils.Error.Printf("generateLTAgt: Error unmarshalling pop, err = %s", err)
+		return `{"error": "Client request malformed"}`
+	}
+	if !addCheckJti(popToken.PayloadClaims["jti"]) {
+		utils.Error.Printf("generateLTAgt: JTI used")
+		return `{"error": "Repeated JTI"}`
+	}
+	err = popToken.CheckSignature()
+	if err != nil {
+		utils.Info.Printf("generateLTAgt: Invalid POP signature")
+		return `{"error": "Invalid POP signature"}`
+	}
+	if ok, info := popToken.Validate(payload.Key, "vissv2/agts", GAP, LIFETIME); !ok {
+		utils.Info.Printf("generateLTAgt: Not valid POP Token: %s", info)
+		return `{"error": "Invalid POP Token"}`
+	}
+	// Generates the response token
+	var jwtoken utils.JsonWebToken
+	var unparsedId uuid.UUID
+	if unparsedId, err = uuid.NewRandom(); err != nil { // Better way to generate uuid than calling an ext program
+		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
+		return `{"error": "Internal error"}`
+	}
+	iat := int(time.Now().Unix())
+	exp := iat + LT_DURATION // defined by const
+	jwtoken.SetHeader("RS256")
+	jwtoken.AddClaim("vin", payload.Vin) // No need to check if it is filled, if not, it does nothing (new imp makes this claim not mandatory)
+	jwtoken.AddClaim("iat", strconv.Itoa(iat))
+	jwtoken.AddClaim("exp", strconv.Itoa(exp))
+	jwtoken.AddClaim("clx", payload.Context)
+	jwtoken.AddClaim("aud", "w3org/gen2")
+	jwtoken.AddClaim("jti", unparsedId.String())
+	jwtoken.AddClaim("pub", payload.Key)
+	//utils.Info.Printf("generateAgt:jwtHeader=%s", jwtoken.GetHeader())
+	//utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
+	jwtoken.Encode()
+	jwtoken.AssymSign(privKey)
+	return `{"token":"` + jwtoken.GetFullToken() + `"}`
+}
+
+// Generates an AGT (short term)
 func generateAgt(payload Payload) string {
+	var jwtoken utils.JsonWebToken
 	uuid, err := exec.Command("uuidgen").Output()
 	if err != nil {
 		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
@@ -130,33 +272,25 @@ func generateAgt(payload Payload) string {
 	}
 	uuid = uuid[:len(uuid)-1] // remove '\n' char
 	iat := int(time.Now().Unix())
-	exp := iat + 4*60*60 // 4 hours
-	if len(payload.Key) != 0 {
-		exp = iat + 7*24*60*60 // 1 week
-	}
-	jwtHeader := `{"alg":"ES256","typ":"JWT"}`
-	jwtPayload := "{"
-	if len(payload.Vin) > 0 {
-		jwtPayload += `"vin":"` + payload.Vin + `", `
-	}	
-	jwtPayload += `"iat":` + strconv.Itoa(iat) + `, "exp":` + strconv.Itoa(exp) + `, "clx":"` + payload.Context + `"`
-	if len(payload.Key) > 0 {
-		jwtPayload += `, "pub": "` + payload.Key + `"`
-	}
-	jwtPayload += `, "aud": "w3.org/gen2", "jti":"` + string(uuid) + `"}`
-	utils.Info.Printf("generateAgt:jwtHeader=%s", jwtHeader)
-	utils.Info.Printf("generateAgt:jwtPayload=%s", jwtPayload)
-	encodedJwtHeader := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
-	encodedJwtPayload := base64.RawURLEncoding.EncodeToString([]byte(jwtPayload))
-	utils.Info.Printf("generateAgt:encodedJwtHeader=%s", encodedJwtHeader)
-	jwtSignature := utils.GenerateHmac(encodedJwtHeader+"."+encodedJwtPayload, theAgtSecret)
-	encodedJwtSignature := base64.RawURLEncoding.EncodeToString([]byte(jwtSignature))
-	return `{"token":"` + encodedJwtHeader + "." + encodedJwtPayload + "." + encodedJwtSignature + `"}`
+	exp := iat + ST_DURATION
+	// Token generation (used utils.JsonWebToken)
+	jwtoken.SetHeader("RS256")
+	jwtoken.AddClaim("vin", payload.Vin)
+	jwtoken.AddClaim("iat", strconv.Itoa(iat))
+	jwtoken.AddClaim("exp", strconv.Itoa(exp))
+	jwtoken.AddClaim("clx", payload.Context)
+	jwtoken.AddClaim("aud", "w3org/gen2")
+	jwtoken.AddClaim("jti", string(uuid))
+	utils.Info.Printf("generateAgt:jwtHeader=%s", jwtoken.GetHeader())
+	utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
+	jwtoken.Encode()
+	jwtoken.AssymSign(privKey)
+	return `{"token":"` + jwtoken.GetFullToken() + `"}`
 }
 
 func main() {
 	// Create new parser object
-	parser := argparse.NewParser("print", "AGT Server")
+	parser := argparse.NewParser("agt_server", "AGT Server")
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
@@ -173,15 +307,15 @@ func main() {
 	utils.InitLog("agtserver-log.txt", "./logs", *logFile, *logLevel)
 	serverChan := make(chan string)
 	muxServer := http.NewServeMux()
+	initKey()
 
 	go initAgtServer(serverChan, muxServer)
 
 	for {
-		select {
-		case request := <-serverChan:
-			response := generateResponse(request)
-			utils.Info.Printf("agtServer response=%s", response)
-			serverChan <- response
-		}
+		request := <-serverChan
+		pop := <-serverChan
+		response := generateResponse(request, pop)
+		utils.Info.Printf("agtServer response=%s", response)
+		serverChan <- response
 	}
 }

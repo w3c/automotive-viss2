@@ -13,9 +13,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/w3c/automotive-viss2/utils"
 	"github.com/akamensky/argparse"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
+	"github.com/w3c/automotive-viss2/utils"
 )
 
 var uniqueTopicName string
@@ -94,7 +94,7 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	utils.TransportErrorMessage = "MQTT client-finalizeResponse: JSON encode failed.\n"
+	//utils.TransportErrorMessage = "MQTT client-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("mqtt-client-log.txt", "./logs", *logFile, *logLevel)
 
 	brokerSocket := getBrokerSocket(false)

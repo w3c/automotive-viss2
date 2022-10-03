@@ -1,6 +1,8 @@
 #!/bin/bash
 
 services=(vissv2server agt_server)
+#services=(agt_server)
+#services=(vissv2server)
 
 usage() {
 	#    echo "usage: $0 startme|stopme|configureme" >&2

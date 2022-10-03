@@ -74,7 +74,7 @@ The components mentioned above that together realizes the server is available in
 - Components are built and deployed as threads within one common process/binary, and communicate using Go channels.<br>
 
 These implementations are found at the branches multi-process and single-process, respectively. 
-The master branch is currently identical to the multi-process branch.
+The master branch is currently identical to the single-process branch.
 
 ### Using Docker-Compose to launch a W3CServer instance
 
