@@ -42,20 +42,21 @@ func ReturnWsClientIndex(index int) {
 	WsClientIndexList[index] = true
 }
 
+// Initializes TransportSec Variables
 func ReadTransportSecConfig() {
 	data, err := ioutil.ReadFile(trSecConfigPath + "transportSec.json")
 	if err != nil {
 		Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", trSecConfigPath, err)
-		secConfig.TransportSec = "no"
+		SecureConfiguration.TransportSec = "no"
 		return
 	}
-	err = json.Unmarshal(data, &secConfig)
+	err = json.Unmarshal(data, &SecureConfiguration)
 	if err != nil {
 		Error.Printf("ReadTransportSecConfig():Error unmarshal transportSec.json=%s", err)
-		secConfig.TransportSec = "no"
+		SecureConfiguration.TransportSec = "no"
 		return
 	}
-	Info.Printf("ReadTransportSecConfig():secConfig.TransportSec=%s", secConfig.TransportSec)
+	Info.Printf("ReadTransportSecConfig():SecureConfiguration.TransportSec=%s", SecureConfiguration.TransportSec)
 }
 
 func createRouterIdProperty(mgrId int, clientId int) string {
@@ -64,7 +65,7 @@ func createRouterIdProperty(mgrId int, clientId int) string {
 
 func AddRoutingForwardRequest(reqMessage string, mgrId int, clientId int, transportMgrChan chan string) {
 	//	newPrefix := "{ \"RouterId\":\"" + strconv.Itoa(mgrId) + "?" + strconv.Itoa(clientId) + "\", "
-	newPrefix := "{" + createRouterIdProperty(mgrId, clientId) + ", "
+	newPrefix := "{" + createRouterIdProperty(mgrId, clientId) + ", " + "\"origin\":\"external\", "
 	request := strings.Replace(reqMessage, "{", newPrefix, 1)
 	Info.Printf("AddRoutingForwardRequest: %s", request)
 	transportMgrChan <- request
@@ -105,6 +106,7 @@ func splitToPathQueryKeyValue(path string) (string, string, string) {
 	return path, "", ""
 }
 
+// Manages first communication with Client
 func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChannel chan string) {
 	path := req.RequestURI
 	if len(path) == 0 {
@@ -115,7 +117,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	var requestMap = make(map[string]interface{})
 	queryKey := ""
 	queryValue := ""
-	if strings.Contains(path, "?") == true {
+	if strings.Contains(path, "?") {
 		requestMap["path"], queryKey, queryValue = splitToPathQueryKeyValue(path)
 	} else {
 		requestMap["path"] = path
@@ -124,7 +126,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	token := req.Header.Get("Authorization")
 	Info.Printf("HTTP token:%s", token)
 	if len(token) > 0 {
-		requestMap["token"] = token
+		requestMap["authorization"] = strings.TrimPrefix(token, "Bearer ")
 	}
 	requestMap["requestId"] = strconv.Itoa(requestTag)
 	requestTag++
@@ -145,7 +147,6 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 	}
 	clientChannel <- AddKeyValue(FinalizeMessage(requestMap), queryKey, queryValue) // forward to mgr hub,
 	response := <-clientChannel                                                     //  and wait for response
-
 	backendHttpAppSession(response, &w)
 }
 
@@ -294,17 +295,17 @@ func (wsH WsChannel) makeappClientHandler(appClientChannel []chan string) func(h
 func (server HttpServer) InitClientServer(muxServer *http.ServeMux, httpClientChan []chan string) {
 	appClientHandler := HttpChannel{}.makeappClientHandler(httpClientChan)
 	muxServer.HandleFunc("/", appClientHandler)
-	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
-	if secConfig.TransportSec == "yes" {
-		secPortNum, _ := strconv.Atoi(secConfig.HttpSecPort)
+	Info.Printf("InitClientServer():SecureConfiguration.TransportSec=%s", SecureConfiguration.TransportSec)
+	// Manages the server TLS claims
+	if SecureConfiguration.TransportSec == "yes" {
 		server := http.Server{
-			Addr: ":" + strconv.Itoa(secPortNum),
-			TLSConfig: getTLSConfig("localhost", trSecConfigPath+secConfig.CaSecPath+"Root.CA.crt",
-				tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
+			Addr: ":" + SecureConfiguration.HttpSecPort,
+			TLSConfig: GetTLSConfig("localhost", trSecConfigPath+SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(CertOptToInt(SecureConfiguration.ServerCertOpt))),
 			Handler: muxServer,
 		}
-		Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
-		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+secConfig.ServerSecPath+"server.crt", trSecConfigPath+secConfig.ServerSecPath+"server.key"))
+		Info.Printf("HTTPS:CerOpt=%s", SecureConfiguration.ServerCertOpt)
+		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+SecureConfiguration.ServerSecPath+"server.crt", trSecConfigPath+SecureConfiguration.ServerSecPath+"server.key"))
 	} else {
 		Error.Fatal(http.ListenAndServe(":8888", muxServer))
 	}
@@ -315,22 +316,22 @@ func (server WsServer) InitClientServer(muxServer *http.ServeMux, wsClientChan [
 	*clientIndex = 0
 	appClientHandler := WsChannel{server.ClientBackendChannel, mgrIndex, clientIndex}.makeappClientHandler(wsClientChan) // Generates a handler for the requests
 	muxServer.HandleFunc("/", appClientHandler)
-	Info.Printf("InitClientServer():secConfig.TransportSec=%s", secConfig.TransportSec)
-	if secConfig.TransportSec == "yes" { // In  case a secure connection is used
+	Info.Printf("InitClientServer():SecureConfiguration.TransportSec=%s", SecureConfiguration.TransportSec)
+	if SecureConfiguration.TransportSec == "yes" { // In  case a secure connection is used
 		server := http.Server{
-			Addr: ":" + secConfig.WsSecPort,
-			TLSConfig: getTLSConfig("localhost", trSecConfigPath+secConfig.CaSecPath+"Root.CA.crt",
-				tls.ClientAuthType(certOptToInt(secConfig.ServerCertOpt))),
+			Addr: ":" + SecureConfiguration.WsSecPort,
+			TLSConfig: GetTLSConfig("localhost", trSecConfigPath+SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(CertOptToInt(SecureConfiguration.ServerCertOpt))),
 			Handler: muxServer,
 		}
-		Info.Printf("HTTPS:CerOpt=%s", secConfig.ServerCertOpt)
-		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+secConfig.ServerSecPath+"server.crt", trSecConfigPath+secConfig.ServerSecPath+"server.key"))
+		Info.Printf("HTTPS:CerOpt=%s", SecureConfiguration.ServerCertOpt)
+		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+SecureConfiguration.ServerSecPath+"server.crt", trSecConfigPath+SecureConfiguration.ServerSecPath+"server.key"))
 	} else { // No sec connection
 		Error.Fatal(http.ListenAndServe(":8080", muxServer))
 	}
 }
 
-func certOptToInt(serverCertOpt string) int {
+func CertOptToInt(serverCertOpt string) int {
 	if serverCertOpt == "NoClientCert" {
 		return 0
 	}
@@ -343,11 +344,12 @@ func certOptToInt(serverCertOpt string) int {
 	return 4 // if unclear, apply max security
 }
 
-func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
+// Obtains a tls.Config struct, giving support to https.listenandservetls
+func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
 	var caCert []byte
 	var err error
 	var caCertPool *x509.CertPool
-	if certOpt > tls.RequestClientCert {
+	if certOpt > tls.RequestClientCert { // If a client certificate is required, then the CA certificate is needed
 		caCert, err = ioutil.ReadFile(caCertFile)
 		if err != nil {
 			Error.Printf("Error opening cert file", caCertFile, ", error ", err)
@@ -357,7 +359,7 @@ func getTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *t
 		caCertPool.AppendCertsFromPEM(caCert)
 	}
 
-	return &tls.Config{
+	return &tls.Config{ // Returns the tls.Config struct
 		ServerName: host,
 		ClientAuth: certOpt,
 		ClientCAs:  caCertPool,

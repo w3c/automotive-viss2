@@ -191,49 +191,68 @@ func getPathLen(path string) int {
 
 func getTokenErrorMessage(index int) string {
 	switch index {
-	case 0:
-		return "Token missing. "
 	case 1:
-		return "Invalid token signature. "
+		return "Invalid Access Token. "
 	case 2:
-		return "Invalid purpose scope. "
-	case 3:
-		return "Insufficient access mode permission. "
-	case 4:
-		return "Invalid issued at time. "
+		return "Access Token not found. "
 	case 5:
-		return "Token expired. "
+		return "Invalid Access Token Signature. "
 	case 6:
-		return ""
-	case 7:
+		return "Invalid Access Token Signature Algorithm. "
+	case 10:
+		return "Invalid iat claim. Invalid time format. "
+	case 11:
+		return "Invalid iat claim. Future time. "
+	case 15:
+		return "Invalid exp claim. Invalid time format. "
+	case 16:
+		return "Invalid exp claim. Token Expired. "
+	case 20:
+		return "Invalid AUD. "
+	case 21:
+		return "Invalid Context. "
+	case 30:
+		return "Invalid Token: token revoked. "
+	case 40, 41, 42:
 		return "Internal error. "
+	case 60:
+		return "Permission denied. Purpose does not match signals requested. "
+	case 61:
+		return "Permission denied. Read only access mode trying to write. "
 	}
 	return "Unknown error. "
 }
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
-	errMsg := ""
-	bitValid := 1
-	for i := 0; i < 8; i++ {
-		if errorCode&bitValid == bitValid {
-			errMsg += getTokenErrorMessage(i)
-		}
-		bitValid = bitValid << 1
-	}
-	utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", errMsg)
+	utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", getTokenErrorMessage(errorCode))
+	// errMsg := ""
+	// bitValid := 1
+	// for i := 0; i < 8; i++ {
+	// 	if errorCode&bitValid == bitValid {
+	// 		errMsg += getTokenErrorMessage(i)
+	// 	}
+	// 	bitValid = bitValid << 1
+	// }
+	// utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", errMsg)
 }
 
+// Sends a message to the Access Token Server to validate the Access Token paths and permissions
 func accessTokenServerValidation(token string, paths string, action string, validation int) int {
 	hostIp := utils.GetServerIP()
-	url := "http://" + hostIp + ":8600/atserver"
-	utils.Info.Printf("accessTokenServerValidation::url = %s", url)
+	var url string
+	if utils.SecureConfiguration.TransportSec == "yes" {
+		url = "https://" + hostIp + ":" + utils.SecureConfiguration.AtsSecPort + "/ats"
+	} else {
+		url = "http://" + hostIp + ":8600/ats"
+	}
+	utils.Info.Printf("accessTokenServerValidation: Sending validation request to AT, url = %s", url)
 
 	data := []byte(`{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		utils.Error.Print("accessTokenServerValidation: Error reading request. ", err)
-		return -128
+		utils.Error.Print("accessTokenServerValidation: Error generating request. ", err)
+		return 42
 	}
 
 	// Set headers
@@ -247,59 +266,70 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 	// Send request
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.Error.Print("accessTokenServerValidation: Error reading response. ", err)
-		return -128
+		utils.Error.Print("accessTokenServerValidation: Can not stablish connection with ATS ", err)
+		//return -128
+		return 40
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		utils.Error.Print("Error reading response. ", err)
-		return -128
+		utils.Error.Print("accessTokenServerValidation: Error reading response. ", err)
+		//return -128
+		return 41
 	}
 
-	bdy := string(body)
-	frontIndex := strings.Index(bdy, "validation") + 13 // point to first char of int-string
-	endIndex := nextQuoteMark(bdy[frontIndex:]) + frontIndex
-	atsValidation, err := strconv.Atoi(bdy[frontIndex:endIndex])
-	if err != nil {
-		utils.Error.Print("Error reading validation. ", err)
-		return -128
+	// Unmarshall json body to map containing the validation claim
+	var bdy map[string]interface{}
+	if err := json.Unmarshal(body, &bdy); err != nil {
+		utils.Error.Print("accessTokenServerValidation: Error unmarshalling ats response. ", err)
+		return 41
 	}
-	return atsValidation
+	if bdy["validation"] == nil {
+		utils.Error.Print("accessTokenServerValidation: Error reading validation claim. ", err)
+		return 42
+	}
+	// Converts the validation claim to int
+	if atsValidation, err := strconv.Atoi(bdy["validation"].(string)); err != nil {
+		utils.Error.Print("accessTokenServerValidation: Error converting validation claim to int. ", err)
+		return 42
+	} else {
+		return atsValidation
+	}
+
 }
 
+// Validates the request comparing it with the access token
+// Returns int representing the error code
 func verifyToken(token string, action string, paths string, validation int) int {
-	validateResult := accessTokenServerValidation(token, paths, action, validation)
+	// Calls Access Token to verify the token purpose and paths
+	if validateResult := accessTokenServerValidation(token, paths, action, validation); validateResult != 0 {
+		return validateResult
+	}
+	// Validates iat
 	iatStr := utils.ExtractFromToken(token, "iat")
 	iat, err := strconv.Atoi(iatStr)
 	if err != nil {
 		utils.Error.Print("Error reading iat. ", err)
-		return -128
+		return 10
 	}
 	now := time.Now()
-	if now.Before(time.Unix(int64(iat), 0)) == true {
-		validateResult -= 16
+	if now.Before(time.Unix(int64(iat), 0)) {
+		utils.Error.Print("Invalid issued at time. Issued at time is in the future. ")
+		return 11
 	}
+	// Validates exp
 	expStr := utils.ExtractFromToken(token, "exp")
 	exp, err := strconv.Atoi(expStr)
 	if err != nil {
 		utils.Error.Print("Error reading exp. ", err)
-		return -128
+		return 15
 	}
-	if now.After(time.Unix(int64(exp), 0)) == true {
-		validateResult -= 32
+	if now.After(time.Unix(int64(exp), 0)) {
+		utils.Error.Print("Token expired. ")
+		return 16
 	}
-	return validateResult
-}
-
-func nextQuoteMark(message string) int { // strings.Index() seems to have a problem with finding a quote char
-	for i := 0; i < len(message); i++ {
-		if message[i] == '"' {
-			return i
-		}
-	}
-	return -1
+	return 0
 }
 
 // nativeCnodeDef.h: nodeTypes_t;
@@ -604,6 +634,8 @@ func isValidUnsubscribeParams(request string) bool {
 	return strings.Contains(request, "subscriptionId")
 }
 
+// Receives a request (json containing path, action, token, routerId....) and calls
+// the appropriate function to handle the request
 func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	utils.Info.Printf("serveRequest():request=%s", request)
 	var requestMap = make(map[string]interface{})
@@ -655,7 +687,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		for i := 0; i < len(filterList); i++ {
 			utils.Info.Printf("filterList[%d].Type=%s, filterList[%d].Value=%s", i, filterList[i].Type, i, filterList[i].Value)
 			if filterList[i].Type == "paths" {
-				if strings.Contains(filterList[i].Value, "[") == true {
+				if strings.Contains(filterList[i].Value, "[") {
 					err := json.Unmarshal([]byte(filterList[i].Value), &searchPath)
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
@@ -735,6 +767,11 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	if totalMatches > 1 {
 		paths = "[" + paths + "]"
 	}
+
+	if requestMap["origin"] == "internal" { // internal message, no validation needed
+		maxValidation = 0
+	}
+
 	switch maxValidation {
 	case 0: // validation not required
 	case 1:
@@ -742,13 +779,18 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	case 2:
 		errorCode := 0
 		if requestMap["authorization"] == nil {
-			errorCode = -1
+			errorCode = 2
 		} else {
 			if requestMap["action"] == "set" || maxValidation == 2 { // no validation for get/subscribe when validation is 1 (write-only)
-				errorCode = verifyToken(requestMap["authorization"].(string), requestMap["action"].(string), paths, maxValidation)
+				// checks if requestmap authorization is a string
+				if authToken, ok := requestMap["authorization"].(string); !ok {
+					errorCode = 1
+				} else {
+					errorCode = verifyToken(authToken, requestMap["action"].(string), paths, maxValidation)
+				}
 			}
 		}
-		if errorCode < 0 {
+		if errorCode != 0 {
 			setTokenErrorResponse(requestMap, errorCode)
 			backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 			return

@@ -17,35 +17,36 @@ import (
 
 var requestTag int
 
-var trSecConfigPath string = "../transport_sec/"  // relative path to the directory containing the transportSec.json file
+var trSecConfigPath string = "../transport_sec/" // relative path to the directory containing the transportSec.json file
 type SecConfig struct {
-    TransportSec string  `json:"transportSec"`// "yes" or "no"
-    HttpSecPort string   `json:"httpSecPort"`// HTTPS port number
-    WsSecPort string     `json:"wsSecPort"`// WSS port number
-    MqttSecPort string   `json:"mqttSecPort"`// MQTTS port number
-    AgtsSecPort string   `json:"agtsSecPort"`// AGTS port number
-    AtsSecPort string    `json:"atsSecPort"`// ATS port number
-    CaSecPath string     `json:"caSecPath"`// relative path from the directory containing the transportSec.json file
-    ServerSecPath string `json:"serverSecPath"`// relative path from the directory containing the transportSec.json file
-    ServerCertOpt string `json:"serverCertOpt"`// one of  "NoClientCert"/"ClientCertNoVerification"/"ClientCertVerification"
-    ClientSecPath string `json:"clientSecPath"`// relative path from the directory containing the transportSec.json file
+	TransportSec  string `json:"transportSec"`  // "yes" or "no"
+	HttpSecPort   string `json:"httpSecPort"`   // HTTPS port number
+	WsSecPort     string `json:"wsSecPort"`     // WSS port number
+	MqttSecPort   string `json:"mqttSecPort"`   // MQTTS port number
+	AgtsSecPort   string `json:"agtsSecPort"`   // AGTS port number
+	AtsSecPort    string `json:"atsSecPort"`    // ATS port number
+	CaSecPath     string `json:"caSecPath"`     // relative path from the directory containing the transportSec.json file
+	ServerSecPath string `json:"serverSecPath"` // relative path from the directory containing the transportSec.json file
+	ServerCertOpt string `json:"serverCertOpt"` // one of  "NoClientCert"/"ClientCertNoVerification"/"ClientCertVerification"
+	ClientSecPath string `json:"clientSecPath"` // relative path from the directory containing the transportSec.json file
 }
-var secConfig SecConfig
+
+var SecureConfiguration SecConfig // name change to caps allowing to export outside utils
 
 type Compression int
 
 const (
-	NONE Compression = 0
-	PROPRIETARY      = 1
-	PB_LEVEL1        = 2  // path has string format, e. g. "Vehicle.Acceleration.Longitudinal"
-	PB_LEVEL2        = 3  // path is represented by integer index, retrieved from vsspathlist.json
+	NONE        Compression = 0
+	PROPRIETARY             = 1
+	PB_LEVEL1               = 2 // path has string format, e. g. "Vehicle.Acceleration.Longitudinal"
+	PB_LEVEL2               = 3 // path is represented by integer index, retrieved from vsspathlist.json
 )
 
 var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for app client HTTP sessions
 	http.NewServeMux(), // for app client WS sessions
 	http.NewServeMux(), // for history control HTTP sessions
-//	http.NewServeMux(), // for X transport sessions
+	//	http.NewServeMux(), // for X transport sessions
 }
 
 var Upgrader = websocket.Upgrader{
@@ -55,26 +56,26 @@ var Upgrader = websocket.Upgrader{
 
 // len of WsClientIndexList must match the number of select cases in wsMgr
 var WsClientIndexList = []bool{ // true = free to use, false = occupied by client; number of elements = max no of simultaneous WS sessions
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
+	true,
 }
 
 var HostIP string
@@ -104,4 +105,3 @@ type HttpServer struct {
 type WsServer struct {
 	ClientBackendChannel []chan string
 }
-

@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/w3c/automotive-viss2/utils"
 	MQTT "github.com/eclipse/paho.mqtt.golang"
-//	"github.com/gorilla/websocket"
+	"github.com/w3c/automotive-viss2/utils"
+	//	"github.com/gorilla/websocket"
 )
 
 var mqttChannel chan string
@@ -39,14 +39,14 @@ type TopicList struct {
 var topicList TopicList
 
 func vissV2Receiver(transportMgrChan chan string, vissv2Channel chan string) {
-//	defer dataConn.Close()
+	//	defer dataConn.Close()
 	for {
-/*		_, response, err := dataConn.ReadMessage() // receive message from server core
-		if err != nil {
-			utils.Error.Println("Datachannel read error:" + err.Error())
-			break
-		}*/
-		response := <- transportMgrChan
+		/*		_, response, err := dataConn.ReadMessage() // receive message from server core
+				if err != nil {
+					utils.Error.Println("Datachannel read error:" + err.Error())
+					break
+				}*/
+		response := <-transportMgrChan
 		utils.Info.Printf("MQTT mgr: Response from server core:%s\n", string(response))
 		vissv2Channel <- string(response) // send message to hub
 	}
@@ -165,18 +165,19 @@ func publishMessage(brokerSocket string, topic string, payload string) {
 }
 
 func getVissV2Topic(transportMgrChan chan string, mgrId int) string {
-	vinRequest := "{\"RouterId\":\"" + strconv.Itoa(mgrId) + `?0", "action":"get", "path":"Vehicle.VehicleIdentification.VIN", "requestId":"570415"}`
-/*	err := dataConn.WriteMessage(websocket.TextMessage, []byte(vinRequest))
-	if err != nil {
-		utils.Error.Println("Datachannel write error:" + err.Error())
-	}
-	_, response, err := dataConn.ReadMessage() // receive message from server core
-	if err != nil {
-		utils.Error.Println("Datachannel read error:" + err.Error())
-		os.Exit(1)
-	}*/
+	vinRequest := "{\"RouterId\":\"" + strconv.Itoa(mgrId) + `?0", "action":"get", 
+	"path":"Vehicle.VehicleIdentification.VIN", "requestId":"570415", "origin":"internal"}`
+	/*	err := dataConn.WriteMessage(websocket.TextMessage, []byte(vinRequest))
+		if err != nil {
+			utils.Error.Println("Datachannel write error:" + err.Error())
+		}
+		_, response, err := dataConn.ReadMessage() // receive message from server core
+		if err != nil {
+			utils.Error.Println("Datachannel read error:" + err.Error())
+			os.Exit(1)
+		}*/
 	transportMgrChan <- vinRequest
-	response := <- transportMgrChan
+	response := <-transportMgrChan
 	vin := extractVin(string(response))
 	utils.Info.Printf("VIN=%s", vin)
 	return "/" + vin + "/Vehicle"

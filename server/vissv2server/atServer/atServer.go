@@ -10,6 +10,7 @@ package atServer
 
 import (
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -148,7 +149,7 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 				http.Error(w, "400 request unreadable.", 400)
 			} else {
 				utils.Info.Printf("atServer:received POST request=%s", string(bodyBytes))
-				serverChannel <- string(bodyBytes)
+				serverChannel <- string(bodyBytes) // Sends request to server channel
 				response := <-serverChannel
 				utils.Info.Printf("atServer:POST response=%s", response)
 				if len(response) == 0 {
@@ -163,19 +164,37 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 	}
 }
 
+// Initializes the AT Server with the given port
 func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer(): :" + strconv.Itoa(PORT) + " /ats")
-	atServerHandler := makeAtServerHandler(serverChannel)
+	utils.Info.Printf("initAtServer(): Starting AT server")
+	utils.ReadTransportSecConfig()                        // loads the secure configuration file
+	atServerHandler := makeAtServerHandler(serverChannel) // Generates handlers for the AT server
 	muxServer.HandleFunc("/ats", atServerHandler)
-	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
+	// Initializes the AT Server depending on sec configuration
+	if utils.SecureConfiguration.TransportSec == "yes" {
+		server := http.Server{
+			Addr:    ":" + utils.SecureConfiguration.AtsSecPort,
+			Handler: muxServer,
+			TLSConfig: utils.GetTLSConfig("localhost", "../../../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),
+		}
+		utils.Info.Printf("initAtServer():Starting AT Server with TLS on %s/ats", utils.SecureConfiguration.AtsSecPort)
+		utils.Info.Printf("HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)
+		utils.Error.Fatal(server.ListenAndServeTLS("../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
+			"../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
+	} else { // No TLSmtvacuc14uma
+		utils.Info.Printf("initAtServer():Starting AT Server without TLS on %s/ats", PORT)
+		utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
+	}
 }
 
+// Generates response depending on the request received
 func generateResponse(input string) string {
-	if strings.Contains(input, "purpose") {
+	if strings.Contains(input, "purpose") { // Purpose request
 		return accessTokenResponse(input)
-	} else if strings.Contains(input, "context") {
+	} else if strings.Contains(input, "context") { // No scope request
 		return noScopeResponse(input)
-	} else {
+	} else { // AT validation request
 		return tokenValidationResponse(input)
 	}
 }
@@ -189,6 +208,7 @@ func getPathLen(path string) int {
 	return len(path)
 }
 
+// Receives a purpose, an action and a set of paths, returns an error code (0 ok)
 func validateRequestAccess(purpose string, action string, paths []string) int {
 	numOfPaths := len(paths)
 	var pathSubList []string
@@ -216,13 +236,15 @@ func validateRequestAccess(purpose string, action string, paths []string) int {
 	return 0
 }
 
+// Receives a purpose, action and path and checks if the access is allowed
+// Returns error code
 func validatePurposeAndAccessPermission(purpose string, action string, path string) int {
 	for i := 0; i < len(pList); i++ {
 		if pList[i].Short == purpose {
 			for j := 0; j < len(pList[i].Access); j++ {
 				if pList[i].Access[j].Path == path {
 					if action == "set" && pList[i].Access[j].Permission == "read-only" {
-						return -16
+						return 61
 					} else {
 						return 0
 					}
@@ -230,7 +252,7 @@ func validatePurposeAndAccessPermission(purpose string, action string, path stri
 			}
 		}
 	}
-	return -8
+	return 60
 }
 
 func matchingContext(index int, context string) bool { // identical to checkAuthorization(), using sList instead of pList
@@ -286,19 +308,21 @@ func noScopeResponse(input string) string {
 	return `{"no_access":` + res + `}`
 }
 
+// Validates an access token, returns validation message.
+// The only validation done is the one regading the Access Token List
 func tokenValidationResponse(input string) string {
 	var inputMap map[string]interface{}
 	err := json.Unmarshal([]byte(input), &inputMap)
 	if err != nil {
 		utils.Error.Printf("tokenValidationResponse:error input=%s", input)
-		return `{"validation":"-128"}`
+		return `{"validation":"1"}`
 	}
 	var atValidatePayload AtValidatePayload
 	extractAtValidatePayloadLevel1(inputMap, &atValidatePayload)
 	err = utils.VerifyTokenSignature(atValidatePayload.Token, theAtSecret)
 	if err != nil {
 		utils.Info.Printf("tokenValidationResponse:invalid signature, error= %s, token=%s", err, atValidatePayload.Token)
-		return `{"validation":"-2"}`
+		return `{"validation":"5"}`
 	}
 	purpose := utils.ExtractFromToken(atValidatePayload.Token, "scp")
 	res := validateRequestAccess(purpose, atValidatePayload.Action, atValidatePayload.Paths)
@@ -348,6 +372,7 @@ func extractAtValidatePayloadLevel2(pathList []interface{}, atValidatePayload *A
 	}
 }
 
+// Calls method to check a correct AT request. If all ok, calls AT generator and returns the AT
 func accessTokenResponse(input string) string {
 	var payload AtGenPayload
 	err := json.Unmarshal([]byte(input), &payload) // Unmarshalls the request
@@ -386,6 +411,7 @@ func validateTokenTimestamps(iat int, exp int) bool {
 	return true
 }
 
+// *** PURPOSE VALIDATION ***
 func validatePurpose(purpose string, context string) bool { // TODO: learn how to code to parse the purpose list, then use it to validate the purpose
 	for i := 0; i < len(pList); i++ {
 		//utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, pList[i].Short)
@@ -399,16 +425,17 @@ func validatePurpose(purpose string, context string) bool { // TODO: learn how t
 	return false
 }
 
+// Validates the purpose with the context of the client given an index of a purpose in the purpose list
 func checkAuthorization(index int, context string) bool {
 	//utils.Info.Printf("checkAuthorization:context=%s, len(pList[index].Context)=%d", context, len(pList[index].Context))
-	for i := 0; i < len(pList[index].Context); i++ {
+	for i := 0; i < len(pList[index].Context); i++ { // Iterates over the different contexts
 		actorValid := [3]bool{false, false, false}
 		//utils.Info.Printf("checkAuthorization:len(pList[index].Context[%d].Actor)=%d", i, len(pList[index].Context[i].Actor))
-		for j := 0; j < len(pList[index].Context[i].Actor); j++ {
+		for j := 0; j < len(pList[index].Context[i].Actor); j++ { // Iterates over the actors
 			if j > 2 {
-				return false // only three subactors supported
+				return false // Only three subactors supported
 			}
-			for k := 0; k < len(pList[index].Context[i].Actor[j].Role); k++ {
+			for k := 0; k < len(pList[index].Context[i].Actor[j].Role); k++ { // Iterates over the roles of the actors
 				//utils.Info.Printf("checkAuthorization:getActorRole(%d, context)=%s vs pList[index].Context[%d].Actor[%d].Role[%d])=%s", j, getActorRole(j, context), i, j, k, pList[index].Context[i].Actor[j].Role[k])
 				if getActorRole(j, context) == pList[index].Context[i].Actor[j].Role[k] {
 					actorValid[j] = true
@@ -423,6 +450,7 @@ func checkAuthorization(index int, context string) bool {
 	return false
 }
 
+// Returns the role of the actor in the context depending on the index (user, app, device)
 func getActorRole(actorIndex int, context string) string {
 	delimiter1 := strings.Index(context, "+")
 	if actorIndex == 0 {
@@ -435,26 +463,9 @@ func getActorRole(actorIndex int, context string) string {
 	return context[delimiter1+1+delimiter2+1:]
 }
 
-// func decodeTokenPayload(token string) string {
-// 	delim1 := strings.Index(token, ".")
-// 	delim2 := delim1 + 1 + strings.Index(token[delim1+1:], ".")
-// 	pload := token[delim1+1 : delim1+1+delim2]
-// 	payload, _ := base64.RawURLEncoding.DecodeString(pload)
-// 	//utils.Info.Printf("decodeTokenPayload:payload=%s", string(payload))
-// 	return string(payload)
-// }
+// *** END PURPOSE VALIDATION ***
 
-// func extractTokenPayload(token string) (AgToken, string) {
-// 	var agToken AgToken
-// 	tokenPayload := decodeTokenPayload(token)
-// 	err := json.Unmarshal([]byte(tokenPayload), &agToken)
-// 	if err != nil {
-// 		utils.Error.Printf("extractTokenPayload:token payload=%s, error=%s", tokenPayload, err)
-// 		return agToken, `{"error": "AG token malformed"}`
-// 	}
-// 	return agToken, ""
-// }
-
+// Checks vin is included in the list of valid vins: Not implemented
 func checkVin(vin string) bool {
 	if len(vin) == 0 {
 		return true // this can only happen if AG token does not contain VIN, which is OK according to spec

@@ -10,6 +10,7 @@ package main
 
 import (
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,10 +94,26 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 
 // Initializes the AGT Server to work on the port desired
 func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer(): :%s/agts", strconv.Itoa(PORT))
-	agtServerHandler := makeAgtServerHandler(serverChannel)
+	utils.Info.Printf("initAgtServer(): Starting AGT server")
+	utils.ReadTransportSecConfig()                          // loads the secure configuration file
+	agtServerHandler := makeAgtServerHandler(serverChannel) // Generates handlers for the AGT server
 	muxServer.HandleFunc("/agts", agtServerHandler)
-	utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
+	// Initializes the AGT Server depending on sec configuration
+	if utils.SecureConfiguration.TransportSec == "yes" {
+		server := http.Server{
+			Addr:    ":" + utils.SecureConfiguration.AgtsSecPort,
+			Handler: muxServer,
+			TLSConfig: utils.GetTLSConfig("localhost", "../../../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),
+		}
+		utils.Info.Printf("initAgtServer():Starting AGT Server with TLS on %s/agts", utils.SecureConfiguration.AgtsSecPort)
+		utils.Info.Printf("initAgtServer():HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)
+		utils.Error.Fatal(server.ListenAndServeTLS("../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
+			"../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
+	} else { // No TLS
+		utils.Info.Printf("initAgtServer():Starting AGT Server without TLS on %s/agts", PORT)
+		utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
+	}
 }
 
 // Load key from file, if not, creates new key file
