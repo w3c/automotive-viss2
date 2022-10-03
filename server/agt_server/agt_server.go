@@ -103,13 +103,13 @@ func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
 		server := http.Server{
 			Addr:    ":" + utils.SecureConfiguration.AgtsSecPort,
 			Handler: muxServer,
-			TLSConfig: utils.GetTLSConfig("localhost", "../../../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
+			TLSConfig: utils.GetTLSConfig("localhost", "../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
 				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),
 		}
 		utils.Info.Printf("initAgtServer():Starting AGT Server with TLS on %s/agts", utils.SecureConfiguration.AgtsSecPort)
 		utils.Info.Printf("initAgtServer():HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)
-		utils.Error.Fatal(server.ListenAndServeTLS("../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
-			"../../../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
+		utils.Error.Fatal(server.ListenAndServeTLS("../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
+			"../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
 	} else { // No TLS
 		utils.Info.Printf("initAgtServer():Starting AGT Server without TLS on %s/agts", PORT)
 		utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
