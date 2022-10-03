@@ -512,10 +512,10 @@ func compressIntValue(value []byte) []byte {
         compressedVal[2] = byte((intVal & 0xFF00)/256)
         compressedVal[3] = byte(intVal & 0x00FF)
         return compressedVal
-    } else if (intVal < 4294967296) {  // nuint32/uint32
+    } else if (uint32(intVal) <= 4294967296-1) {  // nuint32/uint32
         compressedVal := make([]byte, 5)
         compressedVal[0] = getCodeListIndex(getIntType(4, isPos))+128
-        compressedVal[1] = byte((intVal & 0xFF000000)/16777216)
+        compressedVal[1] = byte((uint32(intVal) & 0xFF000000)/16777216)
         compressedVal[2] = byte((intVal & 0xFF0000)/65536)
         compressedVal[3] = byte((intVal & 0xFF00)/256)
         compressedVal[4] = byte(intVal & 0x00FF)
