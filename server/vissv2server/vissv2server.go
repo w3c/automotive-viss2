@@ -883,6 +883,9 @@ func main() {
 		Handler:      router,
 	}
 
+	// Active wait for 3 seconds to allow the server to start
+	time.Sleep(3 * time.Second)
+
 	go func() {
 		utils.Info.Printf("Server is listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil {
