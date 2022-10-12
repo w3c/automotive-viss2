@@ -1,0 +1,3 @@
+
+{"transportSec" : "yes",  "httpSecPort": "8765", "wsSecPort": "", "mqttSecPort": "", "caSecPath": "ca/", "serverSecPath": "server/", "serverCertOpt": "ClientCertVerification", "clientSecPath": ""}
+

@@ -1,0 +1,4 @@
+{"request":[{"action":"subscribe","path":"Vehicle.Speed","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"248"},
+{"action":"subscribe","path":"Vehicle.LowVoltageSystemState","filter":{"type":"timebased","value":{"period":"3000"}},"requestId":"249"},
+{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","value":["CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","value":{"period":"3000"}}],"requestId":"250"}
+]}

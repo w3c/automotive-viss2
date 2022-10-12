@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/w3c/automotive-viss2/utils"
-	_ "github.com/mattn/go-sqlite3"
+//	_ "github.com/mattn/go-sqlite3"
 )
 
 type CLPack struct {

@@ -217,6 +217,7 @@ func (httpH HttpChannel) makeappClientHandler(appClientChannel []chan string) fu
 			Warning.Printf("Client call to incorrect port number for websocket connection.")
 			return
 		}
+Info.Printf("HTTP:URL=%s", req.URL)
 		frontendHttpAppSession(w, req, appClientChannel[0])
 	}
 }

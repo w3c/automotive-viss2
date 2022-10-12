@@ -1,0 +1,30 @@
+{"DataMap":[
+      {
+        "VssPath": "Vehicle.CurrentLocation.Latitude",
+        "CloudType": "GpsRecord",
+        "CloudKey": "Latitude"
+      },
+      {
+        "VssPath": "Vehicle.CurrentLocation.Longitude",
+        "CloudType": "GpsRecord",
+        "CloudKey": "Longitude"
+      },
+      {
+        "VssPath": "Vehicle.Speed",
+        "CloudType": "GenericStatusRecord",
+        "CloudKey": "Code",
+        "CloudValue": "2185"
+      },
+      {
+        "VssPath": "Vehicle.LowVoltageSystemState",
+        "CloudType": "GenericStatusRecord",
+        "CloudKey": "Code",
+        "CloudValue": "10000"
+      },
+      {
+        "VssPath": "Vehicle.VehicleIdentification.VIN",
+        "CloudType": "VinRecord",
+        "CloudKey": "VehicleIdentificationNumber"
+      }
+    ]
+}
