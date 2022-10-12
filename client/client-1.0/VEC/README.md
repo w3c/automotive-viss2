@@ -6,7 +6,7 @@ The VEC can be used in a tech stack configuration as shown in the figure below
 ![COVESA VE2CE architecture](COVESA-VE2CE-arch.jpg)<br>
 
 The VEC client is a client that if deployed in-vehicle will read the file vecRequests.json containing a list of VISSv2 requests that it will issue to the in-vehicle VISSv2 server,
-and then start to receive the responses, which will then be "pushed" to the Cloud Edge Client (CEC) over HTTP/HTTPS.<br>
+and then start to receive the responses, which will then be "pushed" to the Cloud Edge Server/Client (CESC) over HTTP/HTTPS.<br>
 The payload of the POST requests have the following JSON based format:<br>
 {"vin":"XXX","data":YYY}<br>
 where XXX is the vehicle identification that the VISSv2 server responds to on a request for the VSS path "Vehicle.VehicleIdentification.VIN", 
