@@ -826,6 +826,7 @@ func initEnvParams(target string) {
 		histCtrlSocketFile = "histctrlserver.sock"
 		redisSocketFile = "redisDB.sock"
 		trSecConfigPath = "transport_sec/"
+		defaultLogFile = "log-server.txt"
 	} else {
 		defaultPathListFileName = "../vsspathlist.json"
 		defaultStateStorageFileName = "serviceMgr/statestorage.db"
@@ -835,6 +836,7 @@ func initEnvParams(target string) {
 		histCtrlSocketFile = "histctrlserver.sock"
 		redisSocketFile = "redisDB.sock"
 		trSecConfigPath = "../transport_sec/"
+		defaultLogFile = "log.txt"
 	}
 }
 
@@ -846,39 +848,59 @@ var defaultLogPath string
 var histCtrlSocketFile string
 var redisSocketFile string
 var trSecConfigPath string
+var defaultLogFile string
 
 func main() {
-	// Create new parser object
-	parser := argparse.NewParser("print", "VISSv2 Server")
-	// Create string flag
-	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in defaultLogPath folder", Default:true})
-	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
-		Required: false,
-		Help:     "changes log output level",
-		Default:  "info"})
-	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
-	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
+	var logFile *bool
+	logFileValue := true
+	var logLevel *string
+	logLevelValue := "error"
+	var target *string
+	targetValue := "ecu"
+	var stateDB *string
+	stateDBValue := "sqlite"
+	var dryRun *bool
+	dryRunValue := false
+
+	if len(os.Args) > 1 && os.Args[1] == "-groupName" { // this command argument is added by the ECU system at app startup
+		logFile = &logFileValue
+		logLevel = &logLevelValue
+		target = &targetValue
+		stateDB = &stateDBValue
+		dryRun = &dryRunValue
+	} else {
+		// Create new parser object
+		parser := argparse.NewParser("print", "VISSv2 Server")
+		// Create string flag
+		logFile = parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in defaultLogPath folder", Default:true})
+		logLevel = parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+			Required: false,
+			Help:     "changes log output level",
+			Default:  "info"})
+		dryRun = parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
+		stateDB = parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false, 
 	                        Help: "Statestorage must be either sqlite, redis, or none", Default:"sqlite"})
-	target := parser.Selector("t", "target", []string{"ubuntu", "ecu"}, &argparse.Options{Required: false, 
+		target = parser.Selector("t", "target", []string{"ubuntu", "ecu"}, &argparse.Options{Required: false, 
 	                        Help: "Target must be either ubuntu, or ecu", Default:"ubuntu"})
 
-	// Parse input
-	err := parser.Parse(os.Args)
-	if err != nil {
-		fmt.Print(parser.Usage(err))
+		// Parse input
+		err := parser.Parse(os.Args)
+		if err != nil {
+			fmt.Print(parser.Usage(err))
+		}
 	}
 	
 	initEnvParams(*target)
 
-	utils.InitLog("log.txt", defaultLogPath, *logFile, *logLevel)
+	utils.InitLog(defaultLogFile, defaultLogPath, *logFile, *logLevel)
 
 	if !initVssFile(defaultVssBinaryFileName) {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
 
-	createPathListFile(defaultPathListFileName)
 	if *dryRun {
+		createPathListFile(defaultPathListFileName)
 		time.Sleep(2000 * time.Millisecond)
 		utils.Info.Printf("%s created. Server terminates.", defaultPathListFileName)
 		return

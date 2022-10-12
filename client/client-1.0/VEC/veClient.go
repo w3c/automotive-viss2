@@ -187,7 +187,8 @@ func sendCescRequest(payload []byte) {
 	}
 }
 
-func getVinId(conn *websocket.Conn) { // response is received in receiveNotifications()
+func requestVinId(conn *websocket.Conn) { // response is received in receiveNotifications()
+	vinId = "Data-not-available"
 	request := `{"action":"get", "path":"Vehicle.VehicleIdentification.VIN", "requestId": "666"}`
 
 	err := conn.WriteMessage(websocket.TextMessage, []byte(request))
@@ -199,8 +200,10 @@ func getVinId(conn *websocket.Conn) { // response is received in receiveNotifica
 func initDataTransfer(dataChannel chan string, requestList []string) {
 	conn := initVissV2WebSocket()
 	go receiveNotifications(conn, dataChannel)
-	getVinId(conn)
-	time.Sleep(2 * time.Second)  // to minimize risk of SQL_BUSY for VIN id
+	requestVinId(conn)
+	for vinId == "Data-not-available" {
+		time.Sleep(10 * time.Second)
+	}
 	subscribeToPaths(conn, requestList)
 }
 
@@ -242,9 +245,13 @@ func receiveNotifications(conn *websocket.Conn, dataChannel chan string) {
 		message := string(msg)
 		if strings.Contains(message, "\"subscribe\"") {
 //			utils.Info.Printf("Subscription response:%s", message)
-		} else if strings.Contains(message, "\"get\"") {
+		} else if strings.Contains(message, "\"get\"") && strings.Contains(message, "\"Vehicle.VehicleIdentification.VIN\"") {
 			vinId = extractValue(message)
 			utils.Info.Printf("VIN Id=%s, message=%s", vinId, message)
+			if vinId == "Data-not-available" {  // check for other errors?
+				requestVinId(conn)
+				time.Sleep(10 * time.Second)
+			}
 		} else {
 			utils.Info.Printf("Notification=%s", message)
 			dataChannel <- message
@@ -277,29 +284,45 @@ func subscribeToPath(conn *websocket.Conn, request string) {
 }
 
 func main() {
-	// Create new parser object
-	parser := argparse.NewParser("print", "VEC client")
-	// Create string flag
-	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
-	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
-		Required: false,
-		Help:     "changes log output level",
-		Default:  "info"})
-	url_cec := parser.String("u", "cecUrl", &argparse.Options{Required: false, Help: "IP/URL to CEC cloud end point", Default:  "128.30.54.132"}) //IP addr of puppis.w3.org
-//	url_cec := parser.String("u", "cecUrl", &argparse.Options{Required: false, Help: "IP/URL to CEC cloud end point", Default:  "puppis.w3.org"})
-	url_viss := parser.String("w", "vissv2Url", &argparse.Options{Required: false, Help: "IP/URL to W3C VISS v2 server", Default:  "127.0.0.1"})
+	var logFile *bool
+	logFileValue := true
+	var logLevel *string
+	logLevelValue := "error"
+	var url_cec *string
+	url_cecValue := "128.30.54.132"
+	var url_viss *string
+	url_vissValue := "127.0.0.1"
 
-	// Parse input
-	err := parser.Parse(os.Args)
-	if err != nil {
-		utils.Error.Print(parser.Usage(err))
-		os.Exit(1)
+	if len(os.Args) > 1 && os.Args[1] == "-groupName" { // this command argument is added by the ECU system at app startup
+		logFile = &logFileValue
+		logLevel = &logLevelValue
+		url_cec = &url_cecValue
+		url_viss = &url_vissValue
+	} else {
+		// Create new parser object
+		parser := argparse.NewParser("print", "VEC client")
+		// Create string flag
+		logFile = parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+		logLevel = parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+			Required: false,
+			Help:     "changes log output level",
+			Default:  "error"})
+		url_cec = parser.String("u", "cecUrl", &argparse.Options{Required: false, Help: "IP/URL to CEC cloud end point", Default:  "128.30.54.132"}) //IP addr of puppis.w3.org
+//		url_cec = parser.String("u", "cecUrl", &argparse.Options{Required: false, Help: "IP/URL to CEC cloud end point", Default:  "puppis.w3.org"})
+		url_viss = parser.String("w", "vissv2Url", &argparse.Options{Required: false, Help: "IP/URL to W3C VISS v2 server", Default:  "127.0.0.1"})
+
+		// Parse input
+		err := parser.Parse(os.Args)
+		if err != nil {
+			utils.Error.Print(parser.Usage(err))
+			os.Exit(1)
+		}
 	}
 
 	cecUrl = *url_cec
 	vissv2Url = *url_viss
 
-	utils.InitLog("VEC-client.txt", "./logs", *logFile, *logLevel)
+	utils.InitLog("log-veclient.txt", "", *logFile, *logLevel)
 
 	dataChannel := make(chan string)
 	readTransportSecConfig()
