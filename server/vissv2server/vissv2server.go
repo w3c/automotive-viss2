@@ -711,7 +711,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		anyDepth := true
 		validation := -1
 		matches, searchData = searchTree(VSSTreeRoot, searchPath[i], anyDepth, true, 0, nil, &validation)
-		//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
+//utils.Info.Printf("Path=%s, Matches=%d. Max validation from search=%d", searchPath[i], matches, int(validation))
 		utils.Info.Printf("Matches=%d. Max validation from search=%d", matches, int(validation))
 		for i := 0; i < matches; i++ {
 			pathLen := getPathLen(string(searchData[i].NodePath[:]))
@@ -733,7 +733,9 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		return
 	}
 	paths = paths[:len(paths)-2]
-	if totalMatches > 1 {
+	if totalMatches == 1 {
+		paths = paths[1:len(paths)-1]  // remove hyphens
+	} else if totalMatches > 1 {
 		paths = "[" + paths + "]"
 	}
 	switch maxValidation {
