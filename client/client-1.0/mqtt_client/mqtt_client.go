@@ -94,7 +94,7 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	utils.TransportErrorMessage = "MQTT client-finalizeResponse: JSON encode failed.\n"
+//	utils.TransportErrorMessage = "MQTT client-finalizeResponse: JSON encode failed.\n"
 	utils.InitLog("mqtt-client-log.txt", "./logs", *logFile, *logLevel)
 
 	brokerSocket := getBrokerSocket(false)
