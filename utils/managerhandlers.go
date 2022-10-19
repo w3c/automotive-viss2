@@ -315,6 +315,8 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux, httpClientCh
 func (server WsServer) InitClientServer(muxServer *http.ServeMux, wsClientChan []chan string, mgrIndex int, clientIndex *int) {
 	*clientIndex = 0
 	appClientHandler := WsChannel{server.ClientBackendChannel, mgrIndex, clientIndex}.makeappClientHandler(wsClientChan) // Generates a handler for the requests
+	// For the web client
+	muxServer.HandleFunc("/webclient/", http.StripPrefix("/webclient/", http.FileServer(http.Dir("../../viss-web-client"))).ServeHTTP)
 	muxServer.HandleFunc("/", appClientHandler)
 	Info.Printf("InitClientServer():SecureConfiguration.TransportSec=%s", SecureConfiguration.TransportSec)
 	if SecureConfiguration.TransportSec == "yes" { // In  case a secure connection is used
