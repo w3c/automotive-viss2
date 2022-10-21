@@ -157,6 +157,7 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 }
 
 func FinalizeMessage(responseMap map[string]interface{}) string {
+	delete(responseMap, "origin")
 	response, err := json.Marshal(responseMap)
 	if err != nil {
 		Error.Print("Server core-FinalizeMessage: JSON encode failed. ", err)
