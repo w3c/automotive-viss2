@@ -369,7 +369,7 @@ func jsonifyTreeNode(nodeHandle *gomodel.Node_t, jsonBuffer string, depth int, m
 	case 3: // attribute
 		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := golib.VSSgetDatatype(nodeHandle)
-		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(int(nodeDatatype)) + `",`
+		newJsonBuffer += `"datatype":` + `"` + nodeDataTypesToString(int(nodeDatatype)) + `",`
 	default:
 		return ""
 
