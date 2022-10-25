@@ -399,7 +399,7 @@ func jsonifyTreeNode(nodeHandle *gomodel.Node_t, jsonBuffer string, depth int, m
 	case 3: // attribute
 		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := golib.VSSgetDatatype(nodeHandle)
-		newJsonBuffer += `"datatype:"` + `"` + nodeDataTypesToString(int(nodeDatatype)) + `",`
+		newJsonBuffer += `"datatype":` + `"` + nodeDataTypesToString(int(nodeDatatype)) + `",`
 	default:
 		return ""
 
@@ -505,6 +505,7 @@ func extractNoScopeElementsLevel2(noScopeMap []interface{}) ([]string, int) {
 	return noScopeList, i
 }
 
+// Gets node and childs data as string from VSS tree
 func synthesizeJsonTree(path string, depth int, tokenContext string) string {
 	var jsonBuffer string
 	var searchData []golib.SearchData_t
@@ -681,14 +682,17 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	rootPath := requestMap["path"].(string)
 	var searchPath []string
 
+	// Manages Filter Request
 	if requestMap["filter"] != nil {
-		var filterList []utils.FilterObject
+		var filterList []utils.FilterObject // type + value
 		utils.UnpackFilter(requestMap["filter"], &filterList)
+		// Iterates all the filters
 		for i := 0; i < len(filterList); i++ {
 			utils.Info.Printf("filterList[%d].Type=%s, filterList[%d].Value=%s", i, filterList[i].Type, i, filterList[i].Value)
+			// PATH FILTER
 			if filterList[i].Type == "paths" {
-				if strings.Contains(filterList[i].Value, "[") {
-					err := json.Unmarshal([]byte(filterList[i].Value), &searchPath)
+				if strings.Contains(filterList[i].Value, "[") { // Various paths to search
+					err := json.Unmarshal([]byte(filterList[i].Value), &searchPath) // Writes in search path all values in filter
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
 						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
@@ -696,21 +700,23 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 						return
 					}
 					for i := 0; i < len(searchPath); i++ {
-						searchPath[i] = rootPath + "." + utils.UrlToPath(searchPath[i]) // replace slash with dot
+						searchPath[i] = rootPath + "." + utils.UrlToPath(searchPath[i]) // replaces slash with dot
 					}
-				} else {
+				} else { // Single path to search
 					searchPath = make([]string, 1)
-					searchPath[0] = rootPath + "." + filterList[i].Value
+					searchPath[0] = rootPath + "." + utils.UrlToPath(filterList[i].Value) // replaces slash with dot
 				}
 				break // only one paths object is allowed
 			}
+
+			// STATIC METADATA FILTER
 			if filterList[i].Type == "static-metadata" {
-				tokenContext := getTokenContext(requestMap)
+				tokenContext := getTokenContext(requestMap) // Gets the client context from the token in the request
 				if len(tokenContext) == 0 {
 					tokenContext = "Undefined+Undefined+Undefined"
 				}
 				metadata := ""
-				metadata = synthesizeJsonTree(requestMap["path"].(string), 0, tokenContext) // TODO: depth setting via filtering?
+				metadata = synthesizeJsonTree(requestMap["path"].(string), 2, tokenContext) // TODO: depth setting via filtering?
 				if len(metadata) > 0 {
 					delete(requestMap, "path")
 					delete(requestMap, "filter")
@@ -723,6 +729,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
+			// DYNAMIC METADATA FILTER
 			if filterList[i].Type == "dynamic-metadata" && filterList[i].Value == "server_capabilities" {
 				serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // no further verification
 				return
@@ -764,7 +771,9 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		return
 	}
 	paths = paths[:len(paths)-2]
-	if totalMatches > 1 {
+	if totalMatches == 1 {
+		paths = paths[1:len(paths)-1]  // remove hyphens
+	} else if totalMatches > 1 {
 		paths = "[" + paths + "]"
 	}
 
