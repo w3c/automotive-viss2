@@ -145,35 +145,35 @@
             "signal_access": [
                 {
                     "path": "Vehicle.Cabin.Door.Row1.Left.IsOpen",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path":"Vehicle.Cabin.Door.Row1.Right.IsOpen",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path": "Vehicle.Cabin.Door.Row2.Left.IsOpen",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path":"Vehicle.Cabin.Door.Row2.Right.IsOpen",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path": "Vehicle.Cabin.Door.Row1.Left.IsLocked",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path":"Vehicle.Cabin.Door.Row1.Right.IsLocked",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path": "Vehicle.Cabin.Door.Row2.Left.IsLocked",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 },
                 {
                     "path":"Vehicle.Cabin.Door.Row2.Right.IsLocked",
-                    "access_mode": "read-only"
+                    "access_mode": "read-write"
                 }
             ]
         }
