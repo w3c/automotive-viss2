@@ -574,7 +574,7 @@ func unpackPaths(paths string) []string {
 		}
 	} else {
 		pathArray = make([]string, 1)
-		pathArray[0] = paths[1 : len(paths)-1]
+		pathArray[0] = paths[:]
 	}
 	return pathArray
 }
