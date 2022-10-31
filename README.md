@@ -144,6 +144,16 @@ Significant deviations should be documented in the README.md file.
 # 2. client
 The client directories has as a prime target testing of the server implementations. The local README.md file should provide information about client scope and usage.
 
+A client implementation developed by @nicslabdev is included as a submodule of the repository.
+In order to use it, the content of the submodule must be initialized using git:
+```
+$ git submodule init
+$ git submodule update
+```
+This client can be accessed using any Web Browser. The WebClient can be accessed using HTML in the same port that WebSocket requests are served on. By default: 8080.
+
+More information about how to use the WebClient can be found in the WebClient [README](https://github.com/nicslabdev/viss-web-client/blob/main/README.md) file.
+
 # Development Process
 
 We will follow a simple process where work packages are create as issues labeled as an implementation issue. The name of the issue is also the name of the branch which is used for implementation. A pull request is created when the task is finished to push the changes to the main branch.
@@ -232,6 +242,7 @@ The access control model in the W3C VISS v2 specification is supported, with the
 The implementation would not pass a security check, for eample the shared key for token signature verification is hardcoded with a redable text as value. 
 The access control model architecture is shown below.
 ![Access control architecture](pics/W3C_VISS_v2_access_control_model.png?raw=true)
+More information about how the Access Control is performed can be found in the agt_server and at_server README. The WebClient README also includes information about how the Access Control is performed.
 The README in the client/client-1.0/Javascript directory describes the requests a client must issue first to the Access Grant Token server, 
 and then to the Access Token server in order to obtain an Access token.<br>
 HTML client implementations for respective access can also be found in the directory.
