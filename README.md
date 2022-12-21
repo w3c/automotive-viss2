@@ -135,6 +135,22 @@ $ docker volume inspect w3c_vehiclesignalinterfaceimpl_logdata
 
 ```
 
+# Web Client Integration
+A Web Client written in JS developed by <a href="https://www.nics.uma.es/">NICS Lab</a> is integrated for testing purposes. It supports AGT, AT and VISS requests. It is also able to generate and store Cryptographic Keys that can be used in the Long Term flow and provides a storage and visualizer for Tokens received. 
+
+The WebSocket Handler serves the web client in the URL /webclient. Because of that, it can be accessed in any Web Browser supporting the used libraries in: htt<span>p://viss-server-url:websocket-port/webclient.  
+
+More information about the Web Client can be found in https://github.com/nicslabdev/viss-web-client.
+
+Since the Web Client is included as a submodule, in order to use it, submodules in the project must be initialized:
+```
+    $ git submodule init
+    $ git submodule update
+```
+The version of the Web Client used is the latest tested. In order to use the latest version of the Web Client avaliable on github, the flag remote must be used to fetch and ensure that the latest commit of the <a href="https://github.com/nicslabdev/viss-web-client">Web Client repository </a> is used.
+```
+    $ git submodule update --recursive --remote
+```
 
 # 1. server
 
