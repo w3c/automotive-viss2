@@ -135,7 +135,16 @@ $ docker volume inspect w3c_vehiclesignalinterfaceimpl_logdata
 
 ```
 
-# Web Client Integration
+
+# 1. server
+
+The server directories contain an implementation of a server acording to the W3C W3C VISS v2 spec, and should align with the project common software architecture, see below. 
+Significant deviations should be documented in the README.md file.
+
+# 2. client
+The client directories has as a prime target testing of the server implementations. The local README.md file should provide information about client scope and usage.
+
+## Web Client Integration
 A Web Client written in JS developed by <a href="https://www.nics.uma.es/">NICS Lab</a> is integrated for testing purposes. It supports AGT, AT and VISS requests. It is also able to generate and store Cryptographic Keys that can be used in the Long Term flow and provides a storage and visualizer for Tokens received. 
 
 The WebSocket Handler serves the web client in the URL /webclient. Because of that, it can be accessed in any Web Browser supporting the used libraries in: htt<span>p://viss-server-url:websocket-port/webclient.  
@@ -152,23 +161,7 @@ The version of the Web Client used is the latest tested. In order to use the lat
     $ git submodule update --recursive --remote
 ```
 
-# 1. server
-
-The server directories contain an implementation of a server acording to the W3C W3C VISS v2 spec, and should align with the project common software architecture, see below. 
-Significant deviations should be documented in the README.md file.
-
-# 2. client
-The client directories has as a prime target testing of the server implementations. The local README.md file should provide information about client scope and usage.
-
-A client implementation developed by @nicslabdev is included as a submodule of the repository.
-In order to use it, the content of the submodule must be initialized using git:
-```
-$ git submodule init
-$ git submodule update
-```
-This client can be accessed using any Web Browser. The WebClient can be accessed using HTML in the same port that WebSocket requests are served on. By default: 8080.
-
-More information about how to use the WebClient can be found in the WebClient [README](https://github.com/nicslabdev/viss-web-client/blob/main/README.md) file.
+The client can also be accessed in "https://nicslabdev.github.io/viss-web-client/". In order to use the web client provided in that link, CORS policies in the VISS server should be configured to allow requests from that URL.
 
 # Development Process
 
