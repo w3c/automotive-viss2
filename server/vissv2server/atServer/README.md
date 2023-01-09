@@ -12,7 +12,7 @@ The first task is supported by the ATS through that it exposes a service to clie
 - MQTT
 
 
-## HTTP Requests
+## HTTP AT Requests
  
 A client using HTTP shall issue a POST message with the path "/ats", on the port number 8600.
 
@@ -39,7 +39,7 @@ POST /ats HTTP/1.1
 }
 ```
 
-## MQTT Requests
+## MQTT AT Requests
 
 A client using the MQTT transport must apply the application level protocol which is described in the <a  href="https://github.com/MEAE-GOT/WAII/tree/master/server/mqtt_mgr">MQTT manager directory</a>, with the difference that the ATS is subscribing to the following topic:
 
@@ -47,7 +47,7 @@ VIN/access-control
 
 > Note: Not developed yet.
 
-## Request Validation
+## AT Request Validation
 An AT Request must contains the following claims that must be validated:
 
 - **Purpose**: It must be on the Purposelist file holded by the AT server. The purpose represents a set of signals that a client can access and its permissions.
@@ -59,3 +59,53 @@ An AT Request must contains the following claims that must be validated:
 	- Public Key: Included in case of long term. Must match the key in the Proof of Possession.
 	- Token Signature: The AGT must be signed by the AGT Server.
 - **Proof of Possession**: The proof of possession must match the public key in the AGT received. The PoP token must be valid.
+
+## Token Validation
+
+The VISS Server can send requests to the Access Token Server in order to validate Access Tokens using HTTP. The POST message has the following structure:
+
+```
+POST /ats HTTP/1.1
+...
+
+{
+	"Action":"read",
+	"Token":"eyJhbGciON . . . J4OjAKsltT7x"
+	"Paths":"Vehicle.Speed"
+}
+```
+
+
+The Access Token Server will reply to the request telling if the Access Token received is valid or not. In case it is valid, the code 0 is included in the response:
+
+```
+{
+	"validation":"1"
+}
+```
+
+In case it is not valid, a set of error codes has been defined:
+
+#### 1 - 4: Syntax error codes
+	- 1: AT is not valid: Wrong format: can not be decoded or unmarshalled.
+	- 2: AT not included in the request.
+#### 5 - 9: Signature error codes
+	- 5: Invalid Signature.
+	- 6: Invalid Signature Algorithm.
+#### 10 - 19: Time Claim error codes
+	- 10: Invalid IAT claim. Syntax error.
+	- 11: Invalid IAT claim. Future time not allowed.
+	- 15: Invalid EXP claim. Syntax error.
+	- 16: Invalid EXP claim. Token expired.
+#### 20-29 Claim error codes
+	- 20: Invalid aud claim.
+	- 21: Invalid context.
+#### 30-39 Revocation error codes
+ 	- 30: Invalid jti: token revoked. 
+#### 40-59 Internal Errors
+	- 40: Internal error: no connection with AT
+	- 41: Internal error: fail reading AT response
+	- 42: Internal error: fail generating AT validation request
+#### 60-69 Permission Errors
+	- 60: Permission error: no access allowed with that purpose
+	- 61: Permission error: read-only access trying to write
