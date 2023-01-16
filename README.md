@@ -74,7 +74,7 @@ The components mentioned above that together realizes the server is available in
 - Components are built and deployed as threads within one common process/binary, and communicate using Go channels.<br>
 
 These implementations are found at the branches multi-process and single-process, respectively. 
-The master branch is currently identical to the multi-process branch.
+The master branch is currently identical to the single-process branch.
 
 ### Using Docker-Compose to launch a W3CServer instance
 
@@ -143,6 +143,25 @@ Significant deviations should be documented in the README.md file.
 
 # 2. client
 The client directories has as a prime target testing of the server implementations. The local README.md file should provide information about client scope and usage.
+
+## Web Client Integration
+A Web Client written in JS developed by <a href="https://www.nics.uma.es/">NICS Lab</a> is integrated for testing purposes. It supports AGT, AT and VISS requests. It is also able to generate and store Cryptographic Keys that can be used in the Long Term flow and provides a storage and visualizer for Tokens received. 
+
+The WebSocket Handler serves the web client in the URL /webclient. Because of that, it can be accessed in any Web Browser supporting the used libraries in: htt<span>p://viss-server-url:websocket-port/webclient.  
+
+More information about the Web Client can be found in https://github.com/nicslabdev/viss-web-client.
+
+Since the Web Client is included as a submodule, in order to use it, submodules in the project must be initialized:
+```
+    $ git submodule init
+    $ git submodule update
+```
+The version of the Web Client used is the latest tested. In order to use the latest version of the Web Client avaliable on github, the flag remote must be used to fetch and ensure that the latest commit of the <a href="https://github.com/nicslabdev/viss-web-client">Web Client repository </a> is used.
+```
+    $ git submodule update --recursive --remote
+```
+
+The client can also be accessed in "https://nicslabdev.github.io/viss-web-client/". In order to use the web client provided in that link, CORS policies in the VISS server should be configured to allow requests from that URL.
 
 # Development Process
 
@@ -232,6 +251,7 @@ The access control model in the W3C VISS v2 specification is supported, with the
 The implementation would not pass a security check, for eample the shared key for token signature verification is hardcoded with a redable text as value. 
 The access control model architecture is shown below.
 ![Access control architecture](pics/W3C_VISS_v2_access_control_model.png?raw=true)
+More information about how the Access Control is performed can be found in the agt_server and at_server README. The WebClient README also includes information about how the Access Control is performed.
 The README in the client/client-1.0/Javascript directory describes the requests a client must issue first to the Access Grant Token server, 
 and then to the Access Token server in order to obtain an Access token.<br>
 HTML client implementations for respective access can also be found in the directory.

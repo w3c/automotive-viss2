@@ -23,9 +23,9 @@ import (
 
 	"time"
 
-	"github.com/w3c/automotive-viss2/utils"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/go-redis/redis"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/w3c/automotive-viss2/utils"
 )
 
 type RegRequest struct {
@@ -74,20 +74,20 @@ var dummyValue int // dummy value returned when nothing better is available. Cou
 
 func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
-	  select {
-	    case request := <- serviceMgrChan:
-	      utils.Info.Printf("Service mgr request: %s", request)
+		select {
+		case request := <-serviceMgrChan:
+			utils.Info.Printf("Service mgr request: %s", request)
 
-	      clientChannel <- request // forward to mgr hub,
-	      if (strings.Contains(request, "internal-killsubscriptions") == false) { // no response on kill sub
-	          response := <-clientChannel   //  and wait for response
-	          utils.Info.Printf("Service mgr response: %s", response)
-	          serviceMgrChan <- response
-	      }
-	    case notification := <- backendChannel:  // notification
-	      utils.Info.Printf("Service mgr notification: %s", notification)
-	      serviceMgrChan <- notification
-	  }
+			clientChannel <- request                                              // forward to mgr hub,
+			if strings.Contains(request, "internal-killsubscriptions") == false { // no response on kill sub
+				response := <-clientChannel //  and wait for response
+				utils.Info.Printf("Service mgr response: %s", response)
+				serviceMgrChan <- response
+			}
+		case notification := <-backendChannel: // notification
+			utils.Info.Printf("Service mgr notification: %s", notification)
+			serviceMgrChan <- notification
+		}
 	}
 }
 
@@ -175,7 +175,7 @@ func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint str
 			continue
 		}
 		if filterList[i].Type == "range" {
-			return evaluateRangeFilter(filterList[i].Value, getDPValue(currentDataPoint)), false   // do not update latestValue
+			return evaluateRangeFilter(filterList[i].Value, getDPValue(currentDataPoint)), false // do not update latestValue
 		}
 		if filterList[i].Type == "change" {
 			return evaluateChangeFilter(filterList[i].Value, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
@@ -228,7 +228,7 @@ func evaluateRangeFilter(opValue string, currentValue string) bool {
 	}
 	evaluation := true
 	for i := 0; i < len(rangeFilter); i++ {
-		eval,_ := compareValues(rangeFilter[i].LogicOp, rangeFilter[i].Boundary, currentValue, "0") // currVal - 0 logic-op boundary
+		eval, _ := compareValues(rangeFilter[i].LogicOp, rangeFilter[i].Boundary, currentValue, "0") // currVal - 0 logic-op boundary
 		evaluation = evaluation && eval
 	}
 	return evaluation
@@ -260,18 +260,18 @@ func compareValues(logicOp string, latestValue string, currentValue string, diff
 		fallthrough // string
 	case 2: // bool
 		if diff != "0" {
-		    utils.Error.Printf("compareValues: invalid parameter for boolean type")
-		    return false, false
+			utils.Error.Printf("compareValues: invalid parameter for boolean type")
+			return false, false
 		}
 		switch logicOp {
 		case "eq":
 			return currentValue == latestValue, true
 		case "ne":
-			return currentValue != latestValue, true  // true->false OR false->true
+			return currentValue != latestValue, true // true->false OR false->true
 		case "gt":
-			return latestValue == "false" && currentValue != latestValue, true  // false->true
+			return latestValue == "false" && currentValue != latestValue, true // false->true
 		case "lt":
-			return latestValue == "true" && currentValue != latestValue, true  // true->false
+			return latestValue == "true" && currentValue != latestValue, true // true->false
 		}
 		return false, false
 	case 1: // int
@@ -349,7 +349,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 	subscriptionMap["ts"] = utils.GetRfcTime()
 	select {
 	case subscriptionId := <-subscriptionChannel: // interval notification triggered
-//utils.Info.Printf("checkSubscription():interval triggered, subscriptionId=%d", subscriptionId)
+		//utils.Info.Printf("checkSubscription():interval triggered, subscriptionId=%d", subscriptionId)
 		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
 		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
 		subscriptionMap["RouterId"] = subscriptionState.RouterId
@@ -371,7 +371,7 @@ func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backend
 			triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
 			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
 			if updateLatest == true {
-			    subscriptionList[i].LatestDataPoint = triggerDataPoint
+				subscriptionList[i].LatestDataPoint = triggerDataPoint
 			}
 			if doTrigger == true {
 				subscriptionState := subscriptionList[i]
@@ -482,8 +482,8 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 
 func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 	switch stateDbType {
-	    case "sqlite":
-	    
+	case "sqlite":
+
 		rows, err := dbHandle.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
 		if err != nil {
 			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -495,39 +495,39 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		rows.Next()
 		err = rows.Scan(&value, &timestamp)
 		if err != nil {
-			utils.Warning.Printf("Data not found.\n")
-//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+			utils.Warning.Printf("Data not found: %s\n", err)
+			//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 			return `{"value":"Data-not-available", "ts":"` + utils.GetRfcTime() + `"}`
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
-	    case "redis":
+	case "redis":
 		dp, err := redisClient.Get(path).Result()
 		if err != nil {
-		    if err.Error() != "redis: nil" {
-			utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
-			return ""
-		    } else {
-			utils.Warning.Printf("Data not found.\n")
-//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
-			return `{"value":"Database-error", "ts":"` + utils.GetRfcTime() + `"}`
-		    }
+			if err.Error() != "redis: nil" {
+				utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
+				return ""
+			} else {
+				utils.Warning.Printf("Data not found.\n")
+				//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+				return `{"value":"Database-error", "ts":"` + utils.GetRfcTime() + `"}`
+			}
 		} else {
-//		    utils.Info.Printf("Datapoint=%s\n", dp)
-		    type RedisDp struct {
-			Val string
-			Ts string
-		    }
-		    var currentDp RedisDp
-		    err := json.Unmarshal([]byte(dp), &currentDp)
-		    if err != nil {
-			utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
-			return ""
-		    } else {
-//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
-			return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
-		    }
+			//		    utils.Info.Printf("Datapoint=%s\n", dp)
+			type RedisDp struct {
+				Val string
+				Ts  string
+			}
+			var currentDp RedisDp
+			err := json.Unmarshal([]byte(dp), &currentDp)
+			if err != nil {
+				utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
+				return ""
+			} else {
+				//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
+				return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
+			}
 		}
-	    case "none":
+	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 	}
 	return ""
@@ -536,7 +536,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 func setVehicleData(path string, value string) string {
 	ts := utils.GetRfcTime()
 	switch stateDbType {
-	    case "sqlite":
+	case "sqlite":
 		stmt, err := dbHandle.Prepare("UPDATE VSS_MAP SET d_value=?, d_ts=? WHERE `path`=?")
 		if err != nil {
 			utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
@@ -550,16 +550,16 @@ func setVehicleData(path string, value string) string {
 			return ""
 		}
 		return ts
-	    case "redis":
+	case "redis":
 		dp := `{"val":"` + value + `", "ts":"` + ts + `"}`
-		dPath := path + ".D"  // path to "desired" dp. Must be created identically by feeder reading it.
+		dPath := path + ".D" // path to "desired" dp. Must be created identically by feeder reading it.
 		err := redisClient.Set(dPath, dp, time.Duration(0)).Err()
 		if err != nil {
-		    utils.Error.Printf("Could not update statestorage. Err=%s\n",err)
-		    return ""
+			utils.Error.Printf("Could not update statestorage. Err=%s\n", err)
+			return ""
 		} else {
-//		    utils.Error.Println("Datapoint=%s\n", dp)
-		    return ts
+			//		    utils.Error.Println("Datapoint=%s\n", dp)
+			return ts
 		}
 	}
 	return ""
@@ -810,7 +810,7 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
 				break
-			} else if (filterList[i].Type == "dynamic-metadata") {
+			} else if filterList[i].Type == "dynamic-metadata" {
 				domain = filterList[i].Value
 				utils.Info.Printf("Dynamic metadata request, domain=%s", domain)
 				getDomain = true
@@ -828,7 +828,7 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 			if len(dataPoint) == 0 {
 				return ""
 			}
-		} else if (getDomain == true) {
+		} else if getDomain == true {
 			dataPoint = getMetadataDomainDp(domain, pathArray[i])
 		} else {
 			dataPoint = getVehicleData(pathArray[i])
@@ -879,59 +879,63 @@ func getVssPathList(host string, port int, path string) []byte {
 }
 
 func getMetadataDomainDp(domain string, path string) string {
-    value := ""
-    switch domain {
-        case "samplerate": value = getSampleRate(path)
-        case "availability": value = getAvailability(path)
-        case "validate": value = getValidation(path)
-        default: value = "Unknown domain"
-    } 
-    return `{"value":"` + value + `","ts":"` + utils.GetRfcTime() + `"}`
+	value := ""
+	switch domain {
+	case "samplerate":
+		value = getSampleRate(path)
+	case "availability":
+		value = getAvailability(path)
+	case "validate":
+		value = getValidation(path)
+	default:
+		value = "Unknown domain"
+	}
+	return `{"value":"` + value + `","ts":"` + utils.GetRfcTime() + `"}`
 }
 
 func getSampleRate(path string) string {
-    return "X Hz"  //dummy return
+	return "X Hz" //dummy return
 }
 
 func getAvailability(path string) string {
-    return "available"  //dummy return
+	return "available" //dummy return
 }
 
 func getValidation(path string) string {
-    return "read-write"  //dummy return
+	return "read-write" //dummy return
 }
 
 func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
 	stateDbType = stateStorageType
 
 	switch stateDbType {
-	    case "sqlite":
+	case "sqlite":
 		if utils.FileExists(dbFile) {
-		    dbHandle, dbErr = sql.Open("sqlite3", dbFile)
-		    if dbErr != nil {
-			utils.Error.Printf("Could not open state storage file = %s, err = %s", dbFile, dbErr)
-			os.Exit(1)
-		    } else {
-		        utils.Info.Printf("SQLite state storage initialised.")
-		    }
+			dbHandle, dbErr = sql.Open("sqlite3", dbFile)
+			if dbErr != nil {
+				utils.Error.Printf("Could not open state storage file = %s, err = %s", dbFile, dbErr)
+				os.Exit(1)
+			} else {
+				utils.Info.Printf("SQLite state storage initialised.")
+			}
 		} else {
 			utils.Error.Printf("Could not find state storage file = %s", dbFile)
 		}
-	    case "redis":
+	case "redis":
 		redisClient = redis.NewClient(&redis.Options{
-		    Network:  "unix",
-		    Addr:     "/var/tmp/vissv2/redisDB.sock",
-		    Password: "",
-		    DB:       1,
+			Network:  "unix",
+			Addr:     "/var/tmp/vissv2/redisDB.sock",
+			Password: "",
+			DB:       1,
 		})
 		err := redisClient.Ping().Err()
 		if err != nil {
 			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
 			os.Exit(1)
-		    } else {
-		        utils.Info.Printf("Redis state storage initialised.")
-		    }
-	    default:
+		} else {
+			utils.Info.Printf("Redis state storage initialised.")
+		}
+	default:
 		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
 
@@ -994,11 +998,11 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 						dataChan <- utils.FinalizeMessage(errorResponseMap)
 						break
 					}
-					if (filterList[0].Type == "dynamic-metadata" && filterList[0].Value == "server_capabilities") {
-				    	    metadataPack := `{"filter":["paths","timebased","change","range","curvelog","history","dynamic-metadata","static-metadata"],"access_ctrl":["short_term","long_term","signalset_claim"],"transport_protocol":["https","wss","mqtts"]}`
-				    	    dataChan <- addPackage(utils.FinalizeMessage(responseMap), "metadata", metadataPack)
-				    	    break
-				        }
+					if filterList[0].Type == "dynamic-metadata" && filterList[0].Value == "server_capabilities" {
+						metadataPack := `{"filter":["paths","timebased","change","range","curvelog","history","dynamic-metadata","static-metadata"],"access_ctrl":["short_term","long_term","signalset_claim"],"transport_protocol":["https","wss","mqtts"]}`
+						dataChan <- addPackage(utils.FinalizeMessage(responseMap), "metadata", metadataPack)
+						break
+					}
 				}
 				dataPack := getDataPack(pathArray, filterList)
 				if len(dataPack) == 0 {
@@ -1040,7 +1044,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 							dataChan <- utils.FinalizeMessage(responseMap)
 							break
 						}
-					requestMap["subscriptionId"] = subscriptId
+						requestMap["subscriptionId"] = subscriptId
 					}
 				}
 				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsubscribe failed.", "Incorrect or missing subscription id.")
@@ -1070,8 +1074,8 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 
 func scanAndRemoveListItem(subscriptionList []SubscriptionState, routerId string) (bool, []SubscriptionState) {
 	removed := false
-	for i := 0 ; i < len(subscriptionList) ; i++ {
-		if (subscriptionList[i].RouterId == routerId) {
+	for i := 0; i < len(subscriptionList); i++ {
+		if subscriptionList[i].RouterId == routerId {
 			_, subscriptionList = deactivateSubscription(subscriptionList, strconv.Itoa(subscriptionList[i].SubscriptionId))
 			removed = true
 			break

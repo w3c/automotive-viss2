@@ -76,26 +76,20 @@ func PathToUrl(path string) string {
 	return "/" + url
 }
 
-func GenerateHmac(input string, key string) string { //not a correct JWT signature?
+func GenerateHmac(input string, key string) string {
 	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(input))
 	return string(mac.Sum(nil))
 }
 
-func VerifyTokenSignature(token string, key string) bool { // compatible with result from generateHmac()
-	delimiter := strings.LastIndex(token, ".")
-	if delimiter == -1 {
-		return false
+func VerifyTokenSignature(token string, key string) error { // compatible with result from generateHmac()
+	var jwt JsonWebToken
+	err := jwt.DecodeFromFull(token)
+	if err != nil {
+		return err
 	}
-	message := token[:delimiter]
-	messageMAC := token[delimiter+1:]
-	mac := hmac.New(sha256.New, []byte(key))
-	mac.Write([]byte(message))
-	expectedMAC := mac.Sum(nil)
-	if strings.Compare(messageMAC, base64.RawURLEncoding.EncodeToString(expectedMAC)) == 0 {
-		return true
-	}
-	return false
+	return jwt.CheckSignature(key)
+
 }
 
 func ExtractFromToken(token string, claim string) string { // TODO remove white space sensitivity
@@ -154,15 +148,16 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 		errRespMap["subscriptionId"] = reqMap["subscriptionId"]
 	}
 	errMap := map[string]interface{}{
-	    "number" : number,
-	    "reason" : reason,
-	    "message": message,
+		"number":  number,
+		"reason":  reason,
+		"message": message,
 	}
 	errRespMap["error"] = errMap
-        errRespMap["ts"] = GetRfcTime()
+	errRespMap["ts"] = GetRfcTime()
 }
 
 func FinalizeMessage(responseMap map[string]interface{}) string {
+	delete(responseMap, "origin")
 	response, err := json.Marshal(responseMap)
 	if err != nil {
 		Error.Print("Server core-FinalizeMessage: JSON encode failed. ", err)
@@ -263,4 +258,3 @@ func unpackFilterLevel2(index int, filterExpression map[string]interface{}, fLis
 		}
 	}
 }
-
