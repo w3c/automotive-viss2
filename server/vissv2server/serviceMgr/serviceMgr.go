@@ -175,10 +175,10 @@ func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint str
 			continue
 		}
 		if filterList[i].Type == "range" {
-			return evaluateRangeFilter(filterList[i].Value, getDPValue(currentDataPoint)), false // do not update latestValue
+			return evaluateRangeFilter(filterList[i].Parameter, getDPValue(currentDataPoint)), false // do not update latestValue
 		}
 		if filterList[i].Type == "change" {
-			return evaluateChangeFilter(filterList[i].Value, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
+			return evaluateChangeFilter(filterList[i].Parameter, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
 		}
 	}
 	return false, false
@@ -466,7 +466,7 @@ func getCurveLoggingParams(opValue string) (float64, int) { // {"maxerr": "X", "
 func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan chan int, CLChan chan CLPack, subscriptionId int, paths []string) {
 	for i := 0; i < len(filterList); i++ {
 		if filterList[i].Type == "timebased" {
-			interval := getIntervalPeriod(filterList[i].Value)
+			interval := getIntervalPeriod(filterList[i].Parameter)
 			utils.Info.Printf("interval activated, period=%d", interval)
 			if interval > 0 {
 				activateInterval(subscriptionChan, subscriptionId, interval)
@@ -474,7 +474,7 @@ func activateIfIntervalOrCL(filterList []utils.FilterObject, subscriptionChan ch
 			break
 		}
 		if filterList[i].Type == "curvelog" {
-			go curveLoggingServer(CLChan, threadsChan, subscriptionId, filterList[i].Value, paths)
+			go curveLoggingServer(CLChan, threadsChan, subscriptionId, filterList[i].Parameter, paths)
 			break
 		}
 	}
@@ -806,12 +806,12 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	if filterList != nil {
 		for i := 0; i < len(filterList); i++ {
 			if filterList[i].Type == "history" {
-				period = filterList[i].Value
+				period = filterList[i].Parameter
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
 				break
 			} else if filterList[i].Type == "dynamic-metadata" {
-				domain = filterList[i].Value
+				domain = filterList[i].Parameter
 				utils.Info.Printf("Dynamic metadata request, domain=%s", domain)
 				getDomain = true
 				break
@@ -998,7 +998,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 						dataChan <- utils.FinalizeMessage(errorResponseMap)
 						break
 					}
-					if filterList[0].Type == "dynamic-metadata" && filterList[0].Value == "server_capabilities" {
+					if filterList[0].Type == "dynamic-metadata" && filterList[0].Parameter == "server_capabilities" {
 						metadataPack := `{"filter":["paths","timebased","change","range","curvelog","history","dynamic-metadata","static-metadata"],"access_ctrl":["short_term","long_term","signalset_claim"],"transport_protocol":["https","wss","mqtts"]}`
 						dataChan <- addPackage(utils.FinalizeMessage(responseMap), "metadata", metadataPack)
 						break
