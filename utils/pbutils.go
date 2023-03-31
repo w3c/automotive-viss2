@@ -305,45 +305,45 @@ func createPbFilter(index int, filterExpression map[string]interface{}, protoMes
 		if protoMessage.Method == pb.MessageMethod_GET {
 			protoMessage.Get.Request.Filter.FilterExp[index].Value.ValuePaths =
 				&pb.FilterExpressions_FilterExpression_FilterValue_PathsValue{}
-			protoMessage.Get.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue(filterExpression["value"])
+			protoMessage.Get.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue(filterExpression["parameter"])
 		} else {
 			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValuePaths =
 				&pb.FilterExpressions_FilterExpression_FilterValue_PathsValue{}
-			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue(filterExpression["value"])
+			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue(filterExpression["parameter"])
 		}
 	case pb.FilterExpressions_FilterExpression_TIMEBASED:
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueTimebased =
 			&pb.FilterExpressions_FilterExpression_FilterValue_TimebasedValue{}
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueTimebased =
-			getPbTimebasedFilterValue(filterExpression["value"].(map[string]interface{}))
+			getPbTimebasedFilterValue(filterExpression["parameter"].(map[string]interface{}))
 	case pb.FilterExpressions_FilterExpression_RANGE:
-		rangeLen := getNumOfRangeExpressions(filterExpression["value"])
+		rangeLen := getNumOfRangeExpressions(filterExpression["parameter"])
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueRange =
 			make([]*pb.FilterExpressions_FilterExpression_FilterValue_RangeValue, rangeLen)
 		for i := 0; i < rangeLen; i++ {
 			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueRange[i] =
-				getPbRangeFilterValue(i, filterExpression["value"])
+				getPbRangeFilterValue(i, filterExpression["parameter"])
 		}
 	case pb.FilterExpressions_FilterExpression_CHANGE:
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueChange =
 			&pb.FilterExpressions_FilterExpression_FilterValue_ChangeValue{}
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueChange =
-			getPbChangeFilterValue(filterExpression["value"].(map[string]interface{}))
+			getPbChangeFilterValue(filterExpression["parameter"].(map[string]interface{}))
 	case pb.FilterExpressions_FilterExpression_CURVELOG:
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueCurvelog =
 			&pb.FilterExpressions_FilterExpression_FilterValue_CurvelogValue{}
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueCurvelog =
-			getPbCurvelogFilterValue(filterExpression["value"].(map[string]interface{}))
+			getPbCurvelogFilterValue(filterExpression["parameter"].(map[string]interface{}))
 	case pb.FilterExpressions_FilterExpression_HISTORY:
 		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueHistory =
 			&pb.FilterExpressions_FilterExpression_FilterValue_HistoryValue{}
-		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueHistory.TimePeriod = filterExpression["value"].(string)
+		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueHistory.TimePeriod = filterExpression["parameter"].(string)
 	case pb.FilterExpressions_FilterExpression_STATIC_METADATA:
 		Warning.Printf("Filter type is not supported by protobuf compression.")
 	case pb.FilterExpressions_FilterExpression_DYNAMIC_METADATA:
 		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueDynamicMetadata =
 			&pb.FilterExpressions_FilterExpression_FilterValue_DynamicMetadataValue{}
-		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueDynamicMetadata.MetadataDomain = filterExpression["value"].(string)
+		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueDynamicMetadata.MetadataDomain = filterExpression["parameter"].(string)
 	default:
 		Error.Printf("Filter type is unknown.")
 	}
@@ -723,7 +723,7 @@ func getJsonFilter(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) s
 		fType = "dynamic-metadata"
 		value = getJsonFilterValueDynamicMetadata(filterExp[0])
 	}
-	return `,"filter":{"type":"` + fType + `","value":` + value + `}`
+	return `,"filter":{"type":"` + fType + `","parameter":` + value + `}`
 }
 
 func getJsonFilterValuePaths(filterExp *pb.FilterExpressions_FilterExpression) string {

@@ -195,7 +195,7 @@ func FileExists(filename string) bool {
 
 type FilterObject struct {
 	Type  string
-	Value string
+	Parameter string
 }
 
 func UnpackFilter(filter interface{}, fList *[]FilterObject) { // See VISSv CORE, Filtering chapter for filter structure
@@ -234,16 +234,16 @@ func unpackFilterLevel2(index int, filterExpression map[string]interface{}, fLis
 			Info.Println(k, "is string", vv)
 			if k == "type" {
 				(*fList)[index].Type = vv
-			} else if k == "value" {
-				(*fList)[index].Value = vv
+			} else if k == "parameter" {
+				(*fList)[index].Parameter = vv
 			}
 		case []interface{}:
 			Info.Println(k, "is an array:, len=", strconv.Itoa(len(vv)))
 			arrayVal, err := json.Marshal(vv)
 			if err != nil {
 				Error.Print("UnpackFilter(): JSON array encode failed. ", err)
-			} else if k == "value" {
-				(*fList)[index].Value = string(arrayVal)
+			} else if k == "parameter" {
+				(*fList)[index].Parameter = string(arrayVal)
 			}
 		case map[string]interface{}:
 			Info.Println(k, "is a map:")
@@ -251,7 +251,7 @@ func unpackFilterLevel2(index int, filterExpression map[string]interface{}, fLis
 			if err != nil {
 				Error.Print("UnpackFilter(): JSON map encode failed. ", err)
 			} else {
-				(*fList)[index].Value = string(opValue)
+				(*fList)[index].Parameter = string(opValue)
 			}
 		default:
 			Info.Println(k, "is of an unknown type")

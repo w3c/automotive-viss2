@@ -565,22 +565,22 @@ func isValidGetParams(request string) bool {
 
 func isValidGetFilter(request string) bool { // paths, history,static-metadata, dynamic-metadata supported
 	if strings.Contains(request, "paths") == true {
-		if strings.Contains(request, "value") == true {
+		if strings.Contains(request, "parameter") == true {
 			return true
 		}
 	}
 	if strings.Contains(request, "history") == true {
-		if strings.Contains(request, "value") == true {
+		if strings.Contains(request, "parameter") == true {
 			return true
 		}
 	}
 	if strings.Contains(request, "static-metadata") == true {
-		if strings.Contains(request, "value") == true {
+		if strings.Contains(request, "parameter") == true {
 			return true
 		}
 	}
 	if strings.Contains(request, "dynamic-metadata") == true {
-		if strings.Contains(request, "value") == true {
+		if strings.Contains(request, "parameter") == true {
 			return true
 		}
 	}
@@ -606,24 +606,24 @@ func isValidSubscribeFilter(request string) bool { // paths, history, timebased,
 		return true
 	}
 	if strings.Contains(request, "timebased") == true {
-		if strings.Contains(request, "value") == true && strings.Contains(request, "period") == true {
+		if strings.Contains(request, "parameter") == true && strings.Contains(request, "period") == true {
 			return true
 		}
 	}
 	if strings.Contains(request, "range") == true {
-		if strings.Contains(request, "value") == true && strings.Contains(request, "logic-op") == true &&
+		if strings.Contains(request, "parameter") == true && strings.Contains(request, "logic-op") == true &&
 			strings.Contains(request, "boundary") == true {
 			return true
 		}
 	}
 	if strings.Contains(request, "change") == true {
-		if strings.Contains(request, "value") == true && strings.Contains(request, "logic-op") == true &&
+		if strings.Contains(request, "parameter") == true && strings.Contains(request, "logic-op") == true &&
 			strings.Contains(request, "diff") == true {
 			return true
 		}
 	}
 	if strings.Contains(request, "curvelog") == true {
-		if strings.Contains(request, "value") == true && strings.Contains(request, "maxerr") == true &&
+		if strings.Contains(request, "parameter") == true && strings.Contains(request, "maxerr") == true &&
 			strings.Contains(request, "bufsize") == true {
 			return true
 		}
@@ -684,15 +684,15 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 
 	// Manages Filter Request
 	if requestMap["filter"] != nil {
-		var filterList []utils.FilterObject // type + value
+		var filterList []utils.FilterObject // type + parameter
 		utils.UnpackFilter(requestMap["filter"], &filterList)
 		// Iterates all the filters
 		for i := 0; i < len(filterList); i++ {
-			utils.Info.Printf("filterList[%d].Type=%s, filterList[%d].Value=%s", i, filterList[i].Type, i, filterList[i].Value)
+			utils.Info.Printf("filterList[%d].Type=%s, filterList[%d].Parameter=%s", i, filterList[i].Type, i, filterList[i].Parameter)
 			// PATH FILTER
 			if filterList[i].Type == "paths" {
-				if strings.Contains(filterList[i].Value, "[") { // Various paths to search
-					err := json.Unmarshal([]byte(filterList[i].Value), &searchPath) // Writes in search path all values in filter
+				if strings.Contains(filterList[i].Parameter, "[") { // Various paths to search
+					err := json.Unmarshal([]byte(filterList[i].Parameter), &searchPath) // Writes in search path all values in filter
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
 						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
@@ -704,7 +704,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					}
 				} else { // Single path to search
 					searchPath = make([]string, 1)
-					searchPath[0] = rootPath + "." + utils.UrlToPath(filterList[i].Value) // replaces slash with dot
+					searchPath[0] = rootPath + "." + utils.UrlToPath(filterList[i].Parameter) // replaces slash with dot
 				}
 				break // only one paths object is allowed
 			}
@@ -730,7 +730,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 				return
 			}
 			// DYNAMIC METADATA FILTER
-			if filterList[i].Type == "dynamic-metadata" && filterList[i].Value == "server_capabilities" {
+			if filterList[i].Type == "dynamic-metadata" && filterList[i].Parameter == "server_capabilities" {
 				serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // no further verification
 				return
 			}
