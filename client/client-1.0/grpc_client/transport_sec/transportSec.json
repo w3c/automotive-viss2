@@ -1,0 +1,8 @@
+{
+    "transportSec": "no",
+    "secPort": "5443",
+    "caSecPath": "ca/",
+    "serverSecPath": "",
+    "serverCertOpt": "ClientCertVerification",
+    "clientSecPath": "client/"
+}
