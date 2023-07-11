@@ -44,9 +44,9 @@ func ReturnWsClientIndex(index int) {
 
 // Initializes TransportSec Variables
 func ReadTransportSecConfig() {
-	data, err := ioutil.ReadFile(trSecConfigPath + "transportSec.json")
+	data, err := ioutil.ReadFile(TrSecConfigPath + "transportSec.json")
 	if err != nil {
-		Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", trSecConfigPath, err)
+		Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", TrSecConfigPath, err)
 		SecureConfiguration.TransportSec = "no"
 		return
 	}
@@ -300,12 +300,12 @@ func (server HttpServer) InitClientServer(muxServer *http.ServeMux, httpClientCh
 	if SecureConfiguration.TransportSec == "yes" {
 		server := http.Server{
 			Addr: ":" + SecureConfiguration.HttpSecPort,
-			TLSConfig: GetTLSConfig("localhost", trSecConfigPath+SecureConfiguration.CaSecPath+"Root.CA.crt",
-				tls.ClientAuthType(CertOptToInt(SecureConfiguration.ServerCertOpt))),
+			TLSConfig: GetTLSConfig("localhost", TrSecConfigPath+SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(CertOptToInt(SecureConfiguration.ServerCertOpt)), nil),
 			Handler: muxServer,
 		}
 		Info.Printf("HTTPS:CerOpt=%s", SecureConfiguration.ServerCertOpt)
-		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+SecureConfiguration.ServerSecPath+"server.crt", trSecConfigPath+SecureConfiguration.ServerSecPath+"server.key"))
+		Error.Fatal(server.ListenAndServeTLS(TrSecConfigPath+SecureConfiguration.ServerSecPath+"server.crt", TrSecConfigPath+SecureConfiguration.ServerSecPath+"server.key"))
 	} else {
 		Error.Fatal(http.ListenAndServe(":8888", muxServer))
 	}
@@ -322,12 +322,12 @@ func (server WsServer) InitClientServer(muxServer *http.ServeMux, wsClientChan [
 	if SecureConfiguration.TransportSec == "yes" { // In  case a secure connection is used
 		server := http.Server{
 			Addr: ":" + SecureConfiguration.WsSecPort,
-			TLSConfig: GetTLSConfig("localhost", trSecConfigPath+SecureConfiguration.CaSecPath+"Root.CA.crt",
-				tls.ClientAuthType(CertOptToInt(SecureConfiguration.ServerCertOpt))),
+			TLSConfig: GetTLSConfig("localhost", TrSecConfigPath+SecureConfiguration.CaSecPath+"Root.CA.crt",
+				tls.ClientAuthType(CertOptToInt(SecureConfiguration.ServerCertOpt)), nil),
 			Handler: muxServer,
 		}
 		Info.Printf("HTTPS:CerOpt=%s", SecureConfiguration.ServerCertOpt)
-		Error.Fatal(server.ListenAndServeTLS(trSecConfigPath+SecureConfiguration.ServerSecPath+"server.crt", trSecConfigPath+SecureConfiguration.ServerSecPath+"server.key"))
+		Error.Fatal(server.ListenAndServeTLS(TrSecConfigPath+SecureConfiguration.ServerSecPath+"server.crt", TrSecConfigPath+SecureConfiguration.ServerSecPath+"server.key"))
 	} else { // No sec connection
 		Error.Fatal(http.ListenAndServe(":8080", muxServer))
 	}
@@ -347,7 +347,7 @@ func CertOptToInt(serverCertOpt string) int {
 }
 
 // Obtains a tls.Config struct, giving support to https.listenandservetls
-func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *tls.Config {
+func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType, serverCert *tls.Certificate) *tls.Config {
 	var caCert []byte
 	var err error
 	var caCertPool *x509.CertPool
@@ -361,8 +361,17 @@ func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType) *t
 		caCertPool.AppendCertsFromPEM(caCert)
 	}
 
+	if (serverCert == nil) {
+		return &tls.Config{ // Returns the tls.Config struct
+			ServerName: host,
+			ClientAuth: certOpt,
+			ClientCAs:  caCertPool,
+			MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
+		}
+	}
 	return &tls.Config{ // Returns the tls.Config struct
 		ServerName: host,
+		Certificates: []tls.Certificate{*serverCert},
 		ClientAuth: certOpt,
 		ClientCAs:  caCertPool,
 		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details

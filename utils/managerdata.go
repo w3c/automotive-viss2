@@ -17,12 +17,13 @@ import (
 
 var requestTag int
 
-var trSecConfigPath string = "../transport_sec/" // relative path to the directory containing the transportSec.json file
+var TrSecConfigPath string = "../transport_sec/" // relative path to the directory containing the transportSec.json file
 type SecConfig struct {
 	TransportSec  string `json:"transportSec"`  // "yes" or "no"
 	HttpSecPort   string `json:"httpSecPort"`   // HTTPS port number
 	WsSecPort     string `json:"wsSecPort"`     // WSS port number
 	MqttSecPort   string `json:"mqttSecPort"`   // MQTTS port number
+	GrpcSecPort   string `json:"grpcSecPort"`   // MQTTS port number
 	AgtsSecPort   string `json:"agtsSecPort"`   // AGTS port number
 	AtsSecPort    string `json:"atsSecPort"`    // ATS port number
 	CaSecPath     string `json:"caSecPath"`     // relative path from the directory containing the transportSec.json file

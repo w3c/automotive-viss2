@@ -176,7 +176,7 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 			Addr:    ":" + utils.SecureConfiguration.AtsSecPort,
 			Handler: muxServer,
 			TLSConfig: utils.GetTLSConfig("localhost", "../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
-				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),
+				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt)), nil),
 		}
 		utils.Info.Printf("initAtServer():Starting AT Server with TLS on %s/ats", utils.SecureConfiguration.AtsSecPort)
 		utils.Info.Printf("HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)

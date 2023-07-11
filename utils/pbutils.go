@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var currentCompression Compression
+//var currentCompression Compression
 
 func ProtobufToJson(serialisedMessage []byte, compression Compression) string {
 	currentCompression = compression
@@ -112,13 +112,13 @@ func createGetPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interfa
 	protoMessage.Get.MType = mType
 	switch mType {
 	case pb.MessageType_REQUEST:
-		createGetRequestPb(protoMessage, messageMap)
+		createGetRequest_Pb(protoMessage, messageMap)
 	case pb.MessageType_RESPONSE:
-		createGetResponsePb(protoMessage, messageMap)
+		createGetResponse_Pb(protoMessage, messageMap)
 	}
 }
 
-func createGetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
+func createGetRequest_Pb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
 	protoMessage.Get.Request = &pb.GetMessage_RequestMessage{}
 	protoMessage.Get.Request.Path = messageMap["path"].(string)
 	if messageMap["filter"] != nil {
@@ -134,14 +134,14 @@ func createGetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 			protoMessage.Get.Request.Filter.FilterExp = make([]*pb.FilterExpressions_FilterExpression, 2)
 			protoMessage.Get.Request.Filter.FilterExp[0] = &pb.FilterExpressions_FilterExpression{}
 			protoMessage.Get.Request.Filter.FilterExp[1] = &pb.FilterExpressions_FilterExpression{}
-			createPbFilter(0, vv[0].(map[string]interface{}), protoMessage)
-			createPbFilter(1, vv[1].(map[string]interface{}), protoMessage)
+			createPbFilter_pb(0, vv[0].(map[string]interface{}), protoMessage)
+			createPbFilter_pb(1, vv[1].(map[string]interface{}), protoMessage)
 		case map[string]interface{}:
 			Info.Println(vv, "is a map:")
 			protoMessage.Get.Request.Filter = &pb.FilterExpressions{}
 			protoMessage.Get.Request.Filter.FilterExp = make([]*pb.FilterExpressions_FilterExpression, 1)
 			protoMessage.Get.Request.Filter.FilterExp[0] = &pb.FilterExpressions_FilterExpression{}
-			createPbFilter(0, vv, protoMessage)
+			createPbFilter_pb(0, vv, protoMessage)
 		default:
 			Info.Println(filter, "is of an unknown type")
 		}
@@ -156,7 +156,7 @@ func createGetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 	}
 }
 
-func createGetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
+func createGetResponse_Pb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
 	protoMessage.Get.Response = &pb.GetMessage_ResponseMessage{}
 	requestId := messageMap["requestId"].(string)
 	protoMessage.Get.Response.RequestId = &requestId
@@ -170,12 +170,12 @@ func createGetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string
 	if messageMap["error"] == nil {
 		protoMessage.Get.Response.Status = pb.ResponseStatus_SUCCESS
 		protoMessage.Get.Response.SuccessResponse = &pb.GetMessage_ResponseMessage_SuccessResponseMessage{}
-		numOfDataElements := getNumOfDataElements(messageMap["data"])
+		numOfDataElements := getNumOfDataElements_pb(messageMap["data"])
 		if numOfDataElements > 0 {
 			protoMessage.Get.Response.SuccessResponse.DataPack = &pb.DataPackages{}
 			protoMessage.Get.Response.SuccessResponse.DataPack.Data = make([]*pb.DataPackages_DataPackage, numOfDataElements)
 			for i := 0; i < numOfDataElements; i++ {
-				protoMessage.Get.Response.SuccessResponse.DataPack.Data[i] = createDataElement(i, messageMap["data"])
+				protoMessage.Get.Response.SuccessResponse.DataPack.Data[i] = createDataElement_pb(i, messageMap["data"])
 			}
 		} else {
 			metadata, _ := json.Marshal(messageMap["metadata"])
@@ -185,11 +185,11 @@ func createGetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string
 	} else {
 		protoMessage.Get.Response.Status = pb.ResponseStatus_ERROR
 		//        protoMessage.Get.Response.ErrorResponse = &pb.ErrorResponseMessage{}
-		protoMessage.Get.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
+		protoMessage.Get.Response.ErrorResponse = getProtoErrorMessage_pb(messageMap["error"].(map[string]interface{}))
 	}
 }
 
-func getProtoErrorMessage(messageErrorMap map[string]interface{}) *pb.ErrorResponseMessage {
+func getProtoErrorMessage_pb(messageErrorMap map[string]interface{}) *pb.ErrorResponseMessage {
 	protoErrorMessage := &pb.ErrorResponseMessage{}
 	for k, v := range messageErrorMap {
 		//Info.Println("key=",k, "v=", v)
@@ -208,7 +208,7 @@ func getProtoErrorMessage(messageErrorMap map[string]interface{}) *pb.ErrorRespo
 	return protoErrorMessage
 }
 
-func getNumOfDataElements(messageDataMap interface{}) int {
+func getNumOfDataElements_pb(messageDataMap interface{}) int {
 	if messageDataMap == nil {
 		return 0
 	}
@@ -219,7 +219,7 @@ func getNumOfDataElements(messageDataMap interface{}) int {
 	return 1
 }
 
-func createDataElement(index int, messageDataMap interface{}) *pb.DataPackages_DataPackage {
+func createDataElement_pb(index int, messageDataMap interface{}) *pb.DataPackages_DataPackage {
 	var dataObject map[string]interface{}
 	switch vv := messageDataMap.(type) {
 	case []interface{}:
@@ -234,15 +234,15 @@ func createDataElement(index int, messageDataMap interface{}) *pb.DataPackages_D
 	} else {
 		protoDataElement.PathC = CompressPath(path)
 	}
-	numOfDataPointElements := getNumOfDataPointElements(dataObject["dp"])
+	numOfDataPointElements := getNumOfDataPointElements_pb(dataObject["dp"])
 	protoDataElement.Dp = make([]*pb.DataPackages_DataPackage_DataPoint, numOfDataPointElements)
 	for i := 0; i < numOfDataPointElements; i++ {
-		protoDataElement.Dp[i] = createDataPointElement(i, dataObject["dp"])
+		protoDataElement.Dp[i] = createDataPointElement_pb(i, dataObject["dp"])
 	}
 	return &protoDataElement
 }
 
-func getNumOfDataPointElements(messageDataPointMap interface{}) int {
+func getNumOfDataPointElements_pb(messageDataPointMap interface{}) int {
 	if messageDataPointMap == nil {
 		return 0
 	}
@@ -253,7 +253,7 @@ func getNumOfDataPointElements(messageDataPointMap interface{}) int {
 	return 1
 }
 
-func createDataPointElement(index int, messageDataPointMap interface{}) *pb.DataPackages_DataPackage_DataPoint {
+func createDataPointElement_pb(index int, messageDataPointMap interface{}) *pb.DataPackages_DataPackage_DataPoint {
 	var dataPointObject map[string]interface{}
 	switch vv := messageDataPointMap.(type) {
 	case []interface{}:
@@ -273,8 +273,8 @@ func createDataPointElement(index int, messageDataPointMap interface{}) *pb.Data
 	return &protoDataPointElement
 }
 
-func createPbFilter(index int, filterExpression map[string]interface{}, protoMessage *pb.ProtobufMessage) {
-	filterType := getFilterType(filterExpression["type"].(string))
+func createPbFilter_pb(index int, filterExpression map[string]interface{}, protoMessage *pb.ProtobufMessage) {
+	filterType := getFilterType_pb(filterExpression["type"].(string))
 	if protoMessage.Method == pb.MessageMethod_GET {
 		protoMessage.Get.Request.Filter.FilterExp[index].FType = filterType
 	} else {
@@ -305,35 +305,35 @@ func createPbFilter(index int, filterExpression map[string]interface{}, protoMes
 		if protoMessage.Method == pb.MessageMethod_GET {
 			protoMessage.Get.Request.Filter.FilterExp[index].Value.ValuePaths =
 				&pb.FilterExpressions_FilterExpression_FilterValue_PathsValue{}
-			protoMessage.Get.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue(filterExpression["parameter"])
+			protoMessage.Get.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue_pb(filterExpression["parameter"])
 		} else {
 			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValuePaths =
 				&pb.FilterExpressions_FilterExpression_FilterValue_PathsValue{}
-			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue(filterExpression["parameter"])
+			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValuePaths = getPbPathsFilterValue_pb(filterExpression["parameter"])
 		}
 	case pb.FilterExpressions_FilterExpression_TIMEBASED:
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueTimebased =
 			&pb.FilterExpressions_FilterExpression_FilterValue_TimebasedValue{}
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueTimebased =
-			getPbTimebasedFilterValue(filterExpression["parameter"].(map[string]interface{}))
+			getPbTimebasedFilterValue_pb(filterExpression["parameter"].(map[string]interface{}))
 	case pb.FilterExpressions_FilterExpression_RANGE:
-		rangeLen := getNumOfRangeExpressions(filterExpression["parameter"])
+		rangeLen := getNumOfRangeExpressions_pb(filterExpression["parameter"])
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueRange =
 			make([]*pb.FilterExpressions_FilterExpression_FilterValue_RangeValue, rangeLen)
 		for i := 0; i < rangeLen; i++ {
 			protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueRange[i] =
-				getPbRangeFilterValue(i, filterExpression["parameter"])
+				getPbRangeFilterValue_pb(i, filterExpression["parameter"])
 		}
 	case pb.FilterExpressions_FilterExpression_CHANGE:
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueChange =
 			&pb.FilterExpressions_FilterExpression_FilterValue_ChangeValue{}
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueChange =
-			getPbChangeFilterValue(filterExpression["parameter"].(map[string]interface{}))
+			getPbChangeFilterValue_pb(filterExpression["parameter"].(map[string]interface{}))
 	case pb.FilterExpressions_FilterExpression_CURVELOG:
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueCurvelog =
 			&pb.FilterExpressions_FilterExpression_FilterValue_CurvelogValue{}
 		protoMessage.Subscribe.Request.Filter.FilterExp[index].Value.ValueCurvelog =
-			getPbCurvelogFilterValue(filterExpression["parameter"].(map[string]interface{}))
+			getPbCurvelogFilterValue_pb(filterExpression["parameter"].(map[string]interface{}))
 	case pb.FilterExpressions_FilterExpression_HISTORY:
 		protoMessage.Get.Request.Filter.FilterExp[index].Value.ValueHistory =
 			&pb.FilterExpressions_FilterExpression_FilterValue_HistoryValue{}
@@ -349,7 +349,7 @@ func createPbFilter(index int, filterExpression map[string]interface{}, protoMes
 	}
 }
 
-func getNumOfRangeExpressions(valueMap interface{}) int {
+func getNumOfRangeExpressions_pb(valueMap interface{}) int {
 	switch vv := valueMap.(type) {
 	case []interface{}:
 		return len(vv)
@@ -358,7 +358,7 @@ func getNumOfRangeExpressions(valueMap interface{}) int {
 	}
 }
 
-func getPbPathsFilterValue(filterValueExpression interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_PathsValue {
+func getPbPathsFilterValue_pb(filterValueExpression interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_PathsValue {
 	var protoPathsValue pb.FilterExpressions_FilterExpression_FilterValue_PathsValue
 	switch vv := filterValueExpression.(type) {
 	case []interface{}:
@@ -377,13 +377,13 @@ func getPbPathsFilterValue(filterValueExpression interface{}) *pb.FilterExpressi
 	return &protoPathsValue
 }
 
-func getPbTimebasedFilterValue(filterExpression map[string]interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_TimebasedValue {
+func getPbTimebasedFilterValue_pb(filterExpression map[string]interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_TimebasedValue {
 	var protoTimebasedValue pb.FilterExpressions_FilterExpression_FilterValue_TimebasedValue
 	protoTimebasedValue.Period = filterExpression["period"].(string)
 	return &protoTimebasedValue
 }
 
-func getPbRangeFilterValue(index int, valueMap interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_RangeValue {
+func getPbRangeFilterValue_pb(index int, valueMap interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_RangeValue {
 	var protoRangeValue pb.FilterExpressions_FilterExpression_FilterValue_RangeValue
 	switch vv := valueMap.(type) {
 	case []interface{}:
@@ -399,21 +399,21 @@ func getPbRangeFilterValue(index int, valueMap interface{}) *pb.FilterExpression
 	return &protoRangeValue
 }
 
-func getPbChangeFilterValue(filterExpression map[string]interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_ChangeValue {
+func getPbChangeFilterValue_pb(filterExpression map[string]interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_ChangeValue {
 	var protoChangeValue pb.FilterExpressions_FilterExpression_FilterValue_ChangeValue
 	protoChangeValue.LogicOperator = filterExpression["logic-op"].(string)
 	protoChangeValue.Diff = filterExpression["diff"].(string)
 	return &protoChangeValue
 }
 
-func getPbCurvelogFilterValue(filterExpression map[string]interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_CurvelogValue {
+func getPbCurvelogFilterValue_pb(filterExpression map[string]interface{}) *pb.FilterExpressions_FilterExpression_FilterValue_CurvelogValue {
 	var protoCurvelogValue pb.FilterExpressions_FilterExpression_FilterValue_CurvelogValue
 	protoCurvelogValue.MaxErr = filterExpression["maxerr"].(string)
 	protoCurvelogValue.BufSize = filterExpression["bufsize"].(string)
 	return &protoCurvelogValue
 }
 
-func getFilterType(filterType string) pb.FilterExpressions_FilterExpression_FilterType {
+func getFilterType_pb(filterType string) pb.FilterExpressions_FilterExpression_FilterType {
 	switch filterType {
 	case "paths":
 		return pb.FilterExpressions_FilterExpression_PATHS
@@ -440,7 +440,7 @@ func createSubscribePb(protoMessage *pb.ProtobufMessage, messageMap map[string]i
 	protoMessage.Subscribe.MType = mType
 	switch mType {
 	case pb.MessageType_REQUEST:
-		createSubscribeRequestPb(protoMessage, messageMap)
+		createSubscribeRequest_Pb(protoMessage, messageMap)
 	case pb.MessageType_RESPONSE:
 		createSubscribeResponsePb(protoMessage, messageMap)
 	case pb.MessageType_NOTIFICATION:
@@ -448,7 +448,7 @@ func createSubscribePb(protoMessage *pb.ProtobufMessage, messageMap map[string]i
 	}
 }
 
-func createSubscribeRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
+func createSubscribeRequest_Pb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
 	protoMessage.Subscribe = &pb.SubscribeMessage{}
 	protoMessage.Subscribe.Request = &pb.SubscribeMessage_RequestMessage{}
 	protoMessage.Subscribe.Request.Path = messageMap["path"].(string)
@@ -465,14 +465,14 @@ func createSubscribeRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[s
 			protoMessage.Subscribe.Request.Filter.FilterExp = make([]*pb.FilterExpressions_FilterExpression, 2)
 			protoMessage.Subscribe.Request.Filter.FilterExp[0] = &pb.FilterExpressions_FilterExpression{}
 			protoMessage.Subscribe.Request.Filter.FilterExp[1] = &pb.FilterExpressions_FilterExpression{}
-			createPbFilter(0, vv[0].(map[string]interface{}), protoMessage)
-			createPbFilter(1, vv[1].(map[string]interface{}), protoMessage)
+			createPbFilter_pb(0, vv[0].(map[string]interface{}), protoMessage)
+			createPbFilter_pb(1, vv[1].(map[string]interface{}), protoMessage)
 		case map[string]interface{}:
 			Info.Println(filter, "is a map:")
 			protoMessage.Subscribe.Request.Filter = &pb.FilterExpressions{}
 			protoMessage.Subscribe.Request.Filter.FilterExp = make([]*pb.FilterExpressions_FilterExpression, 1)
 			protoMessage.Subscribe.Request.Filter.FilterExp[0] = &pb.FilterExpressions_FilterExpression{}
-			createPbFilter(0, vv, protoMessage)
+			createPbFilter_pb(0, vv, protoMessage)
 		default:
 			Info.Println(filter, "is of an unknown type")
 		}
@@ -496,7 +496,7 @@ func createSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[
 		protoMessage.Subscribe.Response.Status = pb.ResponseStatus_SUCCESS
 	} else {
 		protoMessage.Subscribe.Response.Status = pb.ResponseStatus_ERROR
-		protoMessage.Subscribe.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
+		protoMessage.Subscribe.Response.ErrorResponse = getProtoErrorMessage_pb(messageMap["error"].(map[string]interface{}))
 	}
 }
 
@@ -513,16 +513,16 @@ func createSubscribeNotificationPb(protoMessage *pb.ProtobufMessage, messageMap 
 	if messageMap["error"] == nil {
 		protoMessage.Subscribe.Notification.Status = pb.ResponseStatus_SUCCESS
 		protoMessage.Subscribe.Notification.SuccessResponse = &pb.SubscribeMessage_NotificationMessage_SuccessResponseMessage{}
-		numOfDataElements := getNumOfDataElements(messageMap["data"])
+		numOfDataElements := getNumOfDataElements_pb(messageMap["data"])
 		protoMessage.Subscribe.Notification.SuccessResponse.DataPack = &pb.DataPackages{}
 		protoMessage.Subscribe.Notification.SuccessResponse.DataPack.Data = make([]*pb.DataPackages_DataPackage, numOfDataElements)
 		for i := 0; i < numOfDataElements; i++ {
-			protoMessage.Subscribe.Notification.SuccessResponse.DataPack.Data[i] = createDataElement(i, messageMap["data"])
+			protoMessage.Subscribe.Notification.SuccessResponse.DataPack.Data[i] = createDataElement_pb(i, messageMap["data"])
 		}
 	} else {
 		protoMessage.Subscribe.Notification.Status = pb.ResponseStatus_ERROR
 		//        protoMessage.Subscribe.Notification.ErrorResponse = &pb.ErrorResponseMessage{}
-		protoMessage.Subscribe.Notification.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
+		protoMessage.Subscribe.Notification.ErrorResponse = getProtoErrorMessage_pb(messageMap["error"].(map[string]interface{}))
 	}
 }
 
@@ -531,13 +531,13 @@ func createSetPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interfa
 	protoMessage.Set.MType = mType
 	switch mType {
 	case pb.MessageType_REQUEST:
-		createSetRequestPb(protoMessage, messageMap)
+		createSetRequest_Pb(protoMessage, messageMap)
 	case pb.MessageType_RESPONSE:
-		createSetResponsePb(protoMessage, messageMap)
+		createSetResponse_Pb(protoMessage, messageMap)
 	}
 }
 
-func createSetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
+func createSetRequest_Pb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
 	protoMessage.Set.Request = &pb.SetMessage_RequestMessage{}
 	protoMessage.Set.Request.Path = messageMap["path"].(string)
 	protoMessage.Set.Request.Value = messageMap["value"].(string)
@@ -551,7 +551,7 @@ func createSetRequestPb(protoMessage *pb.ProtobufMessage, messageMap map[string]
 	}
 }
 
-func createSetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
+func createSetResponse_Pb(protoMessage *pb.ProtobufMessage, messageMap map[string]interface{}) {
 	protoMessage.Set.Response = &pb.SetMessage_ResponseMessage{}
 	requestId := messageMap["requestId"].(string)
 	protoMessage.Set.Response.RequestId = &requestId
@@ -560,7 +560,7 @@ func createSetResponsePb(protoMessage *pb.ProtobufMessage, messageMap map[string
 		protoMessage.Set.Response.Status = pb.ResponseStatus_SUCCESS
 	} else {
 		protoMessage.Set.Response.Status = pb.ResponseStatus_ERROR
-		protoMessage.Set.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
+		protoMessage.Set.Response.ErrorResponse = getProtoErrorMessage_pb(messageMap["error"].(map[string]interface{}))
 	}
 }
 
@@ -596,7 +596,7 @@ func createUnSubscribeResponsePb(protoMessage *pb.ProtobufMessage, messageMap ma
 		protoMessage.UnSubscribe.Response.Status = pb.ResponseStatus_SUCCESS
 	} else {
 		protoMessage.UnSubscribe.Response.Status = pb.ResponseStatus_ERROR
-		protoMessage.UnSubscribe.Response.ErrorResponse = getProtoErrorMessage(messageMap["error"].(map[string]interface{}))
+		protoMessage.UnSubscribe.Response.ErrorResponse = getProtoErrorMessage_pb(messageMap["error"].(map[string]interface{}))
 	}
 }
 
@@ -609,14 +609,14 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
 		jsonMessage += `"action":"get"`
 		switch protoMessage.GetGet().GetMType() {
 		case 0: //REQUEST
-			jsonMessage += `,"path":"` + protoMessage.GetGet().GetRequest().GetPath() + `"` + getJsonFilter(protoMessage, 0) +
+			jsonMessage += `,"path":"` + protoMessage.GetGet().GetRequest().GetPath() + `"` + getJsonFilter_pb(protoMessage, 0) +
 				getJsonAuthorization(protoMessage, 0, 0) + getJsonTransactionId(protoMessage, 0, 0)
 		case 1: // RESPONSE
 			if protoMessage.GetGet().GetResponse().GetStatus() == 0 { //SUCCESSFUL
 				jsonMessage += getJsonData(protoMessage, 0)
 
 			} else { // ERROR
-				jsonMessage += getJsonError(protoMessage, 0)
+				jsonMessage += getJsonError_pb(protoMessage, 0)
 			}
 			if currentCompression == PB_LEVEL1 {
 				jsonMessage += `,"ts":"` + protoMessage.GetGet().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage, 0, 1)
@@ -635,18 +635,18 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
 			if protoMessage.GetSet().GetResponse().GetStatus() == 0 { //SUCCESSFUL
 				jsonMessage += protoMessage.GetSet().GetResponse().GetTs()
 			} else { // ERROR
-				jsonMessage += getJsonError(protoMessage, 1)
+				jsonMessage += getJsonError_pb(protoMessage, 1)
 			}
 		}
 	case 2: // SUBSCRIBE
 		switch protoMessage.GetSubscribe().GetMType() {
 		case 0: //REQUEST
-			jsonMessage += `"action":"subscribe","path":"` + protoMessage.GetSubscribe().GetRequest().GetPath() + `"` + getJsonFilter(protoMessage, 2) +
+			jsonMessage += `"action":"subscribe","path":"` + protoMessage.GetSubscribe().GetRequest().GetPath() + `"` + getJsonFilter_pb(protoMessage, 2) +
 				getJsonAuthorization(protoMessage, 2, 0) + getJsonTransactionId(protoMessage, 2, 0)
 		case 1: // RESPONSE
 			jsonMessage += `"action":"subscribe"`
 			if protoMessage.GetSubscribe().GetResponse().GetStatus() != 0 { //ERROR
-				jsonMessage += getJsonError(protoMessage, 2)
+				jsonMessage += getJsonError_pb(protoMessage, 2)
 			}
 			jsonMessage += `,"ts":"` + protoMessage.GetSubscribe().GetResponse().GetTs() + `"` + getJsonTransactionId(protoMessage, 2, 1)
 		case 2: // NOTIFICATION
@@ -655,7 +655,7 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
 				jsonMessage += getJsonData(protoMessage, 2)
 
 			} else { // ERROR
-				jsonMessage += getJsonError(protoMessage, 2)
+				jsonMessage += getJsonError_pb(protoMessage, 2)
 			}
 			if currentCompression == PB_LEVEL1 {
 				jsonMessage += `,"ts":"` + protoMessage.GetSubscribe().GetNotification().GetTs() + `"` + getJsonTransactionId(protoMessage, 2, 2)
@@ -673,7 +673,7 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
 			if protoMessage.GetUnSubscribe().GetResponse().GetStatus() == 0 { //SUCCESSFUL
 				jsonMessage += getJsonTransactionId(protoMessage, 3, 1)
 			} else { // ERROR
-				jsonMessage += getJsonError(protoMessage, 3) + getJsonTransactionId(protoMessage, 3, 1)
+				jsonMessage += getJsonError_pb(protoMessage, 3) + getJsonTransactionId(protoMessage, 3, 1)
 			}
 			jsonMessage += `,"ts":"` + protoMessage.GetUnSubscribe().GetResponse().GetTs() + `"`
 		}
@@ -681,7 +681,7 @@ func populateJsonFromProto(protoMessage *pb.ProtobufMessage) string {
 	return jsonMessage + "}"
 }
 
-func getJsonFilter(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
+func getJsonFilter_pb(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
 	var filterExp []*pb.FilterExpressions_FilterExpression
 	switch mMethod {
 	case 0: // GET
@@ -700,33 +700,33 @@ func getJsonFilter(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) s
 	switch filterExp[0].GetFType() {
 	case 0:
 		fType = "paths"
-		value = getJsonFilterValuePaths(filterExp[0])
+		value = getJsonFilterValuePaths_pb(filterExp[0])
 	case 1:
 		fType = "timebased"
-		value = getJsonFilterValueTimebased(filterExp[0])
+		value = getJsonFilterValueTimebased_pb(filterExp[0])
 	case 2:
 		fType = "range"
-		value = getJsonFilterValueRange(filterExp[0])
+		value = getJsonFilterValueRange_pb(filterExp[0])
 	case 3:
 		fType = "change"
-		value = getJsonFilterValueChange(filterExp[0])
+		value = getJsonFilterValueChange_pb(filterExp[0])
 	case 4:
 		fType = "curvelog"
-		value = getJsonFilterValueCurvelog(filterExp[0])
+		value = getJsonFilterValueCurvelog_pb(filterExp[0])
 	case 5:
 		fType = "history"
-		value = getJsonFilterValueHistory(filterExp[0])
+		value = getJsonFilterValueHistory_pb(filterExp[0])
 	case 6:
 		fType = "static-metadata"
-		value = getJsonFilterValueStaticMetadata(filterExp[0])
+		value = getJsonFilterValueStaticMetadata_pb(filterExp[0])
 	case 7:
 		fType = "dynamic-metadata"
-		value = getJsonFilterValueDynamicMetadata(filterExp[0])
+		value = getJsonFilterValueDynamicMetadata_pb(filterExp[0])
 	}
 	return `,"filter":{"type":"` + fType + `","parameter":` + value + `}`
 }
 
-func getJsonFilterValuePaths(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValuePaths_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	relativePaths := filterExp.GetValue().GetValuePaths().GetRelativePath()
 	value := ""
 	if len(relativePaths) > 1 {
@@ -742,12 +742,12 @@ func getJsonFilterValuePaths(filterExp *pb.FilterExpressions_FilterExpression) s
 	return value
 }
 
-func getJsonFilterValueTimebased(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueTimebased_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	period := filterExp.GetValue().GetValueTimebased().GetPeriod()
 	return `{"period":"` + period + `"}`
 }
 
-func getJsonFilterValueRange(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueRange_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	rangeValue := filterExp.GetValue().GetValueRange()
 	value := ""
 	if len(rangeValue) > 1 {
@@ -765,29 +765,29 @@ func getJsonFilterValueRange(filterExp *pb.FilterExpressions_FilterExpression) s
 	return value
 }
 
-func getJsonFilterValueChange(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueChange_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	logicOperator := filterExp.GetValue().GetValueChange().GetLogicOperator()
 	diff := filterExp.GetValue().GetValueChange().GetDiff()
 	return `{"logic-op":"` + logicOperator + `","diff":"` + diff + `"}`
 }
 
-func getJsonFilterValueCurvelog(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueCurvelog_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	maxErr := filterExp.GetValue().GetValueCurvelog().GetMaxErr()
 	bufSize := filterExp.GetValue().GetValueCurvelog().GetBufSize()
 	return `{"maxerr":"` + maxErr + `","bufsize":"` + bufSize + `"}`
 }
 
-func getJsonFilterValueHistory(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueHistory_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	timePeriod := filterExp.GetValue().GetValueHistory().GetTimePeriod()
 	return `"` + timePeriod + `"`
 }
 
-func getJsonFilterValueStaticMetadata(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueStaticMetadata_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	tree := filterExp.GetValue().GetValueStaticMetadata().GetTree()
 	return tree
 }
 
-func getJsonFilterValueDynamicMetadata(filterExp *pb.FilterExpressions_FilterExpression) string {
+func getJsonFilterValueDynamicMetadata_pb(filterExp *pb.FilterExpressions_FilterExpression) string {
 	metadataDomain := filterExp.GetValue().GetValueDynamicMetadata().GetMetadataDomain()
 	return metadataDomain
 }
@@ -885,7 +885,7 @@ func getJsonData(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) str
 		} else {
 			path = DecompressPath(dataPack[i].GetPathC())
 		}
-		dp := getJsonDp(dataPack[i])
+		dp := getJsonDp_pb(dataPack[i])
 		data += `{"path":"` + path + `","dp":` + dp + `},`
 	}
 	data = data[:len(data)-1]
@@ -895,7 +895,7 @@ func getJsonData(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) str
 	return `,"data":` + data
 }
 
-func getJsonDp(dataPack *pb.DataPackages_DataPackage) string {
+func getJsonDp_pb(dataPack *pb.DataPackages_DataPackage) string {
 	dpPack := dataPack.GetDp()
 	dp := ""
 	if len(dpPack) > 1 {
@@ -918,7 +918,7 @@ func getJsonDp(dataPack *pb.DataPackages_DataPackage) string {
 	return dp
 }
 
-func getJsonError(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
+func getJsonError_pb(protoMessage *pb.ProtobufMessage, mMethod pb.MessageMethod) string {
 	var errorResponse *pb.ErrorResponseMessage
 	switch mMethod {
 	case 0: // GET

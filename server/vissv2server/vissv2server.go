@@ -33,6 +33,7 @@ import (
 	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
 	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 
@@ -62,6 +63,7 @@ var serverComponents []string = []string{
 	"httpMgr",
 	"wsMgr",
 	"mqttMgr",
+	"grpcMgr",
 	"atServer",
 }
 
@@ -73,6 +75,7 @@ var transportMgrChannel = []chan string{
 	make(chan string), // HTTP
 	make(chan string), // WS
 	make(chan string), // MQTT
+	make(chan string), // gRPC
 }
 
 var serviceMgrChannel = []chan string{
@@ -84,9 +87,11 @@ var transportDataChan = []chan string{
 	make(chan string),
 	make(chan string),
 	make(chan string),
+	make(chan string),
 }
 
 var backendChan = []chan string{
+	make(chan string),
 	make(chan string),
 	make(chan string),
 	make(chan string),
@@ -913,6 +918,9 @@ func main() {
 		case "mqttMgr":
 			go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
 			go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
+		case "grpcMgr":
+			go grpcMgr.GrpcMgrInit(3, transportMgrChannel[3])
+			go transportDataSession(transportMgrChannel[3], transportDataChan[3], backendChan[3])
 		case "serviceMgr":
 			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
 			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
@@ -930,7 +938,9 @@ func main() {
 			serveRequest(request, 1, 0)
 		case request := <-transportDataChan[2]: // request from MQTT mgr
 			serveRequest(request, 2, 0)
-			//  case request := <- transportDataChan[3]:  // implement when there is a 4th transport protocol mgr
+		case request := <-transportDataChan[3]: // request from gRPC mgr
+			serveRequest(request, 3, 0)
+			//  case request := <- transportDataChan[X]:  // implement when there is a Xth transport protocol mgr
 		}
 	}
 }

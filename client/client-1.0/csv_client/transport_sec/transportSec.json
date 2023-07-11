@@ -1,6 +1,6 @@
 {
     "transportSec": "no",
-    "secPort": "443",
+    "wsSecPort": "6443",
     "caSecPath": "ca/",
     "serverSecPath": "",
     "serverCertOpt": "ClientCertVerification",
