@@ -11,8 +11,6 @@ package utils
 import (
 	"encoding/json"
 	"strconv"
-//	utils "github.com/w3c/automotive-viss2/utils"
-
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
 )
 

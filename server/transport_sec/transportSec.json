@@ -1,12 +1,12 @@
 {
     "transportSec": "no",
-    "httpSecPort": "8888",
-    "wsSecPort": "8080",
+    "httpSecPort": "443",
+    "wsSecPort": "6443",
     "mqttSecPort": "8883",
-    "agtsSecPort": "7500",
-    "atsSecPort": "8600",
+    "grpcSecPort": "5443",
+    "agtsSecPort": "7443",
+    "atsSecPort": "8443",
     "caSecPath": "ca/",
     "serverSecPath": "server/",
-    "serverCertOpt": "NoClientCert",
-    "clientSecPath": "client/"
+    "serverCertOpt": "NoClientCert"
 }

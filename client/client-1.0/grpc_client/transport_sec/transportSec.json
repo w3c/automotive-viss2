@@ -1,6 +1,6 @@
 {
     "transportSec": "no",
-    "secPort": "5443",
+    "grpcSecPort": "5443",
     "caSecPath": "ca/",
     "serverSecPath": "",
     "serverCertOpt": "ClientCertVerification",

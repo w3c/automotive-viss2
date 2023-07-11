@@ -12,14 +12,20 @@ import (
 	"context"
 	"time"
 	"os"
+	"crypto/tls"
+	"crypto/x509"
+	"google.golang.org/grpc/credentials"
 	"github.com/akamensky/argparse"
 	utils "github.com/w3c/automotive-viss2/utils"
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
 	"google.golang.org/grpc"
 )
 
+var clientCert tls.Certificate
+var caCertPool x509.CertPool
+
 const (
-    address     = "localhost:5000"
+    address     = "localhost:"
     name = "VISSv2-gRPC-client"
 )
 
@@ -36,7 +42,19 @@ func initCommandList() {
 }
 
 func noStreamCall(commandIndex int) {
-	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	var conn *grpc.ClientConn
+	var err error
+	if secConfig.TransportSec == "yes" {
+		config := &tls.Config {
+				Certificates: []tls.Certificate{clientCert},
+				RootCAs:      &caCertPool,
+		}
+		tlsCredentials := credentials.NewTLS(config)
+		portNo := secConfig.GrpcSecPort
+		conn, err = grpc.Dial(address + portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
+	} else {
+		conn, err = grpc.Dial(address + "5000", grpc.WithInsecure(), grpc.WithBlock())
+	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
 		return
@@ -111,6 +129,11 @@ func main() {
 
 	utils.InitLog("grpc_client-log.txt", "./logs", *logFile, *logLevel)
 	grpcCompression = utils.PB_LEVEL1
+	readTransportSecConfig()
+	utils.Info.Printf("secConfig.TransportSec=%s", secConfig.TransportSec)
+	if secConfig.TransportSec == "yes" {
+		caCertPool = *prepareTransportSecConfig()
+	}
 	initCommandList()
 
 	fmt.Printf("Command indicies: 0=GET, 1=SUBSCRIBE, 2=UNSUBSCRIBE, 3=SET, any other value terminates.\n")

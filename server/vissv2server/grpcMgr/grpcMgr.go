@@ -12,6 +12,8 @@ import (
 	"context"
 	"net"
 	"encoding/json"
+	"crypto/tls"
+	"google.golang.org/grpc/credentials"
 	utils "github.com/w3c/automotive-viss2/utils"
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
 	"google.golang.org/grpc"
@@ -168,18 +170,41 @@ func getSubscriptionId(resp string) string {
 }
 
 func initGrpcServer() {
-    server := grpc.NewServer()
+    var server *grpc.Server
+    var portNo string
+    if utils.SecureConfiguration.TransportSec == "yes" {
+	cert, err := tls.LoadX509KeyPair(utils.TrSecConfigPath+utils.SecureConfiguration.ServerSecPath+"server.crt", utils.TrSecConfigPath+utils.SecureConfiguration.ServerSecPath+"server.key")
+	if err != nil {
+		utils.Error.Printf("initGrpcServer:Cannot load server credentials, err=%s", err)
+		return
+	}
+	
+	config := utils.GetTLSConfig("localhost", utils.TrSecConfigPath+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
+					tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt)), &cert)
+	tlsCredentials := credentials.NewTLS(config)
+
+	opts := []grpc.ServerOption{
+//		grpc.Creds(credentials.NewServerTLSFromCert(&cert)),
+		grpc.Creds(tlsCredentials),
+	}
+	server = grpc.NewServer(opts...)
+	portNo = utils.SecureConfiguration.GrpcSecPort
+utils.Info.Printf("initGrpcServer:port number=%s", portNo)
+    } else {
+    	server = grpc.NewServer()
+    	portNo = "5000"
+    }
     pb.RegisterVISSv2Server(server, &Server{})
     for {
-        lis, err := net.Listen("tcp", "localhost:5000")
+        lis, err := net.Listen("tcp", "localhost:" + portNo)
         if err != nil {
             utils.Error.Printf("failed to listen: " + err.Error() )
-            continue
+            break
         }
         err = server.Serve(lis)
         if err != nil {
             utils.Error.Printf("failed to start grpc: " + err.Error())
-            continue
+            break
         }
     }
 }
