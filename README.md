@@ -1,3 +1,4 @@
+**(C) 2023 Ford Motor Company**<br>
 **(C) 2019 Volvo Cars**<br>
 **(C) 2019 Geotab Inc**<br>
 **(C) 2019 Mitsubishi Electric Automotive**<br>
@@ -12,33 +13,31 @@ This project implements the W3C VISS v2 specification under development at <a hr
 
 This project requires Go version 1.13 or above, make sure your GOROOT and GOPATH are correctly configured. Since this project uses Go modules all dependencies will automatically download when building the project the first time.
 
-The server can be built and started by running the script below. This will build and start the following components, see Fig. 1.
+The server consist of the software components shown below:
  - Core server
  - HTTP manager
  - Websocket manager
  - MQTT manager
+ - gRPC manager
  - Vehicle service manager
  - Access Grant token server
  - Access Token server 
  
- A subset of these can be started by e. g. removing components from the line below in the W3CServer.sh.
-```
- services=(server_core service_mgr at_server agt_server http_mgr ws_mgr mqtt_mgr)
-```
-Script start / stop commands:
-```bash
-#start the servers
-$ ./W3CServer.sh startme
-#stop the servers
-$ ./W3CServer.sh stopme
-```
-Components can be built separately by issuing<br>
-$ go build<br>
-in their respective directory.<br>
-Some of them may be possible to start together with a flag set on the command line. 
-To find out about possible flags, they can be started together with the --help flag, e.g.:<br>
-$ ./server_core --help
+hese used to be built as separate processes that communicated over the Websockets protocol.
+This model is available on the "multi-process" branch. To start them there is a shell script, please check the README for details of it.
 
+On the master branch these coponents are today implemented as threads within a single process, to build it
+
+move to the ./server/vissv2 directory,
+
+issue $ go build
+
+and the start it ./vissv2server
+
+The server may be started with a few different command line flags, append --help to get more info about them.
+
+There are a couple of client implementation written in Go, use the same build and start pattern for them.
+The clients written in JS starts by clicking on them from a file browser.
 
 To speed up the first time build you can run the command below in ./ and ./server directory
 
@@ -74,7 +73,7 @@ The components mentioned above that together realizes the server is available in
 - Components are built and deployed as threads within one common process/binary, and communicate using Go channels.<br>
 
 These implementations are found at the branches multi-process and single-process, respectively. 
-The master branch is currently identical to the single-process branch.
+The master branch is a fork from the single-process branch.
 
 ### Using Docker-Compose to launch a W3CServer instance
 
