@@ -1,3 +1,5 @@
+**(C) 2023 Ford Motor Company**
+
 ## gRPC
 
 The gRPC implementation is payload compatible with the Websocket and MQTT implementations.
