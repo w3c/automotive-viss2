@@ -2,6 +2,14 @@
 
 # gRPC client
 
+To build:
+
+$ go build
+
+To run:
+
+./grpc_client
+
 The gRPC client UI provides a choice of four different request that can be issued:
 
 ```
