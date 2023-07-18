@@ -343,48 +343,6 @@ func addPackage(incompleteMessage string, packName string, packValue string) str
 	return incompleteMessage[:len(incompleteMessage)-1] + ", \"" + packName + "\":" + packValue + "}"
 }
 
-func checkSubscription(subscriptionChannel chan int, CLChan chan CLPack, backendChannel chan string, subscriptionList []SubscriptionState) []SubscriptionState {
-	var subscriptionMap = make(map[string]interface{})
-	subscriptionMap["action"] = "subscription"
-	subscriptionMap["ts"] = utils.GetRfcTime()
-	select {
-	case subscriptionId := <-subscriptionChannel: // interval notification triggered
-		//utils.Info.Printf("checkSubscription():interval triggered, subscriptionId=%d", subscriptionId)
-		subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
-		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
-		subscriptionMap["RouterId"] = subscriptionState.RouterId
-		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionState.Path, nil))
-	case clPack := <-CLChan: // curve logging notification
-		index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
-		//subscriptionState := subscriptionList[index]
-		subscriptionList[index].SubscriptionThreads--
-		if clPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0 {
-			subscriptionList = removeFromsubscriptionList(subscriptionList, index)
-			closeClSubId = -1
-		}
-		subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionList[index].SubscriptionId)
-		subscriptionMap["RouterId"] = subscriptionList[index].RouterId
-		backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", clPack.DataPack)
-	default:
-		// check if range or change notification triggered
-		for i := range subscriptionList {
-			triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
-			doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
-			if updateLatest == true {
-				subscriptionList[i].LatestDataPoint = triggerDataPoint
-			}
-			if doTrigger == true {
-				subscriptionState := subscriptionList[i]
-				subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
-				subscriptionMap["RouterId"] = subscriptionState.RouterId
-				subscriptionList[i].LatestDataPoint = triggerDataPoint
-				backendChannel <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].Path, nil))
-			}
-		}
-	}
-	return subscriptionList
-}
-
 func deactivateSubscription(subscriptionList []SubscriptionState, subscriptionId string) (int, []SubscriptionState) {
 	id, _ := strconv.Atoi(subscriptionId)
 	index := getSubcriptionStateIndex(id, subscriptionList)
@@ -501,7 +459,12 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	case "redis":
+	start := time.Now()
 		dp, err := redisClient.Get(path).Result()
+	stop := time.Now()
+	elapsed := stop.Sub(start)
+	roundtripTime := int(elapsed/1000) // nsec -> usec
+	utils.Info.Printf("\nRedis call execution time=%d usec\n", roundtripTime)
 		if err != nil {
 			if err.Error() != "redis: nil" {
 				utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
@@ -954,6 +917,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
 	go historyServer(historyAccessChannel, udsPath, vss_data)
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
+	subscriptTicker := time.NewTicker(15 * time.Millisecond)  //range/change subscriptions
 
 	for {
 		select {
@@ -1066,9 +1030,47 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			}
 		case subThreads := <-threadsChan:
 			subscriptionList = setSubscriptionListThreads(subscriptionList, subThreads)
-		default:
-			subscriptionList = checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
-			time.Sleep(5 * time.Millisecond)
+		case subscriptionId := <-subscriptionChan: // interval notification triggered
+			subscriptionState := subscriptionList[getSubcriptionStateIndex(subscriptionId, subscriptionList)]
+			var subscriptionMap = make(map[string]interface{})
+			subscriptionMap["action"] = "subscription"
+			subscriptionMap["ts"] = utils.GetRfcTime()
+			subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
+			subscriptionMap["RouterId"] = subscriptionState.RouterId
+			backendChan <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionState.Path, nil))
+		case clPack := <-CLChannel: // curve logging notification
+			index := getSubcriptionStateIndex(clPack.SubscriptionId, subscriptionList)
+			//subscriptionState := subscriptionList[index]
+			subscriptionList[index].SubscriptionThreads--
+			if clPack.SubscriptionId == closeClSubId && subscriptionList[index].SubscriptionThreads == 0 {
+				subscriptionList = removeFromsubscriptionList(subscriptionList, index)
+				closeClSubId = -1
+			}
+			var subscriptionMap = make(map[string]interface{})
+			subscriptionMap["action"] = "subscription"
+			subscriptionMap["ts"] = utils.GetRfcTime()
+			subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionList[index].SubscriptionId)
+			subscriptionMap["RouterId"] = subscriptionList[index].RouterId
+			backendChan <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", clPack.DataPack)
+		case <-subscriptTicker.C:
+			// check if range or change notification triggered
+			for i := range subscriptionList {
+				triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
+				doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
+				if updateLatest == true {
+					subscriptionList[i].LatestDataPoint = triggerDataPoint
+				}
+				if doTrigger == true {
+					subscriptionState := subscriptionList[i]
+					var subscriptionMap = make(map[string]interface{})
+					subscriptionMap["action"] = "subscription"
+					subscriptionMap["ts"] = utils.GetRfcTime()
+					subscriptionMap["subscriptionId"] = strconv.Itoa(subscriptionState.SubscriptionId)
+					subscriptionMap["RouterId"] = subscriptionState.RouterId
+					subscriptionList[i].LatestDataPoint = triggerDataPoint
+					backendChan <- addPackage(utils.FinalizeMessage(subscriptionMap), "data", getDataPack(subscriptionList[i].Path, nil))
+				}
+			}
 		} // select
 	} // for
 }
