@@ -513,7 +513,8 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 			}
 		} else {
 			//		    utils.Info.Printf("Datapoint=%s\n", dp)
-			type RedisDp struct {
+			return dp
+/*			type RedisDp struct {
 				Val string
 				Ts  string
 			}
@@ -525,7 +526,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 			} else {
 				//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
 				return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
-			}
+			}*/
 		}
 	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -1067,7 +1068,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			subscriptionList = setSubscriptionListThreads(subscriptionList, subThreads)
 		default:
 			subscriptionList = checkSubscription(subscriptionChan, CLChannel, backendChan, subscriptionList)
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		} // select
 	} // for
 }

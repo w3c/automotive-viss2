@@ -1,0 +1,3 @@
+
+{"transportSec" : "no", "wsSecPort": "6443", "caSecPath": "ca/", "serverSecPath": "", "serverCertOpt": "ClientCertVerification", "clientSecPath": "client/"}
+

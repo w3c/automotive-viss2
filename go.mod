@@ -9,13 +9,13 @@ replace github.com/w3c/automotive-viss2/utils => ./utils
 replace (
 	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20220524163944-c753a539973f
 	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20220524163944-c753a539973f
+	github.com/w3c/automotive-viss2/grpc_pb => ./grpc_pb
 	github.com/w3c/automotive-viss2/server/vissv2server/atServer => ./server/vissv2server/atServer
+	github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr => ./server/vissv2server/grpcMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/httpMgr => ./server/vissv2server/httpMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr => ./server/vissv2server/mqttMgr
-	github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr => ./server/vissv2server/grpcMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr => ./server/vissv2server/serviceMgr
 	github.com/w3c/automotive-viss2/server/vissv2server/wsMgr => ./server/vissv2server/wsMgr
-	github.com/w3c/automotive-viss2/grpc_pb => ./grpc_pb
 )
 
 //replace github.com/w3c/automotive-viss2/protobuf/protoc-out => ./protobuf/protoc-out
@@ -33,6 +33,6 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/mattn/go-sqlite3 v1.14.14
 	github.com/sirupsen/logrus v1.8.1
-	google.golang.org/grpc v1.56.1 // indirect
+	google.golang.org/grpc v1.56.1
 	google.golang.org/protobuf v1.30.0
 )
