@@ -2,4 +2,5 @@
 {"action":"get","path":"Incorrect/Path","requestId":"1957"},
 {"action":"get","path":"Vehicle.Acceleration.Longitudinal","requestId":"233"},
 {"action":"get","path":"Vehicle/ADAS","filter":{"type":"paths","parameter":["ABS/*","CruiseControl/Error"]},"requestId":"237"},
+{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"},
 {"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3"}},"requestId":"246"}]}

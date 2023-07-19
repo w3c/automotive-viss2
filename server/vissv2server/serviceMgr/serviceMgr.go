@@ -459,12 +459,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	case "redis":
-	start := time.Now()
 		dp, err := redisClient.Get(path).Result()
-	stop := time.Now()
-	elapsed := stop.Sub(start)
-	roundtripTime := int(elapsed/1000) // nsec -> usec
-	utils.Info.Printf("\nRedis call execution time=%d usec\n", roundtripTime)
 		if err != nil {
 			if err.Error() != "redis: nil" {
 				utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
