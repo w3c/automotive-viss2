@@ -145,6 +145,7 @@ func performCommand(commandNumber int, conn *websocket.Conn, optionChannel chan 
     fmt.Printf("Request: %s\n", requestList.Request[commandNumber])
     request := []byte(requestList.Request[commandNumber])
     jsonResponse, roundtripTime := getResponse(conn, request)
+    fmt.Printf("Response: %s\n", jsonResponse)
     if (strings.Contains(requestList.Request[commandNumber], "subscribe") == true) {
         for {
 	    _, msg, err := conn.ReadMessage()
