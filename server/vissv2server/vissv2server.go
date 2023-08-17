@@ -1,4 +1,5 @@
 /**
+* (C) 2023 Ford Motor Company
 * (C) 2022 Geotab Inc
 * (C) 2020 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
@@ -858,7 +859,7 @@ func main() {
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
 	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
-		Help: "Statestorage must be either sqlite, redis, or none", Default: "sqlite"})
+		Help: "Statestorage must be either sqlite, redis, or none", Default: "redis"})
 	udsPath := parser.String("", "uds", &argparse.Options{
 		Required: false,
 		Help:     "Set UDS path and file",

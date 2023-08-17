@@ -1,4 +1,5 @@
 /**
+* (C) 2023 Ford Motor Company
 * (C) 2022 Geotab Inc
 * (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
@@ -55,6 +56,7 @@ type HistoryList struct {
 var historyList []HistoryList
 var historyAccessChannel chan string
 
+//var feederConn net.Conn
 //var hostIp string
 
 var errorResponseMap = map[string]interface{}{
@@ -71,6 +73,54 @@ var redisClient *redis.Client
 var stateDbType string
 
 var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
+
+type FeederReg struct {
+	RootName string      `json:"root"`
+	SocketFile string    `json:"fname"`
+	UdsConn net.Conn
+}
+
+var feederRegList []FeederReg
+
+func readFeederRegistrations(sockFile string) []FeederReg {
+	var regList []FeederReg
+	data, err := ioutil.ReadFile(sockFile)
+	if err != nil {
+		utils.Error.Printf("readFeederRegistrations():%s error=%s", sockFile, err)
+		return nil
+	}
+	err = json.Unmarshal(data, &regList)
+	if err != nil {
+		utils.Error.Printf("readFeederRegistrations():unmarshal error=%s", err)
+		return nil
+	}
+	for i := 0 ; i < len(regList) ; i++ {
+		regList[i].UdsConn = nil
+	}
+	return regList
+}
+
+func getFeederConn(path string) net.Conn {
+	root := utils.ExtractRootName(path)
+	for i := 0 ; i < len(feederRegList) ; i++ {
+		if root == feederRegList[i].RootName {
+			if feederRegList[i].UdsConn == nil {
+				feederRegList[i].UdsConn = connectToFeeder(feederRegList[i].SocketFile)
+			}
+			return feederRegList[i].UdsConn
+		}
+	}
+	return nil
+}
+
+func connectToFeeder(sockFile string) net.Conn {
+	feederConn, err := net.Dial("unix", sockFile)
+	if err != nil {
+		utils.Error.Printf("connectToFeeder:UDS Dial failed, err = %s", err)
+		return nil
+	}
+	return feederConn
+}
 
 func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
@@ -510,16 +560,26 @@ func setVehicleData(path string, value string) string {
 		}
 		return ts
 	case "redis":
-		dp := `{"val":"` + value + `", "ts":"` + ts + `"}`
+/*		dp := `{"val":"` + value + `", "ts":"` + ts + `"}`
 		dPath := path + ".D" // path to "desired" dp. Must be created identically by feeder reading it.
 		err := redisClient.Set(dPath, dp, time.Duration(0)).Err()
 		if err != nil {
 			utils.Error.Printf("Could not update statestorage. Err=%s\n", err)
 			return ""
-		} else {
-			//		    utils.Error.Println("Datapoint=%s\n", dp)
-			return ts
 		}
+		return ts*/
+		feederConn := getFeederConn(path)
+		if feederConn == nil {
+			utils.Error.Printf("setVehicleData:Failed to UDS connect to feeder for path = %s", path)
+			return ""
+		}
+		data := `{"path":"` + path + `", "dp":{"value":"` + value + `", "ts":"` + ts + `"}}`
+		_, err := feederConn.Write([]byte(data))
+		if err != nil {
+			utils.Error.Printf("setVehicleData:Write failed, err = %s", err)
+			return ""
+		}
+		return ts
 	}
 	return ""
 }
@@ -897,6 +957,8 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	default:
 		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
+
+	feederRegList = readFeederRegistrations("feeder-registration.json")
 
 	dataChan := make(chan string)
 	backendChan := make(chan string)
