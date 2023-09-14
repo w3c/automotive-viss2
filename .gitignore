@@ -24,6 +24,7 @@ vsspathlist.json
 vss_vissv2.binary
 certificate.pem
 config.json
+feeder
 
 # Test binary, built with `go test -c`
 *.test
