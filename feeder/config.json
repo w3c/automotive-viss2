@@ -1,0 +1,10 @@
+{
+  "cert_path_name": "certificate.pem",
+  "name_spaces": ["vss"],
+  "broker_url": "vss-aaos-vccdefault-sglnqbpwoa-ez.a.run.app",
+  "port":"443",
+  "client_id" : "volvo-go-client",
+  "api_key": "abcdefg",
+  "vss_tree_path": "../vss/vss-flat-json/normalized-json/vss_n.json",
+  "signalfilter": ["Vehicle.Speed","Vehicle.VehicleIdentification.Model","Vehicle.VehicleIdentification.VIN"]
+}

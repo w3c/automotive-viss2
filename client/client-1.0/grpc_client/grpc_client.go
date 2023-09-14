@@ -8,25 +8,26 @@
 package main
 
 import (
-	"fmt"
 	"context"
-	"time"
-	"os"
 	"crypto/tls"
 	"crypto/x509"
-	"google.golang.org/grpc/credentials"
+	"fmt"
 	"github.com/akamensky/argparse"
-	utils "github.com/w3c/automotive-viss2/utils"
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
+	utils "github.com/w3c/automotive-viss2/utils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"os"
+	"time"
 )
 
 var clientCert tls.Certificate
 var caCertPool x509.CertPool
 
 const (
-    address     = "localhost:"
-    name = "VISSv2-gRPC-client"
+	address = "0.0.0.0"
+	name    = "VISSv2-gRPC-client"
 )
 
 var grpcCompression utils.Compression
@@ -35,8 +36,8 @@ var commandList []string
 
 func initCommandList() {
 	commandList = make([]string, 4)
-	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
-	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
+	commandList[0] = `{"action":"get","path":"Vehicle/VehicleIdentification/Model","requestId":"232"}`
+	commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
 	commandList[2] = `{"action":"unsubscribe","subscriptionId":"1","requestId":"240"}`
 	commandList[3] = `{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}`
 }
@@ -45,15 +46,16 @@ func noStreamCall(commandIndex int) {
 	var conn *grpc.ClientConn
 	var err error
 	if secConfig.TransportSec == "yes" {
-		config := &tls.Config {
-				Certificates: []tls.Certificate{clientCert},
-				RootCAs:      &caCertPool,
+		config := &tls.Config{
+			Certificates: []tls.Certificate{clientCert},
+			RootCAs:      &caCertPool,
 		}
 		tlsCredentials := credentials.NewTLS(config)
 		portNo := secConfig.GrpcSecPort
-		conn, err = grpc.Dial(address + portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
+		conn, err = grpc.Dial(address+portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
 	} else {
-		conn, err = grpc.Dial(address + "5000", grpc.WithInsecure(), grpc.WithBlock())
+		// grpc.Dial
+		conn, err = grpc.Dial(address+":5000", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
@@ -87,7 +89,7 @@ func noStreamCall(commandIndex int) {
 }
 
 func streamCall(commandIndex int) {
-	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(address+":5000", grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
 		return
@@ -141,11 +143,11 @@ func main() {
 	for {
 		fmt.Printf("\nCommand index [0-3]:")
 		fmt.Scanf("%d", &commandIndex)
-		if (commandIndex < 0 || commandIndex > 3) {
+		if commandIndex < 0 || commandIndex > 3 {
 			break
 		}
 		fmt.Printf("Command:%s", commandList[commandIndex])
-		if (commandIndex == 1) { // subscribe
+		if commandIndex == 1 { // subscribe
 			go streamCall(commandIndex)
 		} else {
 			go noStreamCall(commandIndex)

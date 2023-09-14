@@ -1,6 +1,6 @@
 /**
 * (C) 2022 Geotab Inc
-* (C) 2020 Mitsubishi Electrics Automotive
+* (C) 2020 Mitsubishi Electric Automotive
 * (C) 2019 Geotab Inc
 * (C) 2019 Volvo Cars
 *
@@ -13,15 +13,14 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"github.com/w3c/automotive-viss2/utils"
+	"net/http"
 )
 
 /*
 * Handler for the vsspathlist server
  */
-func (pathList *PathList) vssPathListHandler(w http.ResponseWriter, r *http.Request) {
+func (pathList *PathList) VssPathListHandler(w http.ResponseWriter, r *http.Request) {
 	bytes, err := json.Marshal(pathList)
 	if err != nil {
 		utils.Error.Printf("problems with json.Marshal, ", err)
@@ -32,4 +31,3 @@ func (pathList *PathList) vssPathListHandler(w http.ResponseWriter, r *http.Requ
 	w.Write(bytes)
 	utils.Info.Printf("initVssPathListServer():Response=%s...(truncated to 100 bytes)", bytes[0:101])
 }
-

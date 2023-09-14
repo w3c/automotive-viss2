@@ -32,9 +32,8 @@ import (
 	"time"
 
 	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
-	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
-	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 
@@ -778,7 +777,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	}
 	paths = paths[:len(paths)-2]
 	if totalMatches == 1 {
-		paths = paths[1:len(paths)-1]  // remove hyphens
+		paths = paths[1 : len(paths)-1] // remove hyphens
 	} else if totalMatches > 1 {
 		paths = "[" + paths + "]"
 	}
@@ -817,6 +816,10 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	}
 	requestMap["path"] = paths
 	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
+}
+
+type CoreInterface interface {
+	vssPathListHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type PathList struct {
@@ -888,7 +891,7 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/vsspathlist", pathList.vssPathListHandler).Methods("GET")
+	router.HandleFunc("/vsspathlist", pathList.VssPathListHandler).Methods("GET")
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:8081",
@@ -917,8 +920,8 @@ func main() {
 			go wsMgr.WsMgrInit(1, transportMgrChannel[1])
 			go transportDataSession(transportMgrChannel[1], transportDataChan[1], backendChan[1])
 		case "mqttMgr":
-			go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
-			go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
+			//go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
+			//go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
 		case "grpcMgr":
 			go grpcMgr.GrpcMgrInit(3, transportMgrChannel[3])
 			go transportDataSession(transportMgrChannel[3], transportDataChan[3], backendChan[3])
