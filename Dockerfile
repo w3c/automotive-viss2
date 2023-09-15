@@ -21,7 +21,9 @@ WORKDIR /build
 RUN mkdir bin
 
 #copy the content of the server and utils dir and .mod/.sum files to builder
-COPY server/ .
+COPY server/ ./server
+COPY grpc_pb/ ./grpc_pb
+COPY protobuf/ ./protobuf
 COPY utils ./utils
 COPY go.mod go.sum ./
 
@@ -33,10 +35,10 @@ COPY testCredGen/client transport_sec/client
 #remove these since these arent currently buildable and shouldnt be included
 RUN rm -rf test
 RUN rm -rf signal_broker
-RUN rm hist_ctrl_client.go
+#RUN rm hist_ctrl_client.go
 
 #clean up unused dependencies
-RUN go mod tidy
+#RUN go mod tidy
 #compile all projects and place the executables in the bin folder
 RUN go build -v -o ./bin ./...
 
