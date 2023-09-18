@@ -1,0 +1,33 @@
+name: Standard Build Check
+
+on: [push, pull_request]
+
+jobs:
+  docgen:
+    name: Documentation Generation
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Install hugo
+        env:
+          HUGO_VER : 0.103.1
+        run: |
+          curl -LO https://github.com/gohugoio/hugo/releases/download/v${HUGO_VER}/hugo_${HUGO_VER}_linux-amd64.deb
+          sudo dpkg -i hugo_${HUGO_VER}_linux-amd64.deb
+
+      - name: Make docs
+        run: |
+          hugo -s ./docs-gen
+
+      - name: Deploy docs
+        # Only deploy docs if this was a push to master
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        uses: JamesIves/github-pages-deploy-action@4.1.4
+        with:
+          branch: master # The branch the action should deploy to.
+          folder: tutorial # The folder the action should deploy.
+          commit-message: Auto-deploy docs built from commit ${{ github.sha }}
