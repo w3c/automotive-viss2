@@ -1,6 +1,9 @@
 name: Standard Build Check
 
-on: [push, pull_request]
+on: 
+  push:
+    branches:
+      - gh-pages
 
 jobs:
   docgen:
@@ -24,8 +27,8 @@ jobs:
           hugo -s ./tutorial -d ./docs
 
       - name: Deploy docs
-        # Only deploy docs if this was a push to master
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+        # Only deploy docs if this was a push to gh-pages
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/gh-pages' }}
         uses: JamesIves/github-pages-deploy-action@4.1.4
         with:
           branch: master # The branch the action should deploy to.
