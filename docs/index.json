@@ -1,0 +1,71 @@
+[
+{
+	"uri": "https://w3c.github.io/automotive-viss2/categories/",
+	"title": "Categories",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/tags/",
+	"title": "Tags",
+	"tags": [],
+	"description": "",
+	"content": ""
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/pocs/poc1/",
+	"title": "VISSv2 (POC1, replace by more expressive name)",
+	"tags": [],
+	"description": "",
+	"content": "The presentation\u0026hellip;\n"
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/build-system/",
+	"title": "VISSv2 Build System",
+	"tags": [],
+	"description": "",
+	"content": "Most of the code at this repository is written in Golang, so in order to use this repo Golang must be installed on the computer.\nInstalling Golang on Ubuntu Installing Golang on Mac "
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/client/",
+	"title": "VISSv2 Clients",
+	"tags": [],
+	"description": "",
+	"content": "There is a number of different clients avaliable on this repo undr the directory Clients.\nJava based clients Golang based clients "
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/datastore/",
+	"title": "VISSv2 Data Storage",
+	"tags": [],
+	"description": "",
+	"content": "Two realizations of data storage are available on the COVESA/CCS-components Github, one using an SQLite database, and the other a Redis database.\n"
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/feeder/",
+	"title": "VISSv2 Feeder",
+	"tags": [],
+	"description": "",
+	"content": "A feeder is a Sw component that has three purposes:\nImplement an interface to the data storage Implement an interface to the underlying vehicle interface Translate data from the format used in the \u0026ldquo;VSS domain\u0026rdquo; to te format used in the \u0026ldquo;Vehicle domain\u0026rdquo;. "
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/pocs/",
+	"title": "VISSv2 POCs",
+	"tags": [],
+	"description": "",
+	"content": "The communication tech stack architecture can be realized in different \u0026ldquo;flavors\u0026rdquo;, and here a few different are presented.\n"
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/server/",
+	"title": "VISSv2 Server",
+	"tags": [],
+	"description": "",
+	"content": "The VISSv2 server is the Sw component that implements the interface that is exposed to the clients, and that must conform to the W3C VISSv2 specification.\n"
+},
+{
+	"uri": "https://w3c.github.io/automotive-viss2/",
+	"title": "W3C Vehicle Information Signal Specification ver 2, VISSv2 Tutorial",
+	"tags": [],
+	"description": "",
+	"content": "W3C Vehicle Information Signal Specification ver 2 This W3C specification, soon to become a W3C standard, is developed at the W3C/automotive github, and this Github contains a reference implementation in the form of a server that exposes an interface according to the specification.\nAlso found on this Github are implementations of other components that are needed to realize a communication tech stack, from clients to the underlying vehicle system. These components can be categorized as follows:\nserver client data storage feeder Server Client Data storage Feeder "
+}]
