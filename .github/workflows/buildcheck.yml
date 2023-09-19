@@ -29,6 +29,6 @@ jobs:
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/gh-pages' }}
         uses: JamesIves/github-pages-deploy-action@4.1.4
         with:
-          branch: master # The branch the action should deploy to.
+          branch: gh-pages # The branch the action should deploy to.
           folder: tutorial # The folder the action should deploy.
           commit-message: Auto-deploy docs built from commit ${{ github.sha }}
