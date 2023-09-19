@@ -21,7 +21,7 @@ jobs:
 
       - name: Make docs
         run: |
-          hugo -s ./docs-gen
+          hugo -s ./tutorial -d ./docs
 
       - name: Deploy docs
         # Only deploy docs if this was a push to master
