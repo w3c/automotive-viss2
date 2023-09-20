@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  tmp:
+    image: busybox
+    container_name: container_volumes
+    command: chmod -R 777 /opt/homebrew/var/db/redis/ && chmod -R 777 /var/tmp/vissv2/ && chmod -R 777 /var/run/
+    volumes:
+      - /opt/homebrew/var/db/redis/
+      - /var/tmp/vissv2/
+      - /var/run/
+
+  redis:
+    image: redis
+    container_name: app_redis
+    privileged: true
+    command: redis-server /etc/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+        - ./redis/redis.conf:/etc/redis.conf
+    volumes_from:
+        - tmp
