@@ -2,7 +2,7 @@ baseURL = "https://w3c.github.io/automotive-viss2/"
 languageCode = "en-us"
 title = "W3C VISSv2 Reference Implementation"
 theme = "learn"
-publishDir = "../tutorial"
+publishDir = "../docs"
 [params]
   # Change default color scheme with a variant one. Can be "red", "blue", "green".
   themeVariant = "blue"
