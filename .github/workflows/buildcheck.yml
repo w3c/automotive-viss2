@@ -23,7 +23,7 @@ jobs:
           sudo dpkg -i hugo_${HUGO_VER}_linux-amd64.deb
       - name: Make docs
         run: |
-          hugo -s ./tutorial -d ./docs
+          hugo -s ./tutorial
       - name: Deploy docs
         # Only deploy docs if this was a push to master
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
