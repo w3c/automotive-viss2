@@ -37,6 +37,15 @@ the server will then forward the access token received in the client request to 
 
 The ATS will as part of the validation also use the VISSv2 specified policy documents if they are found in the working directory.
 
+### Server configuration
+The configuration available for the servers is whether the protocols that they implement to expose their APIS are TLS protected or not.
+The same framework that is used for generating credentials for the client-server communication described [here](/automotive-viss2/server#tls-configuration) can be used here also.
+These credentials should however to follow good security practises be separate from what is used in the client-server communication.
+The different port number for the respective servers are shown below.
+| Server  | Port number: No TLS | Port number: TLS |
+|-----|---------|---------|
+| AGTS|   7500  |   7443  |
+| ATS |   8600  |   8443  |
 
 ### VISS web client submodule
 
