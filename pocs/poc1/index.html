@@ -9,24 +9,24 @@
 
     <link rel="shortcut icon" href="/automotive-viss2/images/fav.png" type="image/x-icon" />
 
-    <title>VISSv2 (POC1, replace by more expressive name) :: W3C VISSv2 Reference Implementation</title>
+    <title>Vehicle.Speed subscription example :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1695369445" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1695733078" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1695369445" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1695733078" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695369445"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695733078"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695369445"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695369445"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695733078"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695733078"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1695369445"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1695733078"></script>
 
     
   </div>
@@ -181,6 +181,30 @@
  
   
     
+    <li data-nav-id="/automotive-viss2/peripheral-components/" title="VISSv2 peripheral components" class="dd-item
+        
+        
+        
+        ">
+      <a href="/automotive-viss2/peripheral-components/">
+          VISSv2 peripheral components
+          
+      </a>
+      
+      
+    </li>
+  
+ 
+
+          
+          
+
+
+
+
+ 
+  
+    
     <li data-nav-id="/automotive-viss2/pocs/" title="VISSv2 POCs" class="dd-item
         parent
         
@@ -210,13 +234,39 @@
  
   
     
-    <li data-nav-id="/automotive-viss2/pocs/poc1/" title="VISSv2 (POC1, replace by more expressive name)" class="dd-item
+    <li data-nav-id="/automotive-viss2/pocs/poc2/" title="Next POC..." class="dd-item
+        
+        
+        
+        ">
+      <a href="/automotive-viss2/pocs/poc2/">
+          Next POC...
+          
+      </a>
+      
+      
+    </li>
+  
+ 
+
+            
+          
+            
+            
+
+
+
+
+ 
+  
+    
+    <li data-nav-id="/automotive-viss2/pocs/poc1/" title="Vehicle.Speed subscription example" class="dd-item
         
         active
         
         ">
       <a href="/automotive-viss2/pocs/poc1/">
-          VISSv2 (POC1, replace by more expressive name)
+          Vehicle.Speed subscription example
           
       </a>
       
@@ -367,7 +417,7 @@
             
           
           
-            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > <a href='/automotive-viss2/pocs/'>VISSv2 POCs</a> > VISSv2 (POC1, replace by more expressive name)
+            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > <a href='/automotive-viss2/pocs/'>VISSv2 POCs</a> > Vehicle.Speed subscription example
           
         
           
@@ -396,7 +446,7 @@
           
             <h1>
               
-              VISSv2 (POC1, replace by more expressive name)
+              Vehicle.Speed subscription example
             </h1>
           
 
@@ -404,7 +454,64 @@
 
 
 
-	<p>The presentation&hellip;</p>
+	<p>Here follows a minimal example that goes through all the steps nneeded to set up a VISSv2 tech stack
+where a client subscribes to Vehicle.Speed, and receives simulated values in return.</p>
+<p>It is assumed that the development environment has Golang installed.
+If not, then instruction for installing Golang is found <a href="/automotive-viss2/build-system/">here</a>.</p>
+<p>If this repo is not cloned to the development environment, this is done by the command:</p>
+<p>$ git clone <a href="https://github.com/w3c/automotive-viss2.git">https://github.com/w3c/automotive-viss2.git</a></p>
+<p>The POC will be based on the feeder found at the feeder branch, so switching to this branch is done by the command:</p>
+<p>$ git checkout feeder</p>
+<p>As we will use the Redis based statestorage, we will have to start the Redis daemon.
+A code snippet that does this is available <a href="https://github.com/COVESA/ccs-components/blob/master/statestorage/redisImpl/redisInit.go">here</a>.
+If you do not already have cloned this repo, then it is done by the command:</p>
+<p>$ git clone <a href="https://github.com/COVESA/ccs-components">https://github.com/COVESA/ccs-components</a></p>
+<p>Check out the README <a href="https://github.com/COVESA/ccs-components/tree/master/statestorage/redisImpl">here</a> for details on how to set this up.</p>
+<p>Next is to build the server, which is done in a terminal window by the command (with the working directory moved to the WAII/server/vissv2server):</p>
+<p>$ go build</p>
+<p>The server uses a binary formatted copy of the VSS tree to verify client requests, so if the signal of interest, Vehicle.Speed,
+is not in this tree, i is necessary to create a new binary tree containing this signal.
+For informtion on how to get tht done, check out [/automotive-viss2/server#vss-tree-configuration).</p>
+<p>Then start the server with the command line configuration for using Redis as statestorage:</p>
+<p>$ ./vissv2server -s redis</p>
+<p>To build the feeder, open a new terminal and move the working directory to WAII/feeder and then apply the command:</p>
+<p>$ go build</p>
+<p>Before strtign it, it needs to be configured for mapping of the Vehicle.Speed signal, and to generate simulated values for it.
+To do this the file <a href="https://github.com/w3c/automotive-viss2/blob/feeder/feeder/VehicleVssMapData.json">VehicleVssMapData.json</a> needs to be edited
+so that it only contains a mapping for Vehicle.Speed.</p>
+<p>[{&ldquo;vssdata&rdquo;:&ldquo;Vehicle.Speed&rdquo;,&ldquo;vehicledata&rdquo;:&ldquo;CurrSpd&rdquo;}]</p>
+<p>Replace the content of the file with the above. The name &lsquo;CurrSdp&rsquo; is the (imaginary) name of the speed signal used in the vehicle interface.
+After the feeder is configured it is started:</p>
+<p>$ ./feeder</p>
+<p>What is left now is to start a client and issue the subscribe request.
+One solution to this is to write a client, but a quicker solution is to use any of the <a href="/automotive-viss2/client">existing clients</a>.</p>
+<p>We will here use the <a href="https://github.com/w3c/automotive-viss2/blob/feeder/client/client-1.0/Javascript/wsclient_uncompressed.html">Javascript based client that uses the Websocket protocol</a>.</p>
+<p>Start it by navigating to the directory using a file browser, then just click on it.</p>
+<p>As the first field to populate is the field requesting the Ip address / URL of the server,
+it is necessary to find this for the computer it runs on. This can on Ubuntu be done with the command:</p>
+<p>$ ip addr show</p>
+<p>then search for an IP address shown after the word &ldquo;inet&rdquo;.</p>
+<p>Copy the address into the field and push the Server IP button.</p>
+<p>The client should then be connected to the server, which is verified b a printout in this browser tab saying &ldquo;Connected&rdquo;.
+If that is not shown, either the server is not up and running, or the IP address is not the corrt one.</p>
+<p>Assuming it got connected, the only thing left is to issue a subscribe request.
+The <a href="https://github.com/w3c/automotive-viss2/blob/feeder/client/client-1.0/Javascript/appclient_commands.txt">appclient_commands.txt</a> contains many examples of client requests</p>
+<p>From this file, copy the request payload:</p>
+<p>{&ldquo;action&rdquo;:&ldquo;subscribe&rdquo;,&ldquo;path&rdquo;:&ldquo;Vehicle/Cabin/Door/Row1/Right/IsOpen&rdquo;,&ldquo;filter&rdquo;:{&ldquo;type&rdquo;:&ldquo;timebased&rdquo;,&ldquo;parameter&rdquo;:{&ldquo;period&rdquo;:&ldquo;3000&rdquo;}},&ldquo;requestId&rdquo;:&ldquo;246&rdquo;}</p>
+<p>And then edit the path to become &ldquo;path&rdquo;:&ldquo;Vehicle.Speed&rdquo;, copy this updated payload, paste it into the payload field, and push the Send button.</p>
+<p>After about three seconds an event message should be received from the server and printed into the browser tab, looking something like:
+{
+&ldquo;action&rdquo;: &ldquo;subscription&rdquo;,
+&ldquo;subscriptionId&rdquo;: &ldquo;1&rdquo;,
+“data”: {“path”: ”Vehicle.Speed”, “dp”: {“value”: ”50.0”, “ts”: ”2023-04-15T13:37:00Z”}},
+&ldquo;ts&rdquo;: &ldquo;2023-04-15T13:37:00Z&rdquo;
+}
+This should every three seconds be followed by a new event message. If the feeder was configured to update this signal with simulated values,
+the value shown should vary accordingly, else it will be the same in every event message.
+If there has not been any value written into the Redis statestorage for this signal, then the value will be &ldquo;Data-not-available&rdquo;.</p>
+<p>The server will continue to send these event messages every third second until it receives an unsubscribe request containing the subscriptionId it associated to the subscription.
+To send an unsubscribe request, search for it in the appclient_commands.txt file, check that the subscriptionId is correct, paste it into the payload field and push the Send button.
+The event message printouts should then stop, and the POC is successfully ended.</p>
 
 
 
@@ -512,6 +619,22 @@
             
                 
                     
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
+                    
+                        
+            
+            
+                
+                    
                     
                 
                 
@@ -522,6 +645,25 @@
                     
                     
 
+                    
+                        
+            
+            
+                
+                    
+                        
+                        
+                    
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
                     
                         
             
@@ -589,7 +731,7 @@
 	 
 	 
 		
-			<a class="nav nav-prev" href="/automotive-viss2/pocs/" title="VISSv2 POCs"> <i class="fa fa-chevron-left"></i></a>
+			<a class="nav nav-prev" href="/automotive-viss2/pocs/poc2/" title="Next POC..."> <i class="fa fa-chevron-left"></i></a>
 		
 		
 			<a class="nav nav-next" href="/automotive-viss2/server/" title="VISSv2 Server" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
@@ -602,19 +744,19 @@
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1695369445"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1695369445"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1695733078"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1695733078"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695369445"></script>
-    <script src="/automotive-viss2/js/learn.js?1695369445"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1695369445"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695733078"></script>
+    <script src="/automotive-viss2/js/learn.js?1695733078"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1695733078"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1695369445"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1695733078"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });

@@ -12,21 +12,21 @@
     <title>VISSv2 Data Storage :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1695369445" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1695733078" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1695369445" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1695733078" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695369445"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695733078"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695369445"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695369445"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695733078"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695733078"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1695369445"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1695733078"></script>
 
     
   </div>
@@ -181,6 +181,30 @@
  
   
     
+    <li data-nav-id="/automotive-viss2/peripheral-components/" title="VISSv2 peripheral components" class="dd-item
+        
+        
+        
+        ">
+      <a href="/automotive-viss2/peripheral-components/">
+          VISSv2 peripheral components
+          
+      </a>
+      
+      
+    </li>
+  
+ 
+
+          
+          
+
+
+
+
+ 
+  
+    
     <li data-nav-id="/automotive-viss2/pocs/" title="VISSv2 POCs" class="dd-item
         
         
@@ -210,13 +234,39 @@
  
   
     
-    <li data-nav-id="/automotive-viss2/pocs/poc1/" title="VISSv2 (POC1, replace by more expressive name)" class="dd-item
+    <li data-nav-id="/automotive-viss2/pocs/poc2/" title="Next POC..." class="dd-item
+        
+        
+        
+        ">
+      <a href="/automotive-viss2/pocs/poc2/">
+          Next POC...
+          
+      </a>
+      
+      
+    </li>
+  
+ 
+
+            
+          
+            
+            
+
+
+
+
+ 
+  
+    
+    <li data-nav-id="/automotive-viss2/pocs/poc1/" title="Vehicle.Speed subscription example" class="dd-item
         
         
         
         ">
       <a href="/automotive-viss2/pocs/poc1/">
-          VISSv2 (POC1, replace by more expressive name)
+          Vehicle.Speed subscription example
           
       </a>
       
@@ -374,7 +424,12 @@
                 
                     <div class="progress">
     <div class="wrapper">
-<nav id="TableOfContents"></nav>
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#sqlite-state-storage">SQLite state storage</a></li>
+    <li><a href="#redis-state-storage">Redis state storage</a></li>
+  </ul>
+</nav>
     </div>
 </div>
 
@@ -400,6 +455,30 @@
 
 	<p>Two realizations of data storage are available on the <a href="https://github.com/COVESA/ccs-components">COVESA/CCS-components Github</a>,
 one using an SQLite database, and the other a Redis database.</p>
+<p>The server implements the APIs to both of these databases, which to use is selected by its command line configuration.</p>
+<p>The same support should be available on the other SwC that accesses the data storage,
+however the current feeder implementation only implements Redis support, hence it is not merged into the master branch but resides on the feeder branch.</p>
+<p>It may be a bit confusing that sometimes this is referred to as &ldquo;data store/storage&rdquo; and sometimes &ldquo;state storage&rdquo;.
+The latter name is legacy from a previous COVESA project, the Cloud &amp; Connected Services project, while the former has emerged later in the COVESA architecture group work.
+An argument for keeping both could be to say that the state storage refers to a storage that only keeps the latest value of a signal,
+while the data store refers to a more general database that can also keep time series of values of a signal.
+There are two scenarios where the VISSv2 server operates on time series data, <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#curvelog-filter-operation">curve logging</a>,
+and <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#history-filter-operation">historic data</a>,
+but in this server implementation these data series is temporarily stored within the server, so a &ldquo;state storage&rdquo; functionality is sufficient for its needs.</p>
+<h2 id="sqlite-state-storage">SQLite state storage</h2>
+<p>When an SQLite database is used as the state storage it is necessary to prepopulate it with one row for each VSS treeleaf node, having the path name as the key.
+To do this there is a <a href="https://github.com/COVESA/ccs-components/tree/master/statestorage/sqlImpl">statestorage_mgr</a> that takes a file containing a list of all the pathnames,
+&ldquo;vsspathlist.json&rdquo; as input. This file is generated by the server at startup, taking the paths from the VSS tree that it has access to.</p>
+<p>This SQLite DB file then needs to be moved to the WAII/server/visv2server/serviceMgr directory, where it should have the name &ldquo;statestorage.db&rdquo;
+(if server configuration is not changed to another name).</p>
+<h2 id="redis-state-storage">Redis state storage</h2>
+<p>When a Redis databae is used as the state storage then there is no explicit database file to handle as the database is managed in-memory by the Redis daemon.
+Instead it is necessary to configure and launch the daemon.
+The <a href="https://github.com/COVESA/ccs-components/tree/master/statestorage/redisImpl">redisInit.go</a> file on this link will configure and launch it.
+The server uses the same configuration, which needs to be the case also for a feeder to work in concert with the server.
+For more information, please check the README on the provided link.</p>
+<p>The federclient and serverclient implementations on this link are not needed in this context, they are only meant to make possible some initial testing of using Redis for this,
+and as a simple template code base for creating new feeders.</p>
 
 
 
@@ -516,10 +595,42 @@ one using an SQLite database, and the other a Redis database.</p>
 
                     
                     
+                    
+
+                    
+            
+        
+                    
+                        
+            
+            
+                
+                    
+                
+                
+
+                    
+                    
                         
                     
                     
 
+                    
+                        
+            
+            
+                
+                    
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
                     
                         
             
@@ -596,19 +707,19 @@ one using an SQLite database, and the other a Redis database.</p>
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1695369445"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1695369445"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1695733078"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1695733078"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695369445"></script>
-    <script src="/automotive-viss2/js/learn.js?1695369445"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1695369445"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695733078"></script>
+    <script src="/automotive-viss2/js/learn.js?1695733078"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1695733078"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1695369445"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1695733078"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });

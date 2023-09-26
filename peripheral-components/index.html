@@ -9,7 +9,7 @@
 
     <link rel="shortcut icon" href="/automotive-viss2/images/fav.png" type="image/x-icon" />
 
-    <title>Tags :: W3C VISSv2 Reference Implementation</title>
+    <title>VISSv2 peripheral components :: W3C VISSv2 Reference Implementation</title>
 
     
     <link href="/automotive-viss2/css/nucleus.css?1695733078" rel="stylesheet">
@@ -40,7 +40,7 @@
     </style>
     
   </head>
-  <body class="" data-url="/automotive-viss2/tags/">
+  <body class="" data-url="/automotive-viss2/peripheral-components/">
     <nav id="sidebar" class="">
 
 
@@ -183,7 +183,7 @@
     
     <li data-nav-id="/automotive-viss2/peripheral-components/" title="VISSv2 peripheral components" class="dd-item
         
-        
+        active
         
         ">
       <a href="/automotive-viss2/peripheral-components/">
@@ -382,6 +382,17 @@
               <div>
                 <div id="top-bar">
                 
+                  
+                  
+                  
+                  <div id="top-github-link">
+                    <a class="github-link" title='Edit this page' href="https://github.com/w3c/automotive-viss2/edit/master/tutorial/content/peripheral-components/_index.md" target="blank">
+                      <i class="fas fa-code-branch"></i>
+                      <span id="top-github-link-text">Edit this page</span>
+                    </a>
+                  </div>
+                  
+                
                 
                 <div id="breadcrumbs" itemscope="" itemtype="http://data-vocabulary.org/Breadcrumb">
                     <span id="sidebar-toggle-span">
@@ -402,7 +413,7 @@
             
           
           
-            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > Tags
+            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > VISSv2 peripheral components
           
         
           
@@ -413,7 +424,12 @@
                 
                     <div class="progress">
     <div class="wrapper">
-
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#open-vehicle-data-set-ovds">Open Vehicle Data Set (OVDS)</a></li>
+    <li><a href="#live-simulator">Live simulator</a></li>
+  </ul>
+</nav>
     </div>
 </div>
 
@@ -429,9 +445,7 @@
           
             <h1>
               
-                tag ::
-              
-              Tags
+              VISSv2 peripheral components
             </h1>
           
 
@@ -439,11 +453,30 @@
 
 
 
-
-
+	<p>A few other software components that can be useful when setting up a VISSv2 communication tech stack exists:</p>
 <ul>
-	
+<li>Open Vehicle Data Set, a relational database with a table configuration that enables it to store time series of VSS data from multiple vehicles.</li>
+<li>A &ldquo;live simulator&rdquo; that can read vehicle trip data stored in an OVDS database , and replay it so that it appears as live data from the recorded trip.</li>
 </ul>
+<h2 id="open-vehicle-data-set-ovds">Open Vehicle Data Set (OVDS)</h2>
+<p>The code to realize an OVDS database is found <a href="https://github.com/COVESA/ccs-components/tree/master/ovds">here</a>.
+The database is realized using SQLite, so it is possible to use the SQLite API to read and write from it.</p>
+<p>However, an <a href="https://github.com/COVESA/ccs-components/tree/master/ovds/server">OVDS server</a> is available that exposes a small set of methods for this, over HTTP.
+For more details, please check the README on the link.</p>
+<p>There is as well an <a href="https://github.com/COVESA/ccs-components/tree/master/ovds/client">OVDS client</a>
+available that connects to a VISSv2 server to fetch data that it then writes into the OVDS using the OVDS server interface.</p>
+<h2 id="live-simulator">Live simulator</h2>
+<p>The <a href="https://github.com/COVESA/ccs-components/tree/master/livesim">live simulator</a> reads data from an OVDS containing recorded trip data,
+and then writes it into a state storage timed by the data time stamps so that it appears timing wise as when it was recorded.
+For more details, please check the README on the link.</p>
+<p>The the test_vehicles.db file in the <a href="https://github.com/COVESA/ccs-components/tree/master/ovds/server">OVDS server</a>
+directory contains trip data generously provided by Geotab Inc.
+It can be used as input to the live simulator, as well as the sawtooth_trip.db for simple testing.</p>
+<p>The live simulator needs a copy of the list of leaf node paths (vsspathlist.json),
+which needs to contain at least all the paths that are to be replayed from the OVDS, and are also to be found in the VSS tree that the VISSv2 server uses.</p>
+
+
+
 
 
 <footer class=" footline" >
@@ -548,6 +581,7 @@
             
                 
                     
+                    
                 
                 
 
@@ -563,6 +597,9 @@
             
             
                 
+                    
+                        
+                        
                     
                 
                 
@@ -652,8 +689,10 @@
 	 
 	 
 		
+			<a class="nav nav-prev" href="/automotive-viss2/feeder/" title="VISSv2 Feeder"> <i class="fa fa-chevron-left"></i></a>
 		
-			<a class="nav nav-next" href="/automotive-viss2/build-system/" title="VISSv2 Build System" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
+		
+			<a class="nav nav-next" href="/automotive-viss2/pocs/" title="VISSv2 POCs" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
 		
 	
     </div>

@@ -12,21 +12,21 @@
     <title>VISSv2 Feeder :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1695369445" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1695369445" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1695733078" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1695369445" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1695733078" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695369445"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695733078"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695369445"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695369445"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695733078"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695733078"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1695369445"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1695733078"></script>
 
     
   </div>
@@ -181,6 +181,30 @@
  
   
     
+    <li data-nav-id="/automotive-viss2/peripheral-components/" title="VISSv2 peripheral components" class="dd-item
+        
+        
+        
+        ">
+      <a href="/automotive-viss2/peripheral-components/">
+          VISSv2 peripheral components
+          
+      </a>
+      
+      
+    </li>
+  
+ 
+
+          
+          
+
+
+
+
+ 
+  
+    
     <li data-nav-id="/automotive-viss2/pocs/" title="VISSv2 POCs" class="dd-item
         
         
@@ -210,13 +234,39 @@
  
   
     
-    <li data-nav-id="/automotive-viss2/pocs/poc1/" title="VISSv2 (POC1, replace by more expressive name)" class="dd-item
+    <li data-nav-id="/automotive-viss2/pocs/poc2/" title="Next POC..." class="dd-item
+        
+        
+        
+        ">
+      <a href="/automotive-viss2/pocs/poc2/">
+          Next POC...
+          
+      </a>
+      
+      
+    </li>
+  
+ 
+
+            
+          
+            
+            
+
+
+
+
+ 
+  
+    
+    <li data-nav-id="/automotive-viss2/pocs/poc1/" title="Vehicle.Speed subscription example" class="dd-item
         
         
         
         ">
       <a href="/automotive-viss2/pocs/poc1/">
-          VISSv2 (POC1, replace by more expressive name)
+          Vehicle.Speed subscription example
           
       </a>
       
@@ -398,12 +448,37 @@
 
 
 
-	<p>A feeder is a Sw component that has three purposes:</p>
+	<p>A feeder is a Sw component that needs to implement three tasks:</p>
 <ul>
 <li>Implement an interface to the data storage</li>
 <li>Implement an interface to the underlying vehicle interface</li>
 <li>Translate data from the format used in the &ldquo;VSS domain&rdquo; to te format used in the &ldquo;Vehicle domain&rdquo;.</li>
 </ul>
+<p>The SW architecture shown in figure 1 reflects the division of the three tasks in that the translation (map &amp; scale) is done in the min process,
+which spawns two threads that implement the respective interface task.
+The architecture shown handle all its communication with the server via the state storage.
+This leads to a poling paradigm and thus a potential latency and performance weakness.
+<img src="/automotive-viss2/images/feeder-sw-design-v1.jpg?width=50pc" alt="Feeder Sw architecture, version 1"></p>
+<ul>
+<li>Figure 1. Feeder software architecture version 1</li>
+</ul>
+<p>The translation task, is divided into a mapping of the signal name, and a possible scaling of the value.
+The instructions for how to do this is encoded into a configuation file that the feeder reads at startup.
+Currently this file only contains a signal name mapping, but design work is ongoing to evolve it to support also scaling instructions.</p>
+<p>An improved architecture that eliminates the mentioned weaknesses for data flowing in the direction from the server to the feeder (i. e client write requests)
+is shown in figure 2. For write requests the server communicates directly over an IPC channel with the feeder, thus removing the ned for the feeder to poll
+the state storage to find new write requests.
+<img src="/automotive-viss2/images/feeder-sw-design-v2.jpg?width=50pc" alt="Feeder Sw architecture, version 2"></p>
+<ul>
+<li>Figure 2. Feeder software architecture version 2</li>
+</ul>
+<p>A feeder implementing the 2nd version of the SwA is found at the feeder branch of the repo.
+The reason to not merge it to the main branch is that the server implements both an SQLite and a Redis interface to the state storage,
+but this feeder currently only implements the Redis state storage interface. Whe nthis is updated, it will likely me merge to the master branch.</p>
+<p>A design for how the polling on the server side can be mitigaed are  in the planning stage.
+It is likely to require an update of the feeder interface.</p>
+<p>An OEM wanting to deploy the VISSv2 tech stack needs to implement the Vehicle interface of the feeder, for it e. g. to implemnt a CAN bu interface.
+Currently the Vehicle interface contains a minimal signal simulator that generates random values for the signals it is configured to support.</p>
 
 
 
@@ -520,10 +595,42 @@
 
                     
                     
+                    
+
+                    
+            
+        
+                    
+                        
+            
+            
+                
+                    
+                
+                
+
+                    
+                    
                         
                     
                     
 
+                    
+                        
+            
+            
+                
+                    
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
                     
                         
             
@@ -590,7 +697,7 @@
 			<a class="nav nav-prev" href="/automotive-viss2/datastore/" title="VISSv2 Data Storage"> <i class="fa fa-chevron-left"></i></a>
 		
 		
-			<a class="nav nav-next" href="/automotive-viss2/pocs/" title="VISSv2 POCs" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
+			<a class="nav nav-next" href="/automotive-viss2/peripheral-components/" title="VISSv2 peripheral components" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
 		
 	
     </div>
@@ -600,19 +707,19 @@
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1695369445"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1695369445"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1695369445"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1695733078"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1695733078"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695369445"></script>
-    <script src="/automotive-viss2/js/learn.js?1695369445"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1695369445"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695733078"></script>
+    <script src="/automotive-viss2/js/learn.js?1695733078"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1695733078"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1695369445"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1695733078"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });
