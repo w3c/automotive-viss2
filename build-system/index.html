@@ -12,21 +12,21 @@
     <title>VISSv2 Build System :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1695733078" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1695827476" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1695827476" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1695733078" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1695827476" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695733078"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1695827476"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695733078"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695733078"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1695827476"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1695827476"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1695733078"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1695827476"></script>
 
     
   </div>
@@ -427,7 +427,12 @@
 <nav id="TableOfContents">
   <ul>
     <li><a href="#installing-golang">Installing Golang</a></li>
-    <li><a href="#building-and-running">Building and running</a></li>
+    <li><a href="#building-and-running">Building and running</a>
+      <ul>
+        <li><a href="#go-modules">Go modules</a></li>
+      </ul>
+    </li>
+    <li><a href="#docker">Docker</a></li>
   </ul>
 </nav>
     </div>
@@ -458,6 +463,8 @@
 <p>Searching for &ldquo;install golang&rdquo; gives many hits, of which this is one:</p>
 <p><a href="https://www.cyberciti.biz/faq/how-to-install-gol-ang-on-ubuntu-linux/">How to install Go (golang) on Ubuntu Linux</a>.</p>
 <p>For other operating systems <a href="https://go.dev/doc/install">this</a> may be helpful.</p>
+<p>This project requires Go version 1.13 or above, make sure your GOROOT and GOPATH are correctly configured.
+Since this project uses Go modules all dependencies will automatically download when building the project the first time.</p>
 <h2 id="building-and-running">Building and running</h2>
 <p>As several of the Golang based Sw components on this repo can be started with command line input to configure its behavior,
 it is suitable to first build it (in the directory of the source code)</p>
@@ -469,6 +476,24 @@ Checking the first lines of the main() function in the source code is another po
 If there is any calls to the &ldquo;github.com/akamensky/argparse&rdquo; lib then it is used.</p>
 <p>As the configurations have a default it is always possible to run it without adding any comand line configuration input.
 The configuration possibilities of the different SwCs are described in the respective chapters of this tutorial.</p>
+<p>The server consists of several &ldquo;actors&rdquo;, see the <a href="https://github.com/w3c/automotive-viss2">README</a> Overview chapter.
+These used to be built as separate processes that communicated over the Websockets protocol.
+To simplify the building process of thesesoftware components the script W3CServer.sh was created.
+After the refactoring of these SwCs into one process with ech actor running as a separate thread,
+it became more convenient to build without this script, but it is still <a href="https://github.com/w3c/automotive-viss2/blob/master/W3CServer.sh">avaliable</a>.
+For more details, see the &ldquo;Multi-process vs single-process server implementation&rdquo; chapter in the README.</p>
+<h3 id="go-modules">Go modules</h3>
+<p>Go modules are used in multiple places in this project, below follows some commands that may be helpful in managing  this.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ go mod tidy
+</span></span></code></pre></div><p>To update the dependencies to latest run</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>$ go get -u ./...
+</span></span></code></pre></div><p>If working with a fix or investigating something in a dependency, you can have a local fork by adding a replace directive in the go.mod file, see below examples.</p>
+<pre tabindex="0"><code>replace example.com/some/dependency =&gt; example.com/some/dependency v1.2.3 
+replace example.com/original/import/path =&gt; /your/forked/import/path
+replace example.com/project/foo =&gt; ../foo
+</code></pre><p>For more information see <a href="https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive">https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive</a></p>
+<h2 id="docker">Docker</h2>
+<p>The server can also be built and launched using docker and docker-compose, see the <a href="https://github.com/w3c/automotive-viss2/tree/master/docker">Docker README</a>.</p>
 
 
 
@@ -694,19 +719,19 @@ The configuration possibilities of the different SwCs are described in the respe
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1695733078"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695733078"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695733078"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1695733078"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1695733078"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1695733078"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1695827476"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1695827476"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1695827476"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1695827476"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1695827476"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1695827476"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695733078"></script>
-    <script src="/automotive-viss2/js/learn.js?1695733078"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1695733078"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1695827476"></script>
+    <script src="/automotive-viss2/js/learn.js?1695827476"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1695827476"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1695733078"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1695827476"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });
