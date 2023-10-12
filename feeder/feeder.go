@@ -24,6 +24,11 @@ import (
 	"time"
 )
 
+var (
+	dbPath   string
+	feedChan string
+)
+
 type DomainData struct {
 	Name  string
 	Value string
@@ -69,9 +74,11 @@ func initVSSInterfaceMgr(inputChan chan DomainData, outputChan chan DomainData) 
 }
 
 func initRedisClient() *redis.Client {
+	utils.Info.Printf("file is set to: " + dbPath)
+	utils.Info.Printf("*********** VERSION 0.0.1")
 	return redis.NewClient(&redis.Options{
 		Network:  "unix",
-		Addr:     "/var/tmp/vissv2/redisDB.sock",
+		Addr:     dbPath,
 		Password: "",
 		DB:       1,
 	})
@@ -88,8 +95,8 @@ func redisSet(client *redis.Client, path string, val string, ts string) int {
 }
 
 func initUdsEndpoint(udsChan chan DomainData, redisClient *redis.Client) {
-	os.Remove("/var/tmp/vissv2/server-feeder-channel.sock")
-	listener, err := net.Listen("unix", "/var/tmp/vissv2/server-feeder-channel.sock") //the file must be the same as declared in the feeder-registration.json that the service mgr reads
+	os.Remove(feedChan)
+	listener, err := net.Listen("unix", feedChan) //the file must be the same as declared in the feeder-registration.json that the service mgr reads
 	if err != nil {
 		utils.Error.Printf("initUdsEndpoint:UDS listen failed, err = %s", err)
 		os.Exit(-1)
@@ -253,6 +260,14 @@ func covertChannelDataToString(data any) string {
 	return ""
 }
 
+func TouchFile(name string) error {
+	file, err := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 777)
+	if err != nil {
+		return err
+	}
+	return file.Close()
+}
+
 func main() {
 	// Create new parser object
 	parser := argparse.NewParser("print", "Data feeder for the Vehicle tree") // The root node name Vehicle must be synched with the feeder-registration.json file.
@@ -260,18 +275,38 @@ func main() {
 	Required: false,
 	Help:     "Vehicle-VSS mapping data filename",
 	Default:  "VehicleVssMapData.json"})*/
+
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
 		Required: false,
 		Help:     "changes log output level",
 		Default:  "info"})
-	// Parse input
+
+	dbp := parser.String("", "rdb", &argparse.Options{
+		Required: false,
+		Help:     "Set the path and redis db file",
+		Default:  "/var/tmp/vissv2/redisDB.sock"})
+
+	fch := parser.String("", "fch", &argparse.Options{
+		Required: false,
+		Help:     "Set the path and redis channel",
+		Default:  "/var/tmp/vissv2/server-feeder-channel.sock"})
+
 	err := parser.Parse(os.Args)
+	dbPath = *dbp
+	feedChan = *fch
 	if err != nil {
 		utils.Error.Print(parser.Usage(err))
 	}
 
 	utils.InitLog("feeder-log.txt", "./logs", *logFile, *logLevel)
+	utils.Info.Printf("db path is=%s", dbPath)
+	err = TouchFile(feedChan)
+	if err != nil {
+		utils.Error.Printf("file not created error=%s", err)
+		// utils.Error.Printf("could not create feeder channel file=#{err}")
+		// os.Exit(0)
+	}
 
 	vssInputChan := make(chan DomainData, 1)
 	vssOutputChan := make(chan DomainData, 1)

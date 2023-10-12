@@ -3,7 +3,7 @@
 * (C) 2022 Geotab Inc
 * (C) 2020 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
-* (C) 2019 Volvo Cars
+* (C) 2019,2023 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
@@ -884,6 +884,7 @@ func main() {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
+
 	createPathListFile(*vssJson) // save in server directory, where transport managers will expect it to be
 	if *dryRun {
 		utils.Info.Printf("vsspathlist.json created. Job done.")

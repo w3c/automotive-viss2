@@ -55,7 +55,8 @@ func noStreamCall(commandIndex int) {
 		conn, err = grpc.Dial(address+portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
 	} else {
 		// grpc.Dial
-		conn, err = grpc.Dial(address+":5000", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+		utils.Info.Printf("connecting to port = 8887")
+		conn, err = grpc.Dial(address+":8887", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
@@ -89,7 +90,8 @@ func noStreamCall(commandIndex int) {
 }
 
 func streamCall(commandIndex int) {
-	conn, err := grpc.Dial(address+":5000", grpc.WithInsecure(), grpc.WithBlock())
+
+	conn, err := grpc.Dial(address+":8887", grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
 		return

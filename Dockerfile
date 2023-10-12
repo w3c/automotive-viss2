@@ -62,6 +62,19 @@ COPY --from=builder /build/feeder/config.json .
 ENTRYPOINT ["/app/feeder"]
 
 
+FROM golang:1.21-bookworm as vissv2server
+USER root
+RUN mkdir transport_sec
+WORKDIR /app
+RUN mkdir /app/atServer
+COPY --from=builder /build/bin/vissv2server .
+COPY --from=builder /build/server/transport_sec/transportSec.json ../transport_sec/transportSec.json
+COPY --from=builder /build/server/vissv2server/atServer/purposelist.json atServer/purposelist.json
+COPY --from=builder /build/server/vissv2server/atServer/scopelist.json atServer/scopelist.json
+COPY --from=builder /build/server/vissv2server/feeder-registration.json .
+COPY --from=builder /build/server/vissv2server/vss_vissv2.binary .
+
+ENTRYPOINT ["/app/vissv2server","-s","redis"]
 
 
 

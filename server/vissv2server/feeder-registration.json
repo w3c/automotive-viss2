@@ -1,1 +1,8 @@
-[{"root":"Vehicle","fname":"/var/tmp/vissv2/server-feeder-channel.sock"}]
+[
+  {
+    "root":"Vehicle",
+    "fname":"/tmp/docker/server-feeder-channel.sock",
+    "db": "/tmp/docker/redisDB.sock"
+  }
+
+]

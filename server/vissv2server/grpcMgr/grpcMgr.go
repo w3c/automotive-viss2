@@ -193,11 +193,12 @@ func initGrpcServer() {
 		utils.Info.Printf("initGrpcServer:port number=%s", portNo)
 	} else {
 		server = grpc.NewServer()
-		portNo = "5000"
+		portNo = "8887"
+		utils.Info.Printf("portNo =%s", portNo)
 	}
 	pb.RegisterVISSv2Server(server, &Server{})
 	for {
-		lis, err := net.Listen("tcp", "localhost:"+portNo)
+		lis, err := net.Listen("tcp", "0.0.0.0:"+portNo)
 		if err != nil {
 			utils.Error.Printf("failed to listen: " + err.Error())
 			break
