@@ -12,6 +12,8 @@
 *.key
 *.csr
 *.rsa
+*.pem
+*.db
 
 #log files
 ws-mgr-log.txt
