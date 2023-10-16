@@ -58,7 +58,7 @@ WORKDIR /app
 COPY --from=builder /build/bin/feeder .
 COPY --from=builder /build/feeder/certificate.pem .
 COPY --from=builder /build/feeder/config.json .
-
+COPY --from=builder /build/feeder/VehicleVssMapData.json .
 ENTRYPOINT ["/app/feeder"]
 
 
@@ -73,6 +73,7 @@ COPY --from=builder /build/server/vissv2server/atServer/purposelist.json atServe
 COPY --from=builder /build/server/vissv2server/atServer/scopelist.json atServer/scopelist.json
 COPY --from=builder /build/server/vissv2server/feeder-registration.json .
 COPY --from=builder /build/server/vissv2server/vss_vissv2.binary .
+
 
 ENTRYPOINT ["/app/vissv2server","-s","redis"]
 

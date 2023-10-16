@@ -74,8 +74,6 @@ func initVSSInterfaceMgr(inputChan chan DomainData, outputChan chan DomainData) 
 }
 
 func initRedisClient() *redis.Client {
-	utils.Info.Printf("file is set to: " + dbPath)
-	utils.Info.Printf("*********** VERSION 0.0.1")
 	return redis.NewClient(&redis.Options{
 		Network:  "unix",
 		Addr:     dbPath,
@@ -268,46 +266,7 @@ func TouchFile(name string) error {
 	return file.Close()
 }
 
-func main() {
-	// Create new parser object
-	parser := argparse.NewParser("print", "Data feeder for the Vehicle tree") // The root node name Vehicle must be synched with the feeder-registration.json file.
-	/*mapFile := parser.String("m", "mapfile", &argparse.Options{
-	Required: false,
-	Help:     "Vehicle-VSS mapping data filename",
-	Default:  "VehicleVssMapData.json"})*/
-
-	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
-	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
-		Required: false,
-		Help:     "changes log output level",
-		Default:  "info"})
-
-	dbp := parser.String("", "rdb", &argparse.Options{
-		Required: false,
-		Help:     "Set the path and redis db file",
-		Default:  "/var/tmp/vissv2/redisDB.sock"})
-
-	fch := parser.String("", "fch", &argparse.Options{
-		Required: false,
-		Help:     "Set the path and redis channel",
-		Default:  "/var/tmp/vissv2/server-feeder-channel.sock"})
-
-	err := parser.Parse(os.Args)
-	dbPath = *dbp
-	feedChan = *fch
-	if err != nil {
-		utils.Error.Print(parser.Usage(err))
-	}
-
-	utils.InitLog("feeder-log.txt", "./logs", *logFile, *logLevel)
-	utils.Info.Printf("db path is=%s", dbPath)
-	err = TouchFile(feedChan)
-	if err != nil {
-		utils.Error.Printf("file not created error=%s", err)
-		// utils.Error.Printf("could not create feeder channel file=#{err}")
-		// os.Exit(0)
-	}
-
+func RemotiveLabsBroker() {
 	vssInputChan := make(chan DomainData, 1)
 	vssOutputChan := make(chan DomainData, 1)
 	vehicleOutputChan := make(chan DomainData, 1)
@@ -357,4 +316,133 @@ func main() {
 	}
 
 	os.Exit(<-ch | <-ch)
+}
+
+func Simulation(mapFile *string) {
+	vssInputChan := make(chan DomainData, 1)
+	vssOutputChan := make(chan DomainData, 1)
+	vehicleInputChan := make(chan DomainData, 1)
+	vehicleOutputChan := make(chan DomainData, 1)
+
+	utils.Info.Printf("Initializing the feeder for mapping file %s.", *mapFile)
+	feederMap := readFeederMap(*mapFile)
+	go initVSSInterfaceMgr(vssInputChan, vssOutputChan)
+	go initVehicleInterfaceMgr(feederMap, vehicleInputChan, vehicleOutputChan)
+
+	for {
+		select {
+		case vssInData := <-vssInputChan:
+			vehicleOutputChan <- convertDomainData("VSS", vssInData, feederMap)
+		case vehicleInData := <-vehicleInputChan:
+			vssOutputChan <- convertDomainData("Vehicle", vehicleInData, feederMap)
+		}
+	}
+}
+
+func main() {
+	// Create new parser object
+	parser := argparse.NewParser("print", "Data feeder for the Vehicle tree") // The root node name Vehicle must be synched with the feeder-registration.json file.
+
+	mapFile := parser.String("m", "mapfile", &argparse.Options{
+		Required: false,
+		Help:     "Vehicle-VSS mapping data filename",
+		Default:  "VehicleVssMapData.json"})
+
+	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
+	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
+		Required: false,
+		Help:     "changes log output level",
+		Default:  "info"})
+
+	dataprovider := parser.String("p", "dataprovider", &argparse.Options{
+		Required: false,
+		Help:     "the south bound provider of data stream",
+		Default:  "sim",
+	})
+
+	dbp := parser.String("", "rdb", &argparse.Options{
+		Required: false,
+		Help:     "Set the path and redis db file",
+		Default:  "/var/tmp/vissv2/redisDB.sock"})
+
+	fch := parser.String("", "fch", &argparse.Options{
+		Required: false,
+		Help:     "Set the path and redis channel",
+		Default:  "/var/tmp/vissv2/server-feeder-channel.sock"})
+
+	err := parser.Parse(os.Args)
+	dbPath = *dbp
+	feedChan = *fch
+	if err != nil {
+		utils.Error.Print(parser.Usage(err))
+	}
+
+	utils.InitLog("feeder-log.txt", "./logs", *logFile, *logLevel)
+	utils.Info.Printf("db path is=%s", dbPath)
+	err = TouchFile(feedChan)
+	if err != nil {
+		utils.Error.Printf("file not created error=%s", err)
+		// utils.Error.Printf("could not create feeder channel file=#{err}")
+		// os.Exit(0)
+	}
+
+	switch *dataprovider {
+	case "remotive":
+		RemotiveLabsBroker()
+		break
+	case "sim":
+		Simulation(mapFile)
+	}
+
+	/*
+
+		vssInputChan := make(chan DomainData, 1)
+		vssOutputChan := make(chan DomainData, 1)
+		vehicleOutputChan := make(chan DomainData, 1)
+
+		// Retrieving an instance of the SignalApi, start receiving data from the broker...
+		streamQuitSignal := make(chan struct{}, 1)
+		readQuitSignal := make(chan struct{}, 1)
+
+		sig := make(chan os.Signal, 1)
+		api := viss_rl_interfaces.GetWriterReaderlApi()
+		signal.Notify(sig, os.Interrupt, os.Kill, syscall.SIGTERM) // listen to OS interrupt, like ctrl-c
+		go func() {                                                // listen for system interrupt, quit streaming if so...
+			<-sig
+			close(streamQuitSignal)
+			close(readQuitSignal)
+		}()
+
+		writerChannel := make(chan viss_rl_interfaces.ValueChannel, 1)
+		readerChannel := make(chan viss_rl_interfaces.ValueChannel, 1)
+
+		ch := make(chan int, 2)
+		go func() {
+			err := api.WriterReader(readQuitSignal, writerChannel, readerChannel)
+			if err != nil {
+				log.Println(err)
+				ch <- 1
+			}
+			close(readQuitSignal)
+			log.Println("subscribing is done")
+			ch <- 0
+		}()
+
+		go initVSSInterfaceMgr(vssInputChan, vssOutputChan)
+		go initVehicleInterfaceMgr_2(vssInputChan, writerChannel)
+
+		for {
+			select {
+			case vssInData := <-vssInputChan:
+				vehicleOutputChan <- convertDomainData("VSS", vssInData, nil)
+			case vehicleInData := <-readerChannel:
+				domainData := &DomainData{
+					Name:  vehicleInData.Name,
+					Value: covertChannelDataToString(vehicleInData.Value),
+				}
+				vssOutputChan <- *domainData
+			}
+		}
+
+		os.Exit(<-ch | <-ch)*/
 }
