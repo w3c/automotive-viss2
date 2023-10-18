@@ -11,8 +11,8 @@ import (
 	"encoding/json"
 	"strconv"
 
-	pb "github.com/w3c/automotive-viss2/protobuf/protoc-out"
 	"github.com/golang/protobuf/proto"
+	pb "github.com/w3c/automotive-viss2/protobuf/protoc-out"
 )
 
 //var currentCompression Compression

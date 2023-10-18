@@ -204,7 +204,7 @@ func ExtractRootName(path string) string {
 }
 
 type FilterObject struct {
-	Type  string
+	Type      string
 	Parameter string
 }
 

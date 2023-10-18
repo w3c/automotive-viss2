@@ -17,13 +17,13 @@ services:
     build:
       context: .
       target: feeder
-    entrypoint: [/app/feeder,--dataprovider, sim, --rdb, /tmp/docker/redisDB.sock,--fch,/tmp/docker/server-feeder-channel.sock]
+    entrypoint: [/app/feeder,--dataprovider, remotive, --rdb, /tmp/docker/redisDB.sock,--fch,/tmp/docker/server-feeder-channel.sock]
     ports:
       - "443:443"
     volumes:
-      - ./feeder/certificate.pem:/app/certificate.pem
-      - ./feeder/config.json:/app/config.json
-      - ./feeder/VehicleVssMapData.json:/app/VehicleVssMapData.json
+      - ./feeder/feeder-rl/certificate.pem:/app/certificate.pem
+      - ./feeder/feeder-rl/config.json:/app/config.json
+      - ./feeder/feeder-rl/VehicleVssMapData.json:/app/VehicleVssMapData.json
     volumes_from:
       - tmp
 
