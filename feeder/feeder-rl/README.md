@@ -24,7 +24,7 @@ The signal filter specifies which signals we would like to filter out from them 
 }
 ```
 
-The feeder should be started with the redisDb, which presumes that the vissv2server usues redis for state storage.
+The feeder should be started with the redisDb, which presumes that the vissv2server use redis https://redis.io for state storage.
 ```
     feeder-rl --dataprovider, remotive, --rdb, /tmp/docker/redisDB.sock,--fch,/tmp/docker/server-feeder-channel.sock
 ```

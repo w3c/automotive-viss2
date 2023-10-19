@@ -1,5 +1,5 @@
 {
-  "tls": "no",
+  "tls": "yes",
   "cert_path_name": "certificate.pem",
   "name_spaces": ["vss"],
   "broker_url": "personal-ziyp9e5u8e-demo-uo7acw3qiq-ez.a.run.app",
