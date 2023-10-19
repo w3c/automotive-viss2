@@ -56,7 +56,7 @@ FROM golang:1.21-bookworm as feeder
 USER root
 WORKDIR /app
 COPY --from=builder /build/bin/feeder-rl feeder
-COPY --from=builder /build/feeder/feeder-rl/certificate.pem .
+#COPY --from=builder /build/feeder/feeder-rl/certificate.pem .
 COPY --from=builder /build/feeder/feeder-rl/config.json .
 COPY --from=builder /build/feeder/feeder-rl/VehicleVssMapData.json .
 ENTRYPOINT ["/app/feeder"]
