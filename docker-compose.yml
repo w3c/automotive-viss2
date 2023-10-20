@@ -21,7 +21,7 @@ services:
     ports:
       - "443:443"
     volumes:
-      #- ./feeder/feeder-rl/certificate.pem:/app/certificate.pem
+      - ./feeder/feeder-rl/certificate.pem:/app/certificate.pem
       - ./feeder/feeder-rl/config.json:/app/config.json
       - ./feeder/feeder-rl/VehicleVssMapData.json:/app/VehicleVssMapData.json
     volumes_from:

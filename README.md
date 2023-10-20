@@ -11,7 +11,7 @@ This project implements the W3C VISS v2 specification under development at <a hr
 
 # Starting and building the server
 
-This project requires Go version 1.13 or above, make sure your GOROOT and GOPATH are correctly configured. Since this project uses Go modules all dependencies will automatically download when building the project the first time.
+This project requires Go version 1.18 or above, make sure your GOROOT and GOPATH are correctly configured. Since this project uses Go modules all dependencies will automatically download when building the project the first time.
 
 The server consist of the software components shown below:
  - Core server
@@ -72,7 +72,8 @@ The components mentioned above that together realizes the server is available in
 - Components are built and deployed as separate processes/binaries, and communicate using Websocket.<br>
 - Components are built and deployed as threads within one common process/binary, and communicate using Go channels.<br>
 
-These implementations are found at the branches multi-process and single-process, respectively. 
+These implementations are found at the branches multi-process and single-process, respectively. **Note, the multi-process
+branch is not maintained and should be considered stale.**
 The master branch is a fork from the single-process branch.
 
 ### Using Docker-Compose to launch a W3CServer instance
@@ -85,53 +86,35 @@ https://docs.docker.com/compose/install/
 to launch use
 
 ```bash
-$ docker-compose up -d
-Starting w3c_vehiclesignalinterfaceimpl_servercore_1 ... done
-Starting w3c_vehiclesignalinterfaceimpl_servicemgr_1 ... done
-Starting w3c_vehiclesignalinterfaceimpl_wsmgr_1      ... done
-Starting w3c_vehiclesignalinterfaceimpl_httpmgr_1    ... done
+$ docker compose -f docker-compose.yml build 
+...
+ => => exporting layers                                                                                                                                                                                              0.1s
+ => => writing image sha256:f392918448ece4b26b5c430ffc53c5f2da8872d030c11a22b42360dbf9676934                                                                                                                         0.0s
+ => => naming to docker.io/library/automotive-viss2-feeder  
+```
+
+```bash
+$ docker compose -f docker-compose.yml up
+  ✔ Container container_volumes  Created                                                                                                                                                                              0.0s 
+ ✔ Container vissv2server       Created                                                                                                                                                                              0.0s 
+ ✔ Container app_redis          Created                                                                                                                                                                              0.0s 
+ ✔ Container feeder             Recreated                                                                                                                                                                            0.1s 
+Attaching to app_redis, container_volumes, feeder, vissv2server  
 ```
 to stop use 
 
 ```bash
 $ docker-compose down
-Stopping w3c_vehiclesignalinterfaceimpl_servicemgr_1 ... done
-Stopping w3c_vehiclesignalinterfaceimpl_httpmgr_1    ... done
-Stopping w3c_vehiclesignalinterfaceimpl_wsmgr_1      ... done
-Stopping w3c_vehiclesignalinterfaceimpl_servercore_1 ... done
-Removing w3c_vehiclesignalinterfaceimpl_servicemgr_1 ... done
-Removing w3c_vehiclesignalinterfaceimpl_httpmgr_1    ... done
-Removing w3c_vehiclesignalinterfaceimpl_wsmgr_1      ... done
-Removing w3c_vehiclesignalinterfaceimpl_servercore_1 ... done
+✔ Container vissv2server        Stopped                                                                                                                                                                              0.2s 
+ ✔ Container app_redis          Stopped                                                                                                                                                                              0.2s 
+ ✔ Container feeder             Stopped                                                                                                                                                                              0.1s 
+ ✔ Container container_volumes  Stopped 
 ```
 
 if server needs to be rebuilt due to src code modifications
 
 ```bash
 $ docker-compose up -d --force-recreate --build
-```
-all log files are stored in a docker volume to find the local path for viewing the logs use the docker inspect command to find the Mountpoint
-```bash
-$ docker volume ls
-DRIVER              VOLUME NAME
-local               w3c_vehiclesignalinterfaceimpl_logdata
-$ docker volume inspect w3c_vehiclesignalinterfaceimpl_logdata
-[
-    {
-        "CreatedAt": "2019-12-12T15:32:13+01:00",
-        "Driver": "local",
-        "Labels": {
-            "com.docker.compose.project": "w3c_vehiclesignalinterfaceimpl",
-            "com.docker.compose.version": "1.25.1-rc1",
-            "com.docker.compose.volume": "logdata"
-        },
-        "Mountpoint": "/var/lib/docker/volumes/w3c_vehiclesignalinterfaceimpl_logdata/_data",
-        "Name": "w3c_vehiclesignalinterfaceimpl_logdata",
-        "Options": null,
-        "Scope": "local"
-    }
-]
-
 ```
 
 

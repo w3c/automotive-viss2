@@ -1,5 +1,6 @@
 /**
 * (C) 2023 Ford Motor Company
+* (C) 2023 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
@@ -36,10 +37,10 @@ var commandList []string
 
 func initCommandList() {
 	commandList = make([]string, 4)
-	commandList[0] = `{"action":"get","path":"Vehicle/VehicleIdentification/Model","requestId":"232"}`
+	commandList[0] = `{"action":"get","path":"Vehicle/Chassis/Accelerator/PedalPosition","requestId":"232"}`
 	commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
 	commandList[2] = `{"action":"unsubscribe","subscriptionId":"1","requestId":"240"}`
-	commandList[3] = `{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}`
+	commandList[3] = `{"action":"set", "path":"Vehicle/Body/Lights/IsLeftIndicatorOn", "value":"999", "requestId":"245"}`
 }
 
 func noStreamCall(commandIndex int) {

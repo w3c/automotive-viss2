@@ -4,7 +4,7 @@
 A feeder version that interfaces the remotive labs signal broker : https://demo.remotivelabs.com/orgs/remotidemo.
 It is assuming VSS translated signals, which means that proprietary signals are already translated by the broker.
 
-The feeder needs to setup the broker adress together with an api-key provided by remotiveLabs. If tls is used for a more 
+The feeder needs to setup the broker adress/url together with an api-key provided by remotiveLabs. If tls is used for a more 
 secure communication a client cert can be generated. 
 
 The signal filter specifies which signals we would like to filter out from them stream. It is expected by the broker.
@@ -24,6 +24,7 @@ The signal filter specifies which signals we would like to filter out from them 
 }
 ```
 
+
 The feeder should be started with the redisDb, which presumes that the vissv2server use redis https://redis.io for state storage.
 ```
     feeder-rl --dataprovider, remotive, --rdb, /tmp/docker/redisDB.sock,--fch,/tmp/docker/server-feeder-channel.sock
@@ -34,10 +35,8 @@ The file VehicleVssMapData.json is used if the feeder is executed with
 --dataprovider sim
 ```
 
-docker-compose and Docker located in the project root files run the feeder together with the redis and the vissv2server.
-```
-run Docker
-```
+docker-compose and Docker located in the project root files run/build the feeder, redis and the vissv2server containers.
+
 We neeed docker compose to run the system:
 ```
 docker compose -f docker-compose.yml build
