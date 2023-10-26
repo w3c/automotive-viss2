@@ -27,7 +27,7 @@ var clientCert tls.Certificate
 var caCertPool x509.CertPool
 
 const (
-	address = "0.0.0.0"
+	address = "localhost"
 	name    = "VISSv2-gRPC-client"
 )
 
@@ -37,11 +37,16 @@ var commandList []string
 
 func initCommandList() {
 	commandList = make([]string, 4)
-	commandList[0] = `{"action":"get","path":"Vehicle/Chassis/Accelerator/PedalPosition","requestId":"232"}`
-	commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
+	commandList[0] = `{"action":"get","path":"Vehicle/Speed","requestId":"232"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},{"type":"timebased","parameter":{"period":"100"}}],"requestId":"246"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},"requestId":"246"}`
+	commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","requestId":"258"}`
 	commandList[2] = `{"action":"unsubscribe","subscriptionId":"1","requestId":"240"}`
 	commandList[3] = `{"action":"set", "path":"Vehicle/Body/Lights/IsLeftIndicatorOn", "value":"999", "requestId":"245"}`
 }
+
+// {"action":"subscribe","path":"Vehicle","filter":{"type":"paths","parameter":["Speed", "Chassis.Accelerator.PedalPosition"]},"requestId":"246"}`
 
 func noStreamCall(commandIndex int) {
 	var conn *grpc.ClientConn

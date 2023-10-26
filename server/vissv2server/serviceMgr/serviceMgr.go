@@ -223,6 +223,9 @@ func setSubscriptionListThreads(subscriptionList []SubscriptionState, subThreads
 func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) (bool, bool) {
 	for i := 0; i < len(filterList); i++ {
 		if filterList[i].Type == "paths" || filterList[i].Type == "timebased" || filterList[i].Type == "curvelog" {
+			if filterList[i].Type == "paths" { // TODO detta triggar response utan timebased filter
+				return true, true
+			}
 			continue
 		}
 		if filterList[i].Type == "range" {
@@ -232,6 +235,7 @@ func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint str
 			return evaluateChangeFilter(filterList[i].Parameter, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
 		}
 	}
+
 	return false, false
 }
 
@@ -510,6 +514,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	case "redis":
+		utils.Info.Printf(path)
 		dp, err := redisClient.Get(path).Result()
 		if err != nil {
 			if err.Error() != "redis: nil" {

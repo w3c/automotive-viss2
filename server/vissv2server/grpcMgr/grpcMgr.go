@@ -198,7 +198,7 @@ func initGrpcServer() {
 	}
 	pb.RegisterVISSv2Server(server, &Server{})
 	for {
-		lis, err := net.Listen("tcp", "0.0.0.0:"+portNo)
+		lis, err := net.Listen("tcp", "localhost:"+portNo)
 		if err != nil {
 			utils.Error.Printf("failed to listen: " + err.Error())
 			break
@@ -247,7 +247,7 @@ func (s *Server) SubscribeRequest(in *pb.SubscribeRequestMessage, stream pb.VISS
 	vssReq := utils.SubscribeRequestPbToJson(in, grpcCompression)
 	grpcResponseChan := make(chan string)
 	var grpcRequestMessage = GrpcRequestMessage{vssReq, grpcResponseChan}
-	grpcClientChan[0] <- grpcRequestMessage // forward to mgr hub,
+	grpcClientChan[0] <- grpcRequestMessage // forward to mgr hub,1
 	for {
 		vssResp := <-grpcResponseChan //  and wait for response(s)
 		if strings.Contains(vssResp, KILL_MESSAGE) {
@@ -274,7 +274,7 @@ func GrpcMgrInit(mgrId int, transportMgrChan chan string) {
 	for {
 		select {
 		case respMessage := <-transportMgrChan:
-			utils.Info.Printf("WS mgr hub: Response from server core:%s", respMessage)
+			utils.Info.Printf("gRPC mgr hub: Response from server core:%s", respMessage)
 			RemoveRoutingForwardResponse(respMessage)
 		case reqMessage := <-grpcClientChan[0]:
 			clientId := getClientId()
