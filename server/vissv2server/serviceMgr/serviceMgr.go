@@ -169,19 +169,20 @@ func setSubscriptionListThreads(subscriptionList []SubscriptionState, subThreads
 	return subscriptionList
 }
 
-func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, currentDataPoint string) (bool, bool) {
+func checkRangeChangeFilter(filterList []utils.FilterObject, latestDataPoint string, path string) (bool, bool, string) {
 	for i := 0; i < len(filterList); i++ {
 		if filterList[i].Type == "paths" || filterList[i].Type == "timebased" || filterList[i].Type == "curvelog" {
 			continue
 		}
+		currentDataPoint := getVehicleData(path)
 		if filterList[i].Type == "range" {
-			return evaluateRangeFilter(filterList[i].Parameter, getDPValue(currentDataPoint)), false // do not update latestValue
+			return evaluateRangeFilter(filterList[i].Parameter, getDPValue(currentDataPoint)), false, currentDataPoint // do not update latestValue
 		}
 		if filterList[i].Type == "change" {
-			return evaluateChangeFilter(filterList[i].Parameter, getDPValue(latestDataPoint), getDPValue(currentDataPoint))
+			return evaluateChangeFilter(filterList[i].Parameter, getDPValue(latestDataPoint), getDPValue(currentDataPoint), currentDataPoint)
 		}
 	}
-	return false, false
+	return false, false, ""
 }
 
 func getDPValue(dp string) string {
@@ -234,7 +235,7 @@ func evaluateRangeFilter(opValue string, currentValue string) bool {
 	return evaluation
 }
 
-func evaluateChangeFilter(opValue string, latestValue string, currentValue string) (bool, bool) {
+func evaluateChangeFilter(opValue string, latestValue string, currentValue string, currentDataPoint string) (bool, bool, string) {
 	//utils.Info.Printf("evaluateChangeFilter: opValue=%s", opValue)
 	type ChangeFilter struct {
 		LogicOp string `json:"logic-op"`
@@ -244,9 +245,10 @@ func evaluateChangeFilter(opValue string, latestValue string, currentValue strin
 	err := json.Unmarshal([]byte(opValue), &changeFilter)
 	if err != nil {
 		utils.Error.Printf("evaluateChangeFilter: Unmarshal error=%s", err)
-		return false, false
+		return false, false, ""
 	}
-	return compareValues(changeFilter.LogicOp, latestValue, currentValue, changeFilter.Diff)
+	val1, val2 := compareValues(changeFilter.LogicOp, latestValue, currentValue, changeFilter.Diff)
+	return val1, val2, currentDataPoint
 }
 
 func compareValues(logicOp string, latestValue string, currentValue string, diff string) (bool, bool) {
@@ -453,7 +455,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		rows.Next()
 		err = rows.Scan(&value, &timestamp)
 		if err != nil {
-			utils.Warning.Printf("Data not found: %s\n", err)
+			utils.Warning.Printf("Data not found: %s for path=%s\n", err, path)
 			//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 			return `{"value":"Data-not-available", "ts":"` + utils.GetRfcTime() + `"}`
 		}
@@ -1050,8 +1052,8 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 		case <-subscriptTicker.C:
 			// check if range or change notification triggered
 			for i := range subscriptionList {
-				triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
-				doTrigger, updateLatest := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, triggerDataPoint)
+//				triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
+				doTrigger, updateLatest, triggerDataPoint := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, subscriptionList[i].Path[0])
 				if updateLatest == true {
 					subscriptionList[i].LatestDataPoint = triggerDataPoint
 				}
