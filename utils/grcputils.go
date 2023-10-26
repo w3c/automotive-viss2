@@ -684,7 +684,18 @@ func getJsonFilter(filter *pb.FilterExpressions) string {
 		return ""
 	}
 	filterExp = filter.GetFilterExp()
-	return synthesizeFilter(filterExp[0])
+	jsonFilter := ""
+	if (len(filterExp) > 1) {
+		jsonFilter = "["
+	}
+	for i := 0 ; i < len(filterExp) ; i++ {
+		jsonFilter += synthesizeFilter(filterExp[i]) + ","
+	}
+	jsonFilter = jsonFilter[:len(jsonFilter)-1]
+	if (len(filterExp) > 1) {
+		jsonFilter += "]"
+	}
+	return `,"filter":` + jsonFilter
 }
 
 func synthesizeFilter(filterExp *pb.FilterExpressions_FilterExpression) string {
@@ -716,7 +727,7 @@ func synthesizeFilter(filterExp *pb.FilterExpressions_FilterExpression) string {
 		fType = "dynamic-metadata"
 		value = getJsonFilterValueDynamicMetadata(filterExp)
 	}
-	return `,"filter":{"type":"` + fType + `","parameter":` + value + `}`
+	return `{"type":"` + fType + `","parameter":` + value + `}`
 }
 
 func getJsonFilterValuePaths(filterExp *pb.FilterExpressions_FilterExpression) string {

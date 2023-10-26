@@ -35,8 +35,10 @@ var commandList []string
 
 func initCommandList() {
 	commandList = make([]string, 4)
-	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
-	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
+//	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
+	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door","filter":{"type":"paths","parameter":"*.*.IsOpen"},"requestId":"235"}`
+//	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
+	commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","parameter":{"period":"3000"}}],"requestId":"285"}`
 	commandList[2] = `{"action":"unsubscribe","subscriptionId":"1","requestId":"240"}`
 	commandList[3] = `{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}`
 }
@@ -87,7 +89,19 @@ func noStreamCall(commandIndex int) {
 }
 
 func streamCall(commandIndex int) {
-	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	var conn *grpc.ClientConn
+	var err error
+	if secConfig.TransportSec == "yes" {
+		config := &tls.Config {
+				Certificates: []tls.Certificate{clientCert},
+				RootCAs:      &caCertPool,
+		}
+		tlsCredentials := credentials.NewTLS(config)
+		portNo := secConfig.GrpcSecPort
+		conn, err = grpc.Dial(address + portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
+	} else {
+		conn, err = grpc.Dial(address + "5000", grpc.WithInsecure(), grpc.WithBlock())
+	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
 		return
