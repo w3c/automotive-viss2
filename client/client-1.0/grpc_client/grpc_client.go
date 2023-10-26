@@ -38,10 +38,10 @@ var commandList []string
 func initCommandList() {
 	commandList = make([]string, 4)
 	//	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
-	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door","filter":{"type":"paths","parameter":"*.*.IsOpen"},"requestId":"235"}`
+	//commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door","filter":{"type":"paths","parameter":"*.*.IsOpen"},"requestId":"235"}`
 	//	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
-	commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","parameter":{"period":"3000"}}],"requestId":"285"}`
-	//commandList[0] = `{"action":"get","path":"Vehicle/Speed","requestId":"232"}`
+	commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","parameter":{"period":"100"}}],"requestId":"285"}`
+	commandList[0] = `{"action":"get","path":"Vehicle/Speed","requestId":"232"}`
 	//commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
 	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},{"type":"timebased","parameter":{"period":"100"}}],"requestId":"246"}`
 	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},"requestId":"246"}`
@@ -111,7 +111,7 @@ func streamCall(commandIndex int) {
 		portNo := secConfig.GrpcSecPort
 		conn, err = grpc.Dial(address+portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
 	} else {
-		conn, err = grpc.Dial(address+"5000", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err = grpc.Dial(address+":8887", grpc.WithInsecure(), grpc.WithBlock())
 	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
