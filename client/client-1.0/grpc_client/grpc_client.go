@@ -1,5 +1,6 @@
 /**
 * (C) 2023 Ford Motor Company
+* (C) 2023 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
@@ -8,25 +9,26 @@
 package main
 
 import (
-	"fmt"
 	"context"
-	"time"
-	"os"
 	"crypto/tls"
 	"crypto/x509"
-	"google.golang.org/grpc/credentials"
+	"fmt"
 	"github.com/akamensky/argparse"
-	utils "github.com/w3c/automotive-viss2/utils"
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
+	utils "github.com/w3c/automotive-viss2/utils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"os"
+	"time"
 )
 
 var clientCert tls.Certificate
 var caCertPool x509.CertPool
 
 const (
-    address     = "localhost:"
-    name = "VISSv2-gRPC-client"
+	address = "localhost"
+	name    = "VISSv2-gRPC-client"
 )
 
 var grpcCompression utils.Compression
@@ -35,27 +37,36 @@ var commandList []string
 
 func initCommandList() {
 	commandList = make([]string, 4)
-//	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
+	//	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
 	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door","filter":{"type":"paths","parameter":"*.*.IsOpen"},"requestId":"235"}`
-//	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
+	//	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
 	commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","parameter":{"period":"3000"}}],"requestId":"285"}`
+	//commandList[0] = `{"action":"get","path":"Vehicle/Speed","requestId":"232"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},{"type":"timebased","parameter":{"period":"100"}}],"requestId":"246"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},"requestId":"246"}`
+	//commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","requestId":"258"}`
 	commandList[2] = `{"action":"unsubscribe","subscriptionId":"1","requestId":"240"}`
-	commandList[3] = `{"action":"set", "path":"Vehicle/Cabin/Door/Row1/Right/IsOpen", "value":"999", "requestId":"245"}`
+	commandList[3] = `{"action":"set", "path":"Vehicle/Body/Lights/IsLeftIndicatorOn", "value":"999", "requestId":"245"}`
 }
+
+// {"action":"subscribe","path":"Vehicle","filter":{"type":"paths","parameter":["Speed", "Chassis.Accelerator.PedalPosition"]},"requestId":"246"}`
 
 func noStreamCall(commandIndex int) {
 	var conn *grpc.ClientConn
 	var err error
 	if secConfig.TransportSec == "yes" {
-		config := &tls.Config {
-				Certificates: []tls.Certificate{clientCert},
-				RootCAs:      &caCertPool,
+		config := &tls.Config{
+			Certificates: []tls.Certificate{clientCert},
+			RootCAs:      &caCertPool,
 		}
 		tlsCredentials := credentials.NewTLS(config)
 		portNo := secConfig.GrpcSecPort
-		conn, err = grpc.Dial(address + portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
+		conn, err = grpc.Dial(address+portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
 	} else {
-		conn, err = grpc.Dial(address + "5000", grpc.WithInsecure(), grpc.WithBlock())
+		// grpc.Dial
+		utils.Info.Printf("connecting to port = 8887")
+		conn, err = grpc.Dial(address+":8887", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
@@ -92,15 +103,15 @@ func streamCall(commandIndex int) {
 	var conn *grpc.ClientConn
 	var err error
 	if secConfig.TransportSec == "yes" {
-		config := &tls.Config {
-				Certificates: []tls.Certificate{clientCert},
-				RootCAs:      &caCertPool,
+		config := &tls.Config{
+			Certificates: []tls.Certificate{clientCert},
+			RootCAs:      &caCertPool,
 		}
 		tlsCredentials := credentials.NewTLS(config)
 		portNo := secConfig.GrpcSecPort
-		conn, err = grpc.Dial(address + portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
+		conn, err = grpc.Dial(address+portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
 	} else {
-		conn, err = grpc.Dial(address + "5000", grpc.WithInsecure(), grpc.WithBlock())
+		conn, err = grpc.Dial(address+"5000", grpc.WithInsecure(), grpc.WithBlock())
 	}
 	if err != nil {
 		fmt.Printf("did not connect: %v", err)
@@ -155,11 +166,11 @@ func main() {
 	for {
 		fmt.Printf("\nCommand index [0-3]:")
 		fmt.Scanf("%d", &commandIndex)
-		if (commandIndex < 0 || commandIndex > 3) {
+		if commandIndex < 0 || commandIndex > 3 {
 			break
 		}
 		fmt.Printf("Command:%s", commandList[commandIndex])
-		if (commandIndex == 1) { // subscribe
+		if commandIndex == 1 { // subscribe
 			go streamCall(commandIndex)
 		} else {
 			go noStreamCall(commandIndex)

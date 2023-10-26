@@ -10,8 +10,8 @@ package utils
 
 import (
 	"encoding/json"
-	"strconv"
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
+	"strconv"
 )
 
 var currentCompression Compression
@@ -43,6 +43,7 @@ func GetRequestJsonToPb(vssGetReq string, compression Compression) *pb.GetReques
 
 func GetResponseJsonToPb(vssGetResp string, compression Compression) *pb.GetResponseMessage {
 	currentCompression = compression
+
 	var getRespMessageMap map[string]interface{}
 	err := json.Unmarshal([]byte(vssGetResp), &getRespMessageMap)
 	if err != nil {
@@ -278,6 +279,7 @@ func getNumOfDataElements(messageDataMap interface{}) int {
 }
 
 func createDataElement(index int, messageDataMap interface{}) *pb.DataPackages_DataPackage {
+
 	var dataObject map[string]interface{}
 	switch vv := messageDataMap.(type) {
 	case []interface{}:
@@ -311,13 +313,13 @@ func getNumOfDataPointElements(messageDataPointMap interface{}) int {
 	return 1
 }
 
-func createDataPointElement(index int, messageDataPointMap interface{}) *pb.DataPackages_DataPackage_DataPoint {
-	var dataPointObject map[string]interface{}
+func createDataPointElement(index int, messageDataPointMap any) *pb.DataPackages_DataPackage_DataPoint {
+	var dataPointObject map[string]any
 	switch vv := messageDataPointMap.(type) {
-	case []interface{}:
-		dataPointObject = vv[index].(map[string]interface{})
+	case []any:
+		dataPointObject = vv[index].(map[string]any)
 	default:
-		dataPointObject = vv.(map[string]interface{})
+		dataPointObject = vv.(map[string]any)
 	}
 	var protoDataPointElement pb.DataPackages_DataPackage_DataPoint
 	protoDataPointElement.Value = dataPointObject["value"].(string)
@@ -491,7 +493,7 @@ func createSubscribeRequestPb(protoMessage *pb.SubscribeRequestMessage, messageM
 }
 
 func createSubscribeStreamPb(protoMessage *pb.SubscribeStreamMessage, messageMap map[string]interface{}) {
-	if messageMap["action"] == "subscribe" {  // RESPONSE
+	if messageMap["action"] == "subscribe" { // RESPONSE
 		protoMessage.MType = pb.SubscribeResponseType_RESPONSE
 		protoMessage.Response = &pb.SubscribeStreamMessage_SubscribeResponseMessage{}
 		protoMessage.Response.SubscriptionId = messageMap["subscriptionId"].(string)
@@ -583,7 +585,7 @@ func populateJsonFromProtoGetReq(protoMessage *pb.GetRequestMessage) string {
 	jsonMessage := "{"
 	jsonMessage += `"action":"get"`
 	jsonMessage += `,"path":"` + protoMessage.GetPath() + `"` + getJsonFilter(protoMessage.Filter) +
-			createJSON(protoMessage.GetAuthorization(), "authorization") + createJSON(protoMessage.GetRequestId(), "requestId")
+		createJSON(protoMessage.GetAuthorization(), "authorization") + createJSON(protoMessage.GetRequestId(), "requestId")
 	return jsonMessage + "}"
 }
 
@@ -608,7 +610,7 @@ func populateJsonFromProtoSetReq(protoMessage *pb.SetRequestMessage) string {
 	jsonMessage := "{"
 	jsonMessage += `"action":"set"`
 	jsonMessage += `,"path":"` + protoMessage.GetPath() + `","value":"` +
-			protoMessage.GetValue() + `"` + createJSON(protoMessage.GetAuthorization(), "authorization") + createJSON(protoMessage.GetRequestId(), "requestId")
+		protoMessage.GetValue() + `"` + createJSON(protoMessage.GetAuthorization(), "authorization") + createJSON(protoMessage.GetRequestId(), "requestId")
 	return jsonMessage + "}"
 }
 
@@ -618,9 +620,9 @@ func populateJsonFromProtoSetResp(protoMessage *pb.SetResponseMessage) string {
 	if protoMessage.GetStatus() != 0 { //ERROR
 		jsonMessage += getJsonError(protoMessage.GetErrorResponse())
 	}
-//	if currentCompression == PB_LEVEL1 {
-		jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
-/*	} else {
+	//	if currentCompression == PB_LEVEL1 {
+	jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
+	/*	} else {
 		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
 	}*/
 	return jsonMessage + "}"
@@ -642,8 +644,8 @@ func populateJsonFromProtoSubscribeStream(protoMessage *pb.SubscribeStreamMessag
 		if protoMessage.GetStatus() != 0 { //ERROR
 			jsonMessage += getJsonError(protoMessage.Response.GetErrorResponse())
 		}
-		jsonMessage += `,"ts":"` + protoMessage.Response.GetTs() + `"` + createJSON(protoMessage.Response.GetSubscriptionId(), "subscriptionId") + 
-				createJSON(protoMessage.Response.GetRequestId(), "requestId")
+		jsonMessage += `,"ts":"` + protoMessage.Response.GetTs() + `"` + createJSON(protoMessage.Response.GetSubscriptionId(), "subscriptionId") +
+			createJSON(protoMessage.Response.GetRequestId(), "requestId")
 	case pb.SubscribeResponseType_EVENT:
 		jsonMessage += `"action":"subscription"`
 		if protoMessage.GetStatus() == 0 { //SUCCESSFUL

@@ -12,6 +12,8 @@
 *.key
 *.csr
 *.rsa
+*.pem
+*.db
 
 #log files
 ws-mgr-log.txt
@@ -22,6 +24,9 @@ servercore-log.txt
 #helper files
 vsspathlist.json
 vss_vissv2.binary
+certificate.pem
+config.json
+feeder
 
 # Test binary, built with `go test -c`
 *.test

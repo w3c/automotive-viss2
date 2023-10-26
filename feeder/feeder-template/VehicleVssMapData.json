@@ -1,0 +1,1 @@
+[{"vssdata":"Vehicle.CurrentVoltage","vehicledata":"BattVolt"},{"vssdata":"Vehicle.CurrentCurrent","vehicledata":"BattCurr"},{"vssdata":"Vehicle.Powertrain.Transmission.TravelledDistance","vehicledata":"Odometer"}, {"vssdata":"Vehicle.Cabin.Door.Row1.Right.IsOpen","vehicledata":"DoorIsOpen"}]

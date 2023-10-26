@@ -1,4 +1,5 @@
 /**
+* (C) 2023 Ford Motor Company
 * (C) 2022 Geotab Inc
 * (C) 2021 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
@@ -55,6 +56,7 @@ type HistoryList struct {
 var historyList []HistoryList
 var historyAccessChannel chan string
 
+//var feederConn net.Conn
 //var hostIp string
 
 var errorResponseMap = map[string]interface{}{
@@ -71,6 +73,55 @@ var redisClient *redis.Client
 var stateDbType string
 
 var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
+
+type FeederReg struct {
+	RootName   string `json:"root"`
+	SocketFile string `json:"fname"`
+	DbFile     string `json:"db"`
+	UdsConn    net.Conn
+}
+
+var feederRegList []FeederReg
+
+func readFeederRegistrations(sockFile string) []FeederReg {
+	var regList []FeederReg
+	data, err := ioutil.ReadFile(sockFile)
+	if err != nil {
+		utils.Error.Printf("readFeederRegistrations():%s error=%s", sockFile, err)
+		return nil
+	}
+	err = json.Unmarshal(data, &regList)
+	if err != nil {
+		utils.Error.Printf("readFeederRegistrations():unmarshal error=%s", err)
+		return nil
+	}
+	for i := 0; i < len(regList); i++ {
+		regList[i].UdsConn = nil
+	}
+	return regList
+}
+
+func getFeederConn(path string) net.Conn {
+	root := utils.ExtractRootName(path)
+	for i := 0; i < len(feederRegList); i++ {
+		if root == feederRegList[i].RootName {
+			if feederRegList[i].UdsConn == nil {
+				feederRegList[i].UdsConn = connectToFeeder(feederRegList[i].SocketFile)
+			}
+			return feederRegList[i].UdsConn
+		}
+	}
+	return nil
+}
+
+func connectToFeeder(sockFile string) net.Conn {
+	feederConn, err := net.Dial("unix", sockFile)
+	if err != nil {
+		utils.Error.Printf("connectToFeeder:UDS Dial failed, err = %s", err)
+		return nil
+	}
+	return feederConn
+}
 
 func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
@@ -461,6 +512,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
 	case "redis":
+		utils.Info.Printf(path)
 		dp, err := redisClient.Get(path).Result()
 		if err != nil {
 			if err.Error() != "redis: nil" {
@@ -474,19 +526,19 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		} else {
 			//		    utils.Info.Printf("Datapoint=%s\n", dp)
 			return dp
-/*			type RedisDp struct {
-				Val string
-				Ts  string
-			}
-			var currentDp RedisDp
-			err := json.Unmarshal([]byte(dp), &currentDp)
-			if err != nil {
-				utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
-				return ""
-			} else {
-				//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
-				return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
-			}*/
+			/*			type RedisDp struct {
+							Val string
+							Ts  string
+						}
+						var currentDp RedisDp
+						err := json.Unmarshal([]byte(dp), &currentDp)
+						if err != nil {
+							utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
+							return ""
+						} else {
+							//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
+							return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
+						}*/
 		}
 	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -512,16 +564,26 @@ func setVehicleData(path string, value string) string {
 		}
 		return ts
 	case "redis":
-		dp := `{"val":"` + value + `", "ts":"` + ts + `"}`
-		dPath := path + ".D" // path to "desired" dp. Must be created identically by feeder reading it.
-		err := redisClient.Set(dPath, dp, time.Duration(0)).Err()
-		if err != nil {
-			utils.Error.Printf("Could not update statestorage. Err=%s\n", err)
+		/*		dp := `{"val":"` + value + `", "ts":"` + ts + `"}`
+				dPath := path + ".D" // path to "desired" dp. Must be created identically by feeder reading it.
+				err := redisClient.Set(dPath, dp, time.Duration(0)).Err()
+				if err != nil {
+					utils.Error.Printf("Could not update statestorage. Err=%s\n", err)
+					return ""
+				}
+				return ts*/
+		feederConn := getFeederConn(path)
+		if feederConn == nil {
+			utils.Error.Printf("setVehicleData:Failed to UDS connect to feeder for path = %s", path)
 			return ""
-		} else {
-			//		    utils.Error.Println("Datapoint=%s\n", dp)
-			return ts
 		}
+		data := `{"path":"` + path + `", "dp":{"value":"` + value + `", "ts":"` + ts + `"}}`
+		_, err := feederConn.Write([]byte(data))
+		if err != nil {
+			utils.Error.Printf("setVehicleData:Write failed, err = %s", err)
+			return ""
+		}
+		return ts
 	}
 	return ""
 }
@@ -869,6 +931,8 @@ func getValidation(path string) string {
 func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
 	stateDbType = stateStorageType
 
+	feederRegList = readFeederRegistrations("feeder-registration.json")
+
 	switch stateDbType {
 	case "sqlite":
 		if utils.FileExists(dbFile) {
@@ -885,7 +949,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	case "redis":
 		redisClient = redis.NewClient(&redis.Options{
 			Network:  "unix",
-			Addr:     "/var/tmp/vissv2/redisDB.sock",
+			Addr:     feederRegList[0].DbFile, //TODO replace with check and exit if not defined.
 			Password: "",
 			DB:       1,
 		})
@@ -914,7 +978,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
 	go historyServer(historyAccessChannel, udsPath, vss_data)
 	dummyTicker := time.NewTicker(47 * time.Millisecond)
-	subscriptTicker := time.NewTicker(15 * time.Millisecond)  //range/change subscriptions
+	subscriptTicker := time.NewTicker(15 * time.Millisecond) //range/change subscriptions
 
 	for {
 		select {
@@ -1052,7 +1116,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 		case <-subscriptTicker.C:
 			// check if range or change notification triggered
 			for i := range subscriptionList {
-//				triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
+				//				triggerDataPoint := getVehicleData(subscriptionList[i].Path[0])
 				doTrigger, updateLatest, triggerDataPoint := checkRangeChangeFilter(subscriptionList[i].FilterList, subscriptionList[i].LatestDataPoint, subscriptionList[i].Path[0])
 				if updateLatest == true {
 					subscriptionList[i].LatestDataPoint = triggerDataPoint

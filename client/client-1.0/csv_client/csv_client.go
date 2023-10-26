@@ -14,7 +14,7 @@ import (
 	"encoding/json"
 	"flag"
 	"io/ioutil"
-//	"net/http"
+	//	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -49,36 +49,36 @@ func pathToUrl(path string) string {
 }
 
 func jsonToStructList(jsonList string) int {
-    var reqList map[string]interface{}
-    err := json.Unmarshal([]byte(jsonList), &reqList)
-    if err != nil {
-	utils.Error.Printf("jsonToStructList:error jsonList=%s", jsonList)
-	return 0
-    }
-    switch vv := reqList["request"].(type) {
-      case []interface{}:
-//        utils.Info.Println(jsonList, "is an array:, len=",strconv.Itoa(len(vv)))
-        requestList.Request = make([]string, len(vv))
-        for i := 0 ; i < len(vv) ; i++ {
-  	    requestList.Request[i] = retrieveRequest(vv[i].(map[string]interface{}))
-  	}
-      case map[string]interface{}:
-//        utils.Info.Println(jsonList, "is a map:")
-        requestList.Request = make([]string, 1)
-  	requestList.Request[0] = retrieveRequest(vv)
-      default:
-//        utils.Info.Println(vv, "is of an unknown type")
-    }
-    return len(requestList.Request)
+	var reqList map[string]interface{}
+	err := json.Unmarshal([]byte(jsonList), &reqList)
+	if err != nil {
+		utils.Error.Printf("jsonToStructList:error jsonList=%s", jsonList)
+		return 0
+	}
+	switch vv := reqList["request"].(type) {
+	case []interface{}:
+		//        utils.Info.Println(jsonList, "is an array:, len=",strconv.Itoa(len(vv)))
+		requestList.Request = make([]string, len(vv))
+		for i := 0; i < len(vv); i++ {
+			requestList.Request[i] = retrieveRequest(vv[i].(map[string]interface{}))
+		}
+	case map[string]interface{}:
+		//        utils.Info.Println(jsonList, "is a map:")
+		requestList.Request = make([]string, 1)
+		requestList.Request[0] = retrieveRequest(vv)
+	default:
+		//        utils.Info.Println(vv, "is of an unknown type")
+	}
+	return len(requestList.Request)
 }
 
 func retrieveRequest(jsonRequest map[string]interface{}) string {
-    request, err := json.Marshal(jsonRequest)
-    if err != nil {
-	utils.Error.Print("retrieveRequest(): JSON array encode failed. ", err)
-	return ""
-    }
-    return string(request)
+	request, err := json.Marshal(jsonRequest)
+	if err != nil {
+		utils.Error.Print("retrieveRequest(): JSON array encode failed. ", err)
+		return ""
+	}
+	return string(request)
 }
 
 func createListFromFile(fname string) int {
@@ -134,78 +134,78 @@ func getResponse(conn *websocket.Conn, request []byte) []byte {
 }
 
 func performCommand(commandNumber int, conn *websocket.Conn, optionChannel chan string, unsubChannel chan string) {
-    fmt.Printf("Request: %s\n", requestList.Request[commandNumber])
-    if (compression == "pbl1" || compression == "pbl2") {
-        performPbCommand(commandNumber, conn, optionChannel)
-    } else if (compression == "prop") {
-        performPropCommand(commandNumber, conn, optionChannel)
-    } else {
-        performNoneCommand(commandNumber, conn, optionChannel, unsubChannel)
-    }
+	fmt.Printf("Request: %s\n", requestList.Request[commandNumber])
+	if compression == "pbl1" || compression == "pbl2" {
+		performPbCommand(commandNumber, conn, optionChannel)
+	} else if compression == "prop" {
+		performPropCommand(commandNumber, conn, optionChannel)
+	} else {
+		performNoneCommand(commandNumber, conn, optionChannel, unsubChannel)
+	}
 }
 
 func performNoneCommand(commandNumber int, conn *websocket.Conn, optionChannel chan string, unsubChannel chan string) {
-    fmt.Printf("Compression is not applied. If subscribe request is issued, response data will be saved in the file data.csv\n")
+	fmt.Printf("Compression is not applied. If subscribe request is issued, response data will be saved in the file data.csv\n")
 
-    jsonResponse := string(getResponse(conn, []byte(requestList.Request[commandNumber])))
-    fmt.Printf("Response: %s\n", jsonResponse)
-    if (strings.Contains(requestList.Request[commandNumber], "subscribe") == true) {
-	subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
-        unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
-        unsubChannel <- unsubReq
-        maxArrayLen := 10000
-        valArray := make([]string, maxArrayLen)
-        tsArray := make([]string, maxArrayLen)
-	sessionDone := false
-        arrayIndex := 0
-        finalIterations := -1
-        for {
-	    _, msg, err := conn.ReadMessage()
-	    if err != nil {
-		fmt.Printf("Notification error: %s\n", err)
-		return
-	    }
-	    jsonNotification := string(msg)
-	    if (strings.Contains(jsonNotification, "unsubscribe") == true) {
-	        fmt.Printf("Response: %s\n", jsonNotification)
-	        sessionDone = true
-	        finalIterations = 1  // 2 more iteration if last buffer has saved dp(s). If not, change to 1.
-	    } else {
-	        finalIterations--
-	        fmt.Printf("Notification: %s\n", jsonNotification)
-	        if arrayIndex < maxArrayLen {
-	            arrayIndex = storeinArrays(jsonNotification, valArray, tsArray, arrayIndex)
-	        } else {
-	            fmt.Printf("Maximum number of datapoints are saved. Recording terminated.\n")
-	        }
-	    }
-            if (sessionDone == true && finalIterations == 0) {
-	        fmt.Printf("Number of datapoints saved: %d\n", arrayIndex)
-	        saveInCsv(valArray, tsArray, arrayIndex)
-	        return
-	    }
-        }
-    } else { // get request
-        fmt.Printf("Response: %s\n", jsonResponse)
-    }
+	jsonResponse := string(getResponse(conn, []byte(requestList.Request[commandNumber])))
+	fmt.Printf("Response: %s\n", jsonResponse)
+	if strings.Contains(requestList.Request[commandNumber], "subscribe") == true {
+		subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
+		unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
+		unsubChannel <- unsubReq
+		maxArrayLen := 10000
+		valArray := make([]string, maxArrayLen)
+		tsArray := make([]string, maxArrayLen)
+		sessionDone := false
+		arrayIndex := 0
+		finalIterations := -1
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				fmt.Printf("Notification error: %s\n", err)
+				return
+			}
+			jsonNotification := string(msg)
+			if strings.Contains(jsonNotification, "unsubscribe") == true {
+				fmt.Printf("Response: %s\n", jsonNotification)
+				sessionDone = true
+				finalIterations = 1 // 2 more iteration if last buffer has saved dp(s). If not, change to 1.
+			} else {
+				finalIterations--
+				fmt.Printf("Notification: %s\n", jsonNotification)
+				if arrayIndex < maxArrayLen {
+					arrayIndex = storeinArrays(jsonNotification, valArray, tsArray, arrayIndex)
+				} else {
+					fmt.Printf("Maximum number of datapoints are saved. Recording terminated.\n")
+				}
+			}
+			if sessionDone == true && finalIterations == 0 {
+				fmt.Printf("Number of datapoints saved: %d\n", arrayIndex)
+				saveInCsv(valArray, tsArray, arrayIndex)
+				return
+			}
+		}
+	} else { // get request
+		fmt.Printf("Response: %s\n", jsonResponse)
+	}
 }
 
 /* TODO: Current impl only supports notifications that do not contain data arrays ([]data).
 * To support data[] (multiple signals in the notification), arrayIndex would need to be an array, and tsArray/valArray would have to be 2-dim arrays
-*/
+ */
 func storeinArrays(jsonNotification string, valArray []string, tsArray []string, arrayIndex int) int { // can be any of the four response formats that VISSv2 specifies...
-    var notificationMap = make(map[string]interface{})
-    utils.MapRequest(jsonNotification, &notificationMap)
-    return processDataLevel1(notificationMap["data"], valArray, tsArray, arrayIndex)
+	var notificationMap = make(map[string]interface{})
+	utils.MapRequest(jsonNotification, &notificationMap)
+	return processDataLevel1(notificationMap["data"], valArray, tsArray, arrayIndex)
 }
 
 func processDataLevel1(dataObject interface{}, valArray []string, tsArray []string, arrayIndex int) int { // data or []data level
 	switch vv := dataObject.(type) {
 	case []interface{}: // []data
-//		utils.Info.Println(dataObject, "is an array:, len=", strconv.Itoa(len(vv)))
+		//		utils.Info.Println(dataObject, "is an array:, len=", strconv.Itoa(len(vv)))
 		arrayIndex = processDataLevel2(vv, valArray, tsArray, arrayIndex)
 	case map[string]interface{}:
-//		utils.Info.Println(dataObject, "is a map:")
+		//		utils.Info.Println(dataObject, "is a map:")
 		arrayIndex = processDataLevel3(vv, valArray, tsArray, arrayIndex)
 	default:
 		utils.Info.Println(dataObject, "is of an unknown type")
@@ -217,7 +217,7 @@ func processDataLevel2(dataArray []interface{}, valArray []string, tsArray []str
 	for k, v := range dataArray {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-//			utils.Info.Println(k, "is a map:")
+			//			utils.Info.Println(k, "is a map:")
 			arrayIndex = processDataLevel3(vv, valArray, tsArray, arrayIndex)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -230,13 +230,13 @@ func processDataLevel3(data map[string]interface{}, valArray []string, tsArray [
 	for k, v := range data {
 		switch vv := v.(type) {
 		case []interface{}: // []dp
-//			utils.Info.Println(vv, "is an array:, len=", strconv.Itoa(len(vv)))
+			//			utils.Info.Println(vv, "is an array:, len=", strconv.Itoa(len(vv)))
 			arrayIndex = processDataLevel4(vv, valArray, tsArray, arrayIndex)
 		case map[string]interface{}:
-//			utils.Info.Println(k, "is a map:")
+			//			utils.Info.Println(k, "is a map:")
 			arrayIndex = processDataLevel5(vv, valArray, tsArray, arrayIndex)
 		case string: // path
-//			utils.Info.Println(k, "is string", vv)
+			//			utils.Info.Println(k, "is string", vv)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
 		}
@@ -244,12 +244,11 @@ func processDataLevel3(data map[string]interface{}, valArray []string, tsArray [
 	return arrayIndex
 }
 
-
 func processDataLevel4(dpArray []interface{}, valArray []string, tsArray []string, arrayIndex int) int { // []dp level
 	for k, v := range dpArray {
 		switch vv := v.(type) {
 		case map[string]interface{}:
-//			utils.Info.Println(k, "is a map:")
+			//			utils.Info.Println(k, "is a map:")
 			arrayIndex = processDataLevel5(vv, valArray, tsArray, arrayIndex)
 		default:
 			utils.Info.Println(k, "is of an unknown type")
@@ -262,7 +261,7 @@ func processDataLevel5(dp map[string]interface{}, valArray []string, tsArray []s
 	for k, v := range dp {
 		switch vv := v.(type) {
 		case string:
-//			utils.Info.Println(k, "is string", vv)
+			//			utils.Info.Println(k, "is string", vv)
 			if k == "value" {
 				valArray[arrayIndex] = vv
 			} else if k == "ts" {
@@ -276,124 +275,127 @@ func processDataLevel5(dp map[string]interface{}, valArray []string, tsArray []s
 }
 
 func saveInCsv(valArray []string, tsArray []string, arrayIndex int) {
-    treeFp, err := os.OpenFile("data.csv", os.O_RDWR|os.O_CREATE, 0755)
-    if (err != nil) {
-	fmt.Printf("Could not open data.csv for writing.\n")
-	return
-    }
-    for i := 0 ; i < arrayIndex ; i++ {
-        treeFp.Write([]byte(tsArray[i]))
-        treeFp.Write([]byte(", "))
-    }
-    treeFp.Write([]byte("\n"))
+	treeFp, err := os.OpenFile("data.csv", os.O_RDWR|os.O_CREATE, 0755)
+	if err != nil {
+		fmt.Printf("Could not open data.csv for writing.\n")
+		return
+	}
+	for i := 0; i < arrayIndex; i++ {
+		treeFp.Write([]byte(tsArray[i]))
+		treeFp.Write([]byte(", "))
+	}
+	treeFp.Write([]byte("\n"))
 
-    for i := 0 ; i < arrayIndex ; i++ {
-        treeFp.Write([]byte(valArray[i]))
-        treeFp.Write([]byte(", "))
-    }
-    treeFp.Write([]byte("\n"))
+	for i := 0; i < arrayIndex; i++ {
+		treeFp.Write([]byte(valArray[i]))
+		treeFp.Write([]byte(", "))
+	}
+	treeFp.Write([]byte("\n"))
 
-    treeFp.Close()
+	treeFp.Close()
 }
 
 func performPropCommand(commandNumber int, conn *websocket.Conn, optionChannel chan string) {
-    compressedRequest := utils.CompressMessage([]byte(requestList.Request[commandNumber]))
-    fmt.Printf("JSON request size= %d, Compressed request size=%d\n", len(requestList.Request[commandNumber]), len(compressedRequest))
-    fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber])) / len(compressedRequest))
-    compressedResponse := getResponse(conn, compressedRequest)
-    jsonResponse := string(utils.DecompressMessage([]byte(compressedResponse)))
-    fmt.Printf("Response: %s\n", jsonResponse)
-    fmt.Printf("JSON response size= %d, Compressed response size=%d\n", len(jsonResponse), len(compressedResponse))
-    fmt.Printf("Compression= %d%\n", (100*len(jsonResponse)) / len(compressedResponse))
-    if (strings.Contains(requestList.Request[commandNumber], "subscribe") == true) {
-        for {
-	    _, msg, err := conn.ReadMessage()
-	    if err != nil {
-		fmt.Printf("Notification error: %s\n", err)
-		return
-	    }
-	    jsonNotification := string(utils.DecompressMessage(msg))
-	    fmt.Printf("Notification: %s\n", jsonNotification)
-	    fmt.Printf("JSON notification size= %d, Compressed notification size=%d\n", len(jsonNotification), len(msg))
-	    fmt.Printf("Compression= %d%\n", (100*len(jsonNotification)) / len(msg))
-	    select {
-	        case <- optionChannel:
-	            // issue unsubscribe request
-	            subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
-	            unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
-	            compressedUnsubReq := utils.CompressMessage([]byte(unsubReq))
-	            getResponse(conn, compressedUnsubReq)
-	            return
-	        default:
-	    }
-        }
-    }
+	compressedRequest := utils.CompressMessage([]byte(requestList.Request[commandNumber]))
+	fmt.Printf("JSON request size= %d, Compressed request size=%d\n", len(requestList.Request[commandNumber]), len(compressedRequest))
+	fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber]))/len(compressedRequest))
+	compressedResponse := getResponse(conn, compressedRequest)
+	jsonResponse := string(utils.DecompressMessage([]byte(compressedResponse)))
+	fmt.Printf("Response: %s\n", jsonResponse)
+	fmt.Printf("JSON response size= %d, Compressed response size=%d\n", len(jsonResponse), len(compressedResponse))
+	fmt.Printf("Compression= %d%\n", (100*len(jsonResponse))/len(compressedResponse))
+	if strings.Contains(requestList.Request[commandNumber], "subscribe") == true {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				fmt.Printf("Notification error: %s\n", err)
+				return
+			}
+			jsonNotification := string(utils.DecompressMessage(msg))
+			fmt.Printf("Notification: %s\n", jsonNotification)
+			fmt.Printf("JSON notification size= %d, Compressed notification size=%d\n", len(jsonNotification), len(msg))
+			fmt.Printf("Compression= %d%\n", (100*len(jsonNotification))/len(msg))
+			select {
+			case <-optionChannel:
+				// issue unsubscribe request
+				subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
+				unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
+				compressedUnsubReq := utils.CompressMessage([]byte(unsubReq))
+				getResponse(conn, compressedUnsubReq)
+				return
+			default:
+			}
+		}
+	}
 }
 
 func performPbCommand(commandNumber int, conn *websocket.Conn, optionChannel chan string) {
-    compressedRequest := utils.JsonToProtobuf(requestList.Request[commandNumber], convertToCompression(compression)) 
-    fmt.Printf("JSON request size= %d, Protobuf request size=%d\n", len(requestList.Request[commandNumber]), len(compressedRequest))
-    fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber])) / len(compressedRequest))
-    compressedResponse := getResponse(conn, compressedRequest)
-    jsonResponse := utils.ProtobufToJson(compressedResponse, convertToCompression(compression))
-    fmt.Printf("Response: %s\n", jsonResponse)
-    fmt.Printf("JSON response size= %d, Protobuf response size=%d\n", len(jsonResponse), len(compressedResponse))
-    fmt.Printf("Compression= %d%\n", (100*len(jsonResponse)) / len(compressedResponse))
-    if (strings.Contains(requestList.Request[commandNumber], "subscribe") == true) {
-        for {
-	    _, msg, err := conn.ReadMessage()
-	    if err != nil {
-		fmt.Printf("Notification error: %s\n", err)
-		return
-	    }
-	    jsonNotification := utils.ProtobufToJson(msg, convertToCompression(compression))
-	    fmt.Printf("Notification: %s\n", jsonNotification)
-	    fmt.Printf("JSON notification size= %d, Protobuf notification size=%d\n", len(jsonNotification), len(msg))
-	    fmt.Printf("Compression= %d%\n", (100*len(jsonNotification)) / len(msg))
-	    select {
-	        case <- optionChannel:
-	            // issue unsubscribe request
-	            subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
-	            unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
-	            pbUnsubReq := utils.JsonToProtobuf(unsubReq, convertToCompression(compression))
-	            getResponse(conn, pbUnsubReq)
-	            return
-	        default:
-	    }
-        }
-    }
+	compressedRequest := utils.JsonToProtobuf(requestList.Request[commandNumber], convertToCompression(compression))
+	fmt.Printf("JSON request size= %d, Protobuf request size=%d\n", len(requestList.Request[commandNumber]), len(compressedRequest))
+	fmt.Printf("Compression= %d%\n", (100*len(requestList.Request[commandNumber]))/len(compressedRequest))
+	compressedResponse := getResponse(conn, compressedRequest)
+	jsonResponse := utils.ProtobufToJson(compressedResponse, convertToCompression(compression))
+	fmt.Printf("Response: %s\n", jsonResponse)
+	fmt.Printf("JSON response size= %d, Protobuf response size=%d\n", len(jsonResponse), len(compressedResponse))
+	fmt.Printf("Compression= %d%\n", (100*len(jsonResponse))/len(compressedResponse))
+	if strings.Contains(requestList.Request[commandNumber], "subscribe") == true {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				fmt.Printf("Notification error: %s\n", err)
+				return
+			}
+			jsonNotification := utils.ProtobufToJson(msg, convertToCompression(compression))
+			fmt.Printf("Notification: %s\n", jsonNotification)
+			fmt.Printf("JSON notification size= %d, Protobuf notification size=%d\n", len(jsonNotification), len(msg))
+			fmt.Printf("Compression= %d%\n", (100*len(jsonNotification))/len(msg))
+			select {
+			case <-optionChannel:
+				// issue unsubscribe request
+				subscriptionId := utils.ExtractSubscriptionId(jsonResponse)
+				unsubReq := `{"action":"unsubscribe", "subscriptionId":"` + subscriptionId + `"}`
+				pbUnsubReq := utils.JsonToProtobuf(unsubReq, convertToCompression(compression))
+				getResponse(conn, pbUnsubReq)
+				return
+			default:
+			}
+		}
+	}
 }
 
 func convertToCompression(compression string) utils.Compression {
-    switch compression {
-        case "prop": return utils.PROPRIETARY
-        case "pbl1": return utils.PB_LEVEL1
-        case "pbl2": return utils.PB_LEVEL2
-    }
-    return utils.NONE
+	switch compression {
+	case "prop":
+		return utils.PROPRIETARY
+	case "pbl1":
+		return utils.PB_LEVEL1
+	case "pbl2":
+		return utils.PB_LEVEL2
+	}
+	return utils.NONE
 }
 
 func displayOptions() {
-    fmt.Printf("\n\nSelect one of the following numbers:\n")
-    fmt.Printf("0: Exit program\n")
-    for i := 0 ; i < len(requestList.Request) ; i++ {
-        fmt.Printf("%d: %s\n", i+1, requestList.Request[i])
-    }
-    fmt.Printf("In the case of an ongoing subscription session, to unsubscribe please input the character 'q'.\n")
-    fmt.Printf("\nOption number selected: ")
+	fmt.Printf("\n\nSelect one of the following numbers:\n")
+	fmt.Printf("0: Exit program\n")
+	for i := 0; i < len(requestList.Request); i++ {
+		fmt.Printf("%d: %s\n", i+1, requestList.Request[i])
+	}
+	fmt.Printf("In the case of an ongoing subscription session, to unsubscribe please input the character 'q'.\n")
+	fmt.Printf("\nOption number selected: ")
 }
 
 func readOption(conn *websocket.Conn, optionChannel chan string, unsubChannel chan string) {
-    for {
-	fmt.Scanf("%s", &commandNumber)
-	if (commandNumber == "q") {
-	    unsubReq := <-unsubChannel
-            fmt.Printf("Unsubscribe request: %s\n", unsubReq)
-	    getResponse(conn, []byte(unsubReq))
+	for {
+		fmt.Scanf("%s", &commandNumber)
+		if commandNumber == "q" {
+			unsubReq := <-unsubChannel
+			fmt.Printf("Unsubscribe request: %s\n", unsubReq)
+			getResponse(conn, []byte(unsubReq))
 
+		}
+		optionChannel <- commandNumber
 	}
-	optionChannel <- commandNumber
-    }
 }
 
 func main() {
@@ -402,10 +404,10 @@ func main() {
 
 	// Create flags
 	url_vissv2 := parser.String("v", "vissv2Url", &argparse.Options{Required: true, Help: "IP/url to VISSv2 server"})
-	prot := parser.Selector("p", "protocol", []string{"http", "ws"}, &argparse.Options{Required: false, 
-	                        Help: "Protocol must be either http or websocket", Default:"ws"})
-	comp := parser.Selector("c", "compression", []string{"none", "prop", "pbl1", "pbl2"}, &argparse.Options{Required: false, 
-	                         Help: "Compression must be either proprietary or protobuf level 1 or 2", Default:"none"})
+	prot := parser.Selector("p", "protocol", []string{"http", "ws"}, &argparse.Options{Required: false,
+		Help: "Protocol must be either http or websocket", Default: "ws"})
+	comp := parser.Selector("c", "compression", []string{"none", "prop", "pbl1", "pbl2"}, &argparse.Options{Required: false,
+		Help: "Compression must be either proprietary or protobuf level 1 or 2", Default: "none"})
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
 		Required: false,
@@ -438,30 +440,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	if (compression != "none" && utils.InitCompression("vsspathlist.json") != true) {
+	if compression != "none" && utils.InitCompression("vsspathlist.json") != true {
 		fmt.Printf("Failed in creating list from vsspathlist.json")
 		os.Exit(1)
 	}
 
 	conn := initVissV2WebSocket(compression)
 
-	unsubChannel := make(chan string, 1)	
-	optionChannel := make(chan string)	
+	unsubChannel := make(chan string, 1)
+	optionChannel := make(chan string)
 	go readOption(conn, optionChannel, unsubChannel)
 
 	for {
-	    displayOptions()
-	    select {
-	        case commandNumber = <- optionChannel:
-		    if (commandNumber == "0") {
-	        	return
-	            }
-	    }
-	    cNo, err := strconv.Atoi(commandNumber)
-	    if (err != nil) {
-	        fmt.Printf("Selected option not supported\n")
-	        continue
-	    }
-	    performCommand(cNo-1, conn, optionChannel, unsubChannel)
+		displayOptions()
+		select {
+		case commandNumber = <-optionChannel:
+			if commandNumber == "0" {
+				return
+			}
+		}
+		cNo, err := strconv.Atoi(commandNumber)
+		if err != nil {
+			fmt.Printf("Selected option not supported\n")
+			continue
+		}
+		performCommand(cNo-1, conn, optionChannel, unsubChannel)
 	}
 }

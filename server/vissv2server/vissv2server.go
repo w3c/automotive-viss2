@@ -1,8 +1,9 @@
 /**
+* (C) 2023 Ford Motor Company
 * (C) 2022 Geotab Inc
 * (C) 2020 Mitsubishi Electrics Automotive
 * (C) 2019 Geotab Inc
-* (C) 2019 Volvo Cars
+* (C) 2019,2023 Volvo Cars
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
 * are licensed under the provisions of the license provided by the LICENSE file in this repository.
@@ -31,9 +32,8 @@ import (
 	"time"
 
 	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
-	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
-	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
 
@@ -777,7 +777,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	}
 	paths = paths[:len(paths)-2]
 	if totalMatches == 1 {
-		paths = paths[1:len(paths)-1]  // remove hyphens
+		paths = paths[1 : len(paths)-1] // remove hyphens
 	} else if totalMatches > 1 {
 		paths = "[" + paths + "]"
 	}
@@ -816,6 +816,10 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	}
 	requestMap["path"] = paths
 	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
+}
+
+type CoreInterface interface {
+	vssPathListHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type PathList struct {
@@ -858,7 +862,7 @@ func main() {
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
 	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
-		Help: "Statestorage must be either sqlite, redis, or none", Default: "sqlite"})
+		Help: "Statestorage must be either sqlite, redis, or none", Default: "redis"})
 	udsPath := parser.String("", "uds", &argparse.Options{
 		Required: false,
 		Help:     "Set UDS path and file",
@@ -880,6 +884,7 @@ func main() {
 		utils.Error.Fatal(" Tree file not found")
 		return
 	}
+
 	createPathListFile(*vssJson) // save in server directory, where transport managers will expect it to be
 	if *dryRun {
 		utils.Info.Printf("vsspathlist.json created. Job done.")
@@ -887,7 +892,7 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	router.HandleFunc("/vsspathlist", pathList.vssPathListHandler).Methods("GET")
+	router.HandleFunc("/vsspathlist", pathList.VssPathListHandler).Methods("GET")
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:8081",
@@ -916,8 +921,8 @@ func main() {
 			go wsMgr.WsMgrInit(1, transportMgrChannel[1])
 			go transportDataSession(transportMgrChannel[1], transportDataChan[1], backendChan[1])
 		case "mqttMgr":
-			go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
-			go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
+			//go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
+			//go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
 		case "grpcMgr":
 			go grpcMgr.GrpcMgrInit(3, transportMgrChannel[3])
 			go transportDataSession(transportMgrChannel[3], transportDataChan[3], backendChan[3])
