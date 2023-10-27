@@ -9,8 +9,8 @@
 package wsMgr
 
 import (
-	"strings"
 	utils "github.com/w3c/automotive-viss2/utils"
+	"strings"
 )
 
 // the number of channel array elements sets the limit for max number of parallel WS app clients

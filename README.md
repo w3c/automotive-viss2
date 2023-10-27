@@ -1,5 +1,5 @@
 **(C) 2023 Ford Motor Company**<br>
-**(C) 2019 Volvo Cars**<br>
+**(C) 2019, 2023 Volvo Cars**<br>
 **(C) 2019 Geotab Inc**<br>
 **(C) 2019 Mitsubishi Electric Automotive**<br>
 
@@ -11,7 +11,116 @@ This project implements the W3C VISS v2 specification under development at <a hr
 # Tutorial
 A tutorial can be found <a href="https://w3c.github.io/automotive-viss2/">here</a>.
 
-# Development Process
+# Starting and building the server
+
+This project requires Go version 1.18 or above, make sure your GOROOT and GOPATH are correctly configured. Since this project uses Go modules all dependencies will automatically download when building the project the first time.
+
+The server consist of the software components shown below:
+ - Core server
+ - HTTP manager
+ - Websocket manager
+ - MQTT manager
+ - gRPC manager
+ - Vehicle service manager
+ - Access Grant token server
+ - Access Token server 
+ 
+hese used to be built as separate processes that communicated over the Websockets protocol.
+This model is available on the "multi-process" branch. To start them there is a shell script, please check the README for details of it.
+
+On the master branch these coponents are today implemented as threads within a single process, to build it
+
+move to the ./server/vissv2 directory,
+
+issue $ go build
+
+and the start it ./vissv2server
+
+The server may be started with a few different command line flags, append --help to get more info about them.
+
+There are a couple of client implementation written in Go, use the same build and start pattern for them.
+The clients written in JS starts by clicking on them from a file browser.
+
+To speed up the first time build you can run the command below in ./ and ./server directory
+
+```bash
+$ go mod tidy
+```
+
+To update the dependencies to latest run
+
+```bash
+$ go get -u ./...
+```
+
+If working with a fix or investigating something in a dependency, you can have a local fork by adding a replace directive in the go.mod file, see below examples. 
+
+```
+replace example.com/some/dependency => example.com/some/dependency v1.2.3 
+replace example.com/original/import/path => /your/forked/import/path
+replace example.com/project/foo => ../foo
+```
+
+Testing if your fix builds is often easiest to do by the command
+$ go build 
+in the directory of the fixed go file.
+
+For more information see https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive
+
+Make sure not to push modified go.mod, go.sum files since that would probably break the master branch.
+
+### Multi-process vs single-process server implementation
+The components mentioned above that together realizes the server is available in two different implementations:
+- Components are built and deployed as separate processes/binaries, and communicate using Websocket.<br>
+- Components are built and deployed as threads within one common process/binary, and communicate using Go channels.<br>
+
+These implementations are found at the branches multi-process and single-process, respectively. **Note, the multi-process
+branch is not maintained and should be considered stale.**
+The master branch is a fork from the single-process branch.
+
+### Using Docker-Compose to launch a W3CServer instance
+
+The W3C server can also be built and launched using docker and docker-compose please follow below links to install docker and docker-compose
+
+https://docs.docker.com/install/linux/docker-ce/ubuntu/
+https://docs.docker.com/compose/install/
+
+to launch use
+
+```bash
+$ docker compose -f docker-compose.yml build 
+...
+ => => exporting layers                                                                                                                                                                                              0.1s
+ => => writing image sha256:f392918448ece4b26b5c430ffc53c5f2da8872d030c11a22b42360dbf9676934                                                                                                                         0.0s
+ => => naming to docker.io/library/automotive-viss2-feeder  
+```
+
+```bash
+$ docker compose -f docker-compose.yml up
+  ✔ Container container_volumes  Created                                                                                                                                                                              0.0s 
+ ✔ Container vissv2server       Created                                                                                                                                                                              0.0s 
+ ✔ Container app_redis          Created                                                                                                                                                                              0.0s 
+ ✔ Container feeder             Recreated                                                                                                                                                                            0.1s 
+Attaching to app_redis, container_volumes, feeder, vissv2server  
+```
+to stop use 
+
+```bash
+$ docker-compose down
+✔ Container vissv2server        Stopped                                                                                                                                                                              0.2s 
+ ✔ Container app_redis          Stopped                                                                                                                                                                              0.2s 
+ ✔ Container feeder             Stopped                                                                                                                                                                              0.1s 
+ ✔ Container container_volumes  Stopped 
+```
+
+if server needs to be rebuilt due to src code modifications
+
+```bash
+$ docker-compose up -d --force-recreate --build
+```
+
+
+# 1. server
 
 A simple process is followed where work packages are create as issues labeled as an implementation issue. The name of the issue is also the name of the branch which is used for implementation. A pull request is created when the task is finished to push the changes to the main branch.
 

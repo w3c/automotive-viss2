@@ -10,7 +10,6 @@ package main
 
 import (
 	"crypto/rsa"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -103,8 +102,8 @@ func initAgtServer(serverChannel chan string, muxServer *http.ServeMux) {
 		server := http.Server{
 			Addr:    ":" + utils.SecureConfiguration.AgtsSecPort,
 			Handler: muxServer,
-			TLSConfig: utils.GetTLSConfig("localhost", "../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
-				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),
+			/*TLSConfig: utils.GetTLSConfig("localhost", "../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
+			tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt))),*/
 		}
 		utils.Info.Printf("initAgtServer():Starting AGT Server with TLS on %s/agts", utils.SecureConfiguration.AgtsSecPort)
 		utils.Info.Printf("initAgtServer():HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)

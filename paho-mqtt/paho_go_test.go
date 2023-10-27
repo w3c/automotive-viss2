@@ -5,12 +5,12 @@
 package paho_mqtt
 
 import (
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"sync"
 	"testing"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-func TestTcpLocalHost(t *testing.T){
+func TestTcpLocalHost(t *testing.T) {
 	const TOPIC = "mytopic/test"
 
 	opts := mqtt.NewClientOptions().AddBroker("ssl://localhost:8883")

@@ -1,0 +1,12 @@
+{
+  "tls": "yes",
+  "cert_path_name": "certificate.pem",
+  "name_spaces": ["vss"],
+  "broker_url": "personal-czk1nw84oc-demo-uo7acw3qiq-ez.a.run.app",
+  "port":"443",
+  "client_id" : "volvo-go-client",
+  "api_key": "AC9E2508-FBC626AA-66222503-D7E45604",
+  "vss_tree_path": "../vss/vss-flat-json/normalized-json/vss_n.json",
+  "signalfilter": ["Vehicle.Speed","Vehicle.Body.Lights.IsLeftIndicatorOn","Vehicle.VehicleIdentification.VIN","Vehicle.CurrentLocation.Latitude","Vehicle.CurrentLocation.Longitude","Vehicle.Chassis.Accelerator.PedalPosition"]
+}
+

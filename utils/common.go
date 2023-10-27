@@ -1,4 +1,5 @@
 /**
+* (C) 2023 Ford Motor Company
 * (C) 2021 Geotab Inc
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
@@ -193,8 +194,17 @@ func FileExists(filename string) bool {
 	return !info.IsDir()
 }
 
+func ExtractRootName(path string) string {
+	dotDelimiter := strings.Index(path, ".")
+	if dotDelimiter == -1 {
+		Error.Print("ExtractRootName():Could not find root node name in path=%s", path)
+		return ""
+	}
+	return path[:dotDelimiter]
+}
+
 type FilterObject struct {
-	Type  string
+	Type      string
 	Parameter string
 }
 

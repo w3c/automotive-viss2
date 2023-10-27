@@ -361,7 +361,7 @@ func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType, se
 		caCertPool.AppendCertsFromPEM(caCert)
 	}
 
-	if (serverCert == nil) {
+	if serverCert == nil {
 		return &tls.Config{ // Returns the tls.Config struct
 			ServerName: host,
 			ClientAuth: certOpt,
@@ -370,11 +370,11 @@ func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType, se
 		}
 	}
 	return &tls.Config{ // Returns the tls.Config struct
-		ServerName: host,
+		ServerName:   host,
 		Certificates: []tls.Certificate{*serverCert},
-		ClientAuth: certOpt,
-		ClientCAs:  caCertPool,
-		MinVersion: tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
+		ClientAuth:   certOpt,
+		ClientCAs:    caCertPool,
+		MinVersion:   tls.VersionTLS12, // TLS versions below 1.2 are considered insecure - see https://www.rfc-editor.org/rfc/rfc7525.txt for details
 	}
 }
 
