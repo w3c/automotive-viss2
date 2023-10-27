@@ -198,7 +198,7 @@ func initGrpcServer() {
 	}
 	pb.RegisterVISSv2Server(server, &Server{})
 	for {
-		lis, err := net.Listen("tcp", "localhost:"+portNo)
+		lis, err := net.Listen("tcp", "0.0.0.0:"+portNo)
 		if err != nil {
 			utils.Error.Printf("failed to listen: " + err.Error())
 			break

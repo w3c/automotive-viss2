@@ -27,7 +27,7 @@ var clientCert tls.Certificate
 var caCertPool x509.CertPool
 
 const (
-	address = "localhost"
+	address = "0.0.0.0"
 	name    = "VISSv2-gRPC-client"
 )
 
