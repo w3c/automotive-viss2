@@ -5,11 +5,9 @@ services:
     container_name: container_volumes
     user: root
     command: >
-      chmod -R 777 /tmp/docker/ &&
-      chmod -R 777 /opt/homebrew/var/db/redis/
+      chmod -R 777 /tmp/docker/
     volumes:
       - /tmp/docker/
-      - /opt/homebrew/var/db/redis/
 
   feeder:
     container_name: feeder
