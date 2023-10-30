@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"log"
 	"os"
 	"time"
 )
@@ -27,7 +28,7 @@ var clientCert tls.Certificate
 var caCertPool x509.CertPool
 
 const (
-	address = "0.0.0.0"
+	address = "127.0.0.1"
 	name    = "VISSv2-gRPC-client"
 )
 
@@ -40,7 +41,7 @@ func initCommandList() {
 	//	commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}`
 	//commandList[0] = `{"action":"get","path":"Vehicle/Cabin/Door","filter":{"type":"paths","parameter":"*.*.IsOpen"},"requestId":"235"}`
 	//	commandList[1] = `{"action":"subscribe","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","filter":{"type":"timebased","parameter":{"period":"3000"}},"requestId":"246"}`
-	commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","parameter":{"period":"100"}}],"requestId":"285"}`
+	commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["Speed","CurrentLocation.Latitude", "CurrentLocation.Longitude"]}, {"type":"timebased","parameter":{"period":"100"}}],"requestId":"285"}`
 	commandList[0] = `{"action":"get","path":"Vehicle/Speed","requestId":"232"}`
 	//commandList[1] = `{"action":"subscribe","path":"Vehicle/Speed","filter":{"type":"timebased","parameter":{"period":"100"}},"requestId":"246"}`
 	//commandList[1] = `{"action":"subscribe","path":"Vehicle","filter":[{"type":"paths","parameter":["Speed", "Chassis/Accelerator/PedalPosition"]},{"type":"timebased","parameter":{"period":"100"}}],"requestId":"246"}`
@@ -65,6 +66,7 @@ func noStreamCall(commandIndex int) {
 		conn, err = grpc.Dial(address+portNo, grpc.WithTransportCredentials(tlsCredentials), grpc.WithBlock())
 	} else {
 		// grpc.Dial
+
 		utils.Info.Printf("connecting to port = 8887")
 		conn, err = grpc.Dial(address+":8887", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	}
@@ -81,7 +83,10 @@ func noStreamCall(commandIndex int) {
 	var vssResponse string
 	if commandIndex == 0 {
 		pbRequest := utils.GetRequestJsonToPb(vssRequest, grpcCompression)
-		pbResponse, _ := client.GetRequest(ctx, pbRequest)
+		pbResponse, err := client.GetRequest(ctx, pbRequest)
+		if err != nil {
+			log.Fatal(err)
+		}
 		vssResponse = utils.GetResponsePbToJson(pbResponse, grpcCompression)
 	} else if commandIndex == 2 {
 		pbRequest := utils.UnsubscribeRequestJsonToPb(vssRequest, grpcCompression)
