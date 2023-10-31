@@ -22,9 +22,9 @@ the state storage to find new write requests.
 * Figure 2. Feeder software architecture version 2
 
 A feeder implementing the 2nd version of the SwA is found at the master branch.
-This feeder currently only implements the Redis state storage interface, please see the Datastore chapter for Redis details.
+This feeder can be configured to either use an SQLite, or a Redis state storage interface, please see the Datastore chapter for details.
 
-A design for how the polling on the server side can be mitigaed is  in the planning stage.
+A design for how the polling on the server side can be mitigaed is in the planning stage.
 It is likely to require an update of the feeder interface.
 
 The feeder translation task is divided into a mapping of the signal name, and a possible scaling of the value.
