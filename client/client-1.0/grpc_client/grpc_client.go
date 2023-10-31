@@ -86,6 +86,7 @@ func noStreamCall(commandIndex int) {
 		pbResponse, err := client.GetRequest(ctx, pbRequest)
 		if err != nil {
 			log.Fatal(err)
+			return
 		}
 		vssResponse = utils.GetResponsePbToJson(pbResponse, grpcCompression)
 	} else if commandIndex == 2 {
@@ -143,6 +144,7 @@ func streamCall(commandIndex int) {
 
 func main() {
 	// Create new parser object
+
 	parser := argparse.NewParser("print", "gRPC client")
 	// Create string flag
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
