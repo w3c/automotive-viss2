@@ -85,7 +85,10 @@ The W3C server can also be built and launched using docker and docker-compose pl
 https://docs.docker.com/install/linux/docker-ce/ubuntu/
 https://docs.docker.com/compose/install/
 
-to launch use
+The current docker uses a variant of the feeder(feeder-rl) which is configured and built to interface remotive labs cloud
+solution for recorded vehicle data translated/mapped to vss.
+
+To build and run the docker example see below:
 
 ```bash
 $ docker compose -f docker-compose.yml build 
