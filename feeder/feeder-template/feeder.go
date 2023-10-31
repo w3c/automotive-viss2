@@ -8,9 +8,11 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"github.com/akamensky/argparse"
 	"github.com/go-redis/redis"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/w3c/automotive-viss2/utils"
 	"io/ioutil"
 	"math/rand"
@@ -30,6 +32,10 @@ type FeederMap struct {
 	VehicleName string `json:"vehicledata"`
 }
 
+var redisClient *redis.Client
+var dbHandle *sql.DB
+var stateDbType string
+
 func readFeederMap(mapFilename string) []FeederMap {
 	var fMap []FeederMap
 	data, err := ioutil.ReadFile(mapFilename)
@@ -48,13 +54,12 @@ func readFeederMap(mapFilename string) []FeederMap {
 
 func initVSSInterfaceMgr(inputChan chan DomainData, outputChan chan DomainData) {
 	udsChan := make(chan DomainData, 1)
-	feederClient := initRedisClient()
-	go initUdsEndpoint(udsChan, feederClient)
+	go initUdsEndpoint(udsChan)
 	for {
 		select {
 		case outData := <-outputChan:
 			utils.Info.Printf("Data written to statestorage: Name=%s, Value=%s", outData.Name, outData.Value)
-			status := redisSet(feederClient, outData.Name, outData.Value, utils.GetRfcTime())
+			status := statestorageSet(outData.Name, outData.Value, utils.GetRfcTime())
 			if status != 0 {
 				utils.Error.Printf("initVSSInterfaceMgr():Redis write failed")
 			}
@@ -64,26 +69,35 @@ func initVSSInterfaceMgr(inputChan chan DomainData, outputChan chan DomainData) 
 	}
 }
 
-func initRedisClient() *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Network:  "unix",
-		Addr:     "/var/tmp/vissv2/redisDB.sock",
-		Password: "",
-		DB:       1,
-	})
-}
+func statestorageSet(path string, val string, ts string) int {
+	switch stateDbType {
+	case "sqlite":
+		stmt, err := dbHandle.Prepare("UPDATE VSS_MAP SET c_value=?, c_ts=? WHERE `path`=?")
+		if err != nil {
+			utils.Error.Printf("Could not prepare for statestorage updating, err = %s", err)
+			return -1
+		}
+		defer stmt.Close()
 
-func redisSet(client *redis.Client, path string, val string, ts string) int {
-	dp := `{"val":"` + val + `", "ts":"` + ts + `"}`
-	err := client.Set(path, dp, time.Duration(0)).Err()
-	if err != nil {
-		utils.Error.Printf("Job failed. Err=%s", err)
-		return -1
+		_, err = stmt.Exec(val, ts, path)
+		if err != nil {
+			utils.Error.Printf("Could not update statestorage, err = %s", err)
+			return -1
+		}
+		return 0
+	case "redis":
+		dp := `{"val":"` + val + `", "ts":"` + ts + `"}`
+		err := redisClient.Set(path, dp, time.Duration(0)).Err()
+		if err != nil {
+			utils.Error.Printf("Job failed. Err=%s", err)
+			return -1
+		}
+		return 0
 	}
-	return 0
+	return -1
 }
 
-func initUdsEndpoint(udsChan chan DomainData, redisClient *redis.Client) {
+func initUdsEndpoint(udsChan chan DomainData) {
 	os.Remove("/var/tmp/vissv2/server-feeder-channel.sock")
 	listener, err := net.Listen("unix", "/var/tmp/vissv2/server-feeder-channel.sock") //the file must be the same as declared in the feeder-registration.json that the service mgr reads
 	if err != nil {
@@ -224,13 +238,53 @@ func main() {
 		Required: false,
 		Help:     "changes log output level",
 		Default:  "info"})
+	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
+		Help: "Statestorage must be either sqlite, redis, or none", Default: "redis"})
+	dbFile := parser.String("f", "dbfile", &argparse.Options{
+		Required: false,
+		Help:     "statestorage database filename",
+		Default:  "../../server/vissv2server/serviceMgr/statestorage.db"})
 	// Parse input
 	err := parser.Parse(os.Args)
 	if err != nil {
 		utils.Error.Print(parser.Usage(err))
 	}
+	stateDbType = *stateDB
 
 	utils.InitLog("feeder-log.txt", "./logs", *logFile, *logLevel)
+
+	switch stateDbType {
+	case "sqlite":
+		var dbErr error
+		if utils.FileExists(*dbFile) {
+			dbHandle, dbErr = sql.Open("sqlite3", *dbFile)
+			if dbErr != nil {
+				utils.Error.Printf("Could not open state storage file = %s, err = %s", *dbFile, dbErr)
+				os.Exit(1)
+			} else {
+				utils.Info.Printf("SQLite state storage initialised.")
+			}
+		} else {
+			utils.Error.Printf("Could not find state storage file = %s", *dbFile)
+		}
+	case "redis":
+		redisClient = redis.NewClient(&redis.Options{
+			Network:  "unix",
+			Addr:     "/var/tmp/vissv2/redisDB.sock",
+			Password: "",
+			DB:       1,
+		})
+		err := redisClient.Ping().Err()
+		if err != nil {
+			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
+			os.Exit(1)
+		} else {
+			utils.Info.Printf("Redis state storage initialised.")
+		}
+	default:
+		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
+		os.Exit(1)
+	}
 
 	vssInputChan := make(chan DomainData, 1)
 	vssOutputChan := make(chan DomainData, 1)

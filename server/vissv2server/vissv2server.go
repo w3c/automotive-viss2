@@ -36,6 +36,7 @@ import (
 	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -62,7 +63,7 @@ var serverComponents []string = []string{
 	"serviceMgr",
 	"httpMgr",
 	"wsMgr",
-	"mqttMgr",
+//	"mqttMgr",  //to avoid calls to the mosquitto broker if not used anyway
 	"grpcMgr",
 	"atServer",
 }
@@ -921,8 +922,8 @@ func main() {
 			go wsMgr.WsMgrInit(1, transportMgrChannel[1])
 			go transportDataSession(transportMgrChannel[1], transportDataChan[1], backendChan[1])
 		case "mqttMgr":
-			//go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
-			//go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
+			go mqttMgr.MqttMgrInit(2, transportMgrChannel[2])
+			go transportDataSession(transportMgrChannel[2], transportDataChan[2], backendChan[2])
 		case "grpcMgr":
 			go grpcMgr.GrpcMgrInit(3, transportMgrChannel[3])
 			go transportDataSession(transportMgrChannel[3], transportDataChan[3], backendChan[3])

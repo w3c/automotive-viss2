@@ -40,6 +40,12 @@ After the refactoring of these SwCs into one process with ech actor running as a
 it became more convenient to build without this script, but it is still [avaliable](https://github.com/w3c/automotive-viss2/blob/master/W3CServer.sh).
 For more details, see the "Multi-process vs single-process server implementation" chapter in the README.
 
+### Loggging
+Logging can be command line configured at startup.
+* logging level can be set to either of [trace, debug, info, warn, error, fatal, panic].
+* logging output destination. It can either be written to file, or directed to standard output.
+The levels currently used are mainly info, warn, error. Info is appropriate during testing and debugging, while error is appropriate when performance is important.
+
 ### Go modules
 Go modules are used in multiple places in this project, below follows some commands that may be helpful in managing  this.
 
