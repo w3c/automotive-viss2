@@ -9,7 +9,7 @@
 
     <link rel="shortcut icon" href="/automotive-viss2/images/fav.png" type="image/x-icon" />
 
-    <title>VISSv2 Server :: W3C VISSv2 Reference Implementation</title>
+    <title>docker-compose step-by-step :: W3C VISSv2 Reference Implementation</title>
 
     
     <link href="/automotive-viss2/css/nucleus.css?1698842302" rel="stylesheet">
@@ -40,7 +40,7 @@
     </style>
     
   </head>
-  <body class="" data-url="/automotive-viss2/server/">
+  <body class="" data-url="/automotive-viss2/docker-step-by-step/">
     <nav id="sidebar" class="">
 
 
@@ -87,7 +87,7 @@
     
     <li data-nav-id="/automotive-viss2/docker-step-by-step/" title="docker-compose step-by-step" class="dd-item
         
-        
+        active
         
         ">
       <a href="/automotive-viss2/docker-step-by-step/">
@@ -319,7 +319,7 @@
     
     <li data-nav-id="/automotive-viss2/server/" title="VISSv2 Server" class="dd-item
         
-        active
+        
         
         ">
       <a href="/automotive-viss2/server/">
@@ -410,7 +410,7 @@
                   
                   
                   <div id="top-github-link">
-                    <a class="github-link" title='Edit this page' href="https://github.com/w3c/automotive-viss2/edit/master/tutorial/content/server/_index.md" target="blank">
+                    <a class="github-link" title='Edit this page' href="https://github.com/w3c/automotive-viss2/edit/master/tutorial/content/docker-step-by-step/_index.md" target="blank">
                       <i class="fas fa-code-branch"></i>
                       <span id="top-github-link-text">Edit this page</span>
                     </a>
@@ -437,7 +437,7 @@
             
           
           
-            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > VISSv2 Server
+            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > docker-compose step-by-step
           
         
           
@@ -450,15 +450,7 @@
     <div class="wrapper">
 <nav id="TableOfContents">
   <ul>
-    <li>
-      <ul>
-        <li><a href="#build-the-server">Build the server</a></li>
-        <li><a href="#configure-the-server">Configure the server</a></li>
-        <li><a href="#pathlist-file-generation">Pathlist file generation</a></li>
-        <li><a href="#history-control">History control</a></li>
-        <li><a href="#experimental-compression">Experimental compression</a></li>
-      </ul>
-    </li>
+    <li><a href="#intro">Intro</a></li>
   </ul>
 </nav>
     </div>
@@ -476,7 +468,7 @@
           
             <h1>
               
-              VISSv2 Server
+              docker-compose step-by-step
             </h1>
           
 
@@ -484,119 +476,85 @@
 
 
 
-	<p>The VISSv2 server is the Sw component that implements the interface that is exposed to the clients, and that must conform to the W3C VISSv2 specification.</p>
-<h3 id="build-the-server">Build the server</h3>
-<p>Please check the chapter <a href="/automotive-viss2/build-system">VISSv2 Build System</a> for general Golang information.</p>
-<p>To build the server, open a erminal and go to the WAII/server/vissv2 directory and issue the command:</p>
-<p>$ go build</p>
-<h3 id="configure-the-server">Configure the server</h3>
-<h4 id="vss-tree-configuration">VSS tree configuration</h4>
-<p>The server has a copy of the VSS tree that it uses to verify that client requsts are valid -
-that there is a node in the tree that corresponds to the path in a request, if a node requires an access control token, etc.
-The tree parser that is used expects the tre to have the &lsquo;binary format&rsquo; that one of the VSS-Tools genertes from the vspec files.
-To generate this the <a href="https://github.com/COVESA/vehicle_signal_specification">VSS repo</a> must be cloned including the VSS-Tools submodule,
-and a file containing the binary representation must be created, which is done with the following command issued in the root directory.</p>
-<p>$ make binary</p>
-<p>This generates a file with a name like &lsquo;vss_rel_4.1-dev.binary&rsquo;,
-which then needs to be renamed to &lsquo;vss_vissv2.binary&rsquo; and stored in the WAII/server/vissv2server directory.</p>
-<p>If you want to configure the tree to include access control, access control tags as described in the
-<a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-selection">VISSv2 - Access Control Selection chapter</a> needs to be added to appropriate tree nodes.
-This can either be done by editing vspec files directly, or using the <a href="https://github.com/covesa/vss-tools">VSS-Tools</a> overlay mechanism.</p>
-<h4 id="command-line-configuration">Command line configuration</h4>
-<p>The server has the following command line configurations:</p>
+	<h2 id="intro">Intro</h2>
+<p>This is a guide to setup and run the vissv2 server together with the remotiveLabs broker with recorded vehicle data.
+The data set is residing the remotiveLabs cloud - <!-- raw HTML omitted -->. There are some configuration files that needs to be set and
+pushed to the docker images. The docker-compose-rl.yml is depending on the Dockerfile(for building) also located in the
+project root. A docker directory is reserved for adding different docker setups with different data providers.</p>
+<p><strong>1. feeder-rl</strong></p>
+<p>The feeder-rl has two basic commands which lets you switch dataprovider. We have &ndash;dataprovider remotive or
+&ndash;dataprovider sim. This guide will focus on using &ndash;dataprovider remotive.</p>
+<p>Visit <a href="https://console.demo.remotivelabs.com/p/demo/recordings">remotive labs cloud demo</a></p>
 <ul>
-<li>Data storage implementation. Select either to use an SQLite implementation (-s sqlite) or a Redis implementation (-s redis). Default is SQLite.</li>
-<li>Data storage file name (&ndash;dbfile &lsquo;file-name&rsquo;). Only relevant for SQLite configuration. Default is &ldquo;serviceMgr/statestorage.db&rdquo;.</li>
-<li>Request the server to generate a pathlist file, then terminate (&ndash;dryrun). Default is not to terminate after generating it.</li>
-<li>Pathlist file name (&ndash;vssjson &lsquo;file-name&rsquo;. Default is &ldquo;../vsspathlist.json&rdquo;.</li>
-<li>UDS path for history control (&ndash;uds &lsquo;file-name&rsquo;). Name of the Unix domain socket file. Default is &ldquo;/var/tmp/vissv2/histctrlserver.sock&rdquo;.</li>
-<li>Level of logging (&ndash;loglevel levelx). Levelx is one of [trace, debug, info, warn, error, fatal, panic]. Default is &ldquo;info&rdquo;.</li>
-<li>Whether logging should end up in standard output (false) or in a log file (true) (&ndash;logfile false/true). The default is &lsquo;false&rsquo;.</li>
+<li>Select the <em><strong>Turning Torso Drivecycle</strong></em>, and the vss configuration.</li>
+<li>Select <em><strong>Play</strong></em>, and choose <em><strong>select broker</strong></em>, choose <em><strong>My personal broker</strong></em> and then <em><strong>Upload</strong></em>.</li>
+<li>Select <em><strong>Go to broker</strong></em></li>
+<li>In the left down corner select <em><strong>Broker details</strong></em> and copy the url and the api-key, we need them for the feeder
+configuration</li>
+<li>keep the page open in the browser  (we will not press start yet)</li>
+<li>Edit the <em><strong>config.json</strong></em> in the <em><strong>feeder-rl</strong></em> directory, replace url and api key.</li>
 </ul>
-<h4 id="data-storage-configuration">Data storage configuration</h4>
-<p>Currently the server supports two different databases, SQLite and Redis, which one to use is selected in the command line configuration.
-However, to get it up and running there are other preparations lso needed, please see the <a href="/automotive-viss2/datastore">VISSv2 Data Storage</a> chapter.</p>
-<h4 id="protocol-support-configuration">Protocol support configuration</h4>
-<p>The server supports the following protocols:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;tls&#34;</span>: <span style="color:#e6db74">&#34;yes&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;cert_path_name&#34;</span>: <span style="color:#e6db74">&#34;certificate.pem&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;name_spaces&#34;</span>: [<span style="color:#e6db74">&#34;vss&#34;</span>],
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;broker_url&#34;</span>: <span style="color:#e6db74">&#34;&lt;broker url&gt;&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;port&#34;</span>:<span style="color:#e6db74">&#34;443&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;client_id&#34;</span> : <span style="color:#e6db74">&#34;volvo-go-client&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;api_key&#34;</span>: <span style="color:#e6db74">&#34;&lt;api key&gt;&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;vss_tree_path&#34;</span>: <span style="color:#e6db74">&#34;../vss/vss-flat-json/normalized-json/vss_n.json&#34;</span>,
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">&#34;signalfilter&#34;</span>: [<span style="color:#e6db74">&#34;Vehicle.Speed&#34;</span>,<span style="color:#e6db74">&#34;Vehicle.Body.Lights.IsLeftIndicatorOn&#34;</span>,<span style="color:#e6db74">&#34;Vehicle.VehicleIdentification.VIN&#34;</span>,<span style="color:#e6db74">&#34;Vehicle.CurrentLocation.Latitude&#34;</span>,<span style="color:#e6db74">&#34;Vehicle.CurrentLocation.Longitude&#34;</span>,<span style="color:#e6db74">&#34;Vehicle.Chassis.Accelerator.PedalPosition&#34;</span>]
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><ul>
+<li>The <em><strong>signalfilter</strong></em> element contains the signals that we would like the broker to filter our for us.</li>
+<li>Save the file.</li>
+</ul>
+<p><strong>NOTE:</strong></p>
+<p>The feeder uses the redis state storage database to handle incoming datapoints. The location of the database and its
+server socket communication file.</p>
+<p>running feeder-rl example:</p>
+<pre tabindex="0"><code>feeder-rl --dataprovider remotive --rdb /tmp/docker/redisDB.sock --fch /tmp/docker/server-feeder-channel.sock
+</code></pre><p>For further details view the <em><strong>docker-compose-rl.yml</strong></em> located in the project root.</p>
+<p><strong>2. server configuration</strong></p>
+<p>The server needs to know where it should forward its requests for writing or reading datapoints.</p>
 <ul>
-<li>HTTP</li>
-<li>Websockets</li>
-<li>MQTT (with the VISSv2 specific application protocol on top)</li>
-<li>gRPC</li>
+<li>Edit the file <strong>feeder-registration.json</strong></li>
 </ul>
-<p>The message payload is identical for all protocols at the client application level (after protocol specific payload modifications are restored).
-HTTP differs in that it does not support subscribe requests.</p>
-<p>The code is structured to make it reasonably easy to remove any of the protocols if that is desired for reducing the code footprint.
-Similarly it should be reasonably straight forward to add new protocols, given that the payload format transformation is not too complicated.</p>
-<h5 id="tls-configuration">TLS configuration</h5>
-<p>The server, and several of the clients, can be configured to apply TLS to the protocols (MQTT uses it integrated model for this).
-The first step in applying TLS is to generate the credentials needed, which is done by running the testCredGen.sh script found <a href="https://github.com/w3c/automotive-viss2/tree/master/testCredGen/">here</a>.</p>
-<p>For details about it, please look at the README in that directory.
-As described there, the generated credentials must then be copied into the appropriate directories for both the server and the client.
-And the key-value &ldquo;transportSec&rdquo; in the transportSec.json file must be set to &ldquo;yes&rdquo; on both sides.</p>
-<p>Reverting to non-TLS use only requires the &ldquo;yes&rdquo; to be changed to &ldquo;no&rdquo;,
-on both the server and the client side.
-Clients must also change to the non-TLS port number according to the list below.</p>
-<table>
-<thead>
-<tr>
-<th>Protocol</th>
-<th>Port number: No TLS</th>
-<th>Port number: TLS</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>HTTP</td>
-<td>8888</td>
-<td>443</td>
-</tr>
-<tr>
-<td>WebSocket</td>
-<td>8080</td>
-<td>6443</td>
-</tr>
-<tr>
-<td>MQTT</td>
-<td>1883</td>
-<td>8883</td>
-</tr>
-<tr>
-<td>gRPC</td>
-<td>5000</td>
-<td>5443</td>
-</tr>
-</tbody>
-</table>
-<h3 id="pathlist-file-generation">Pathlist file generation</h3>
-<p>Some software components that are used in the overall context to setup and run a VISSv2 based communication tech stack needs a list of all the leaf node paths of the VSS tree being used y the server.
-The server generates such a list at startup, in the form of a sorted list in JSON format, having a default name &ldquo;vsspathlist.json&rdquo;.
-As this file may need to be copied and used in other preparations before starting the entire tech stack, it is possible to run the server to only generate this file and then terminate.
-SwCs that use this file:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span>[
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;root&#34;</span>:<span style="color:#e6db74">&#34;Vehicle&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;fname&#34;</span>:<span style="color:#e6db74">&#34;/tmp/docker/server-feeder-channel.sock&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&#34;db&#34;</span>: <span style="color:#e6db74">&#34;/tmp/docker/redisDB.sock&#34;</span>
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>]
+</span></span></code></pre></div><ul>
+<li>set the <strong>fname</strong> element to where the feeder channel socket file should reside.</li>
+<li>set the <strong>db</strong> element to where the redis database should reside.</li>
+</ul>
+<p>NOTE:
+The above file paths and file names are correct. Changing the location of these will require changes in the
+docker-compose yml.</p>
+<p><strong>3. build and run</strong></p>
 <ul>
-<li>SQLite state storage manager.</li>
-<li>The server itself if started to apply path encoding using some of the experimental compression schemes, and the corresponding client.</li>
-<li>The protobuf encoding scheme.</li>
-<li>The live simulator.</li>
+<li>locate the <em><strong>docker-compose-rl.yml</strong></em> file in the project root</li>
+<li>build the docker containers:</li>
 </ul>
-<h3 id="history-control">History control</h3>
-<p>The VISSv2 specification provides a capability for clients to issue a request for <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#history-filter-operation">historic data</a>.
-This server supports temporary recording of data that can then be requested by a client using a history filter.
-The model used in the implementation of this is that it is not the server that decides when to start or stop a recording, or how long to keep the recorded data,
-but it is controlled by some other vehicle system via a Unix domain socket based API.</p>
-<p>To test this functionality there is a rudimentary <a href="https://github.com/w3c/automotive-viss2/blob/master/server/hist_ctrl_client.go">history control client</a>
-that can be used to instruct the server to start/stop/delete recording of signals.
-To reduce the amount of data that is recorded the server only saves a data value if it has changed compared to the latest captured,
-so to record more than a start and stop value the signals should be dynamic during a test.</p>
-<h3 id="experimental-compression">Experimental compression</h3>
-<p>VISSv2 uses JSON as the payload format, and as JSON is a textbased format there is a potential to reduce the payload size by using compression.</p>
-<p>A first attempt on applying compression built on a proprietary algorithm that took advantage of knowing the VISSv2 payload format.
-This yielded compressions rates around 5 times (500%), but due to its strong dependence on the payload format it was hard to keep stable when the payload format evolved.
-The <a href="/automotive-viss2/client#compression-client">compression client</a> can be used to test it out, but some payoads will likely crash it.</p>
-<p>A later compression solution was built on protobuf, using the VISSv2messages.proto file found <a href="https://github.com/w3c/automotive-viss2/tree/master/protobuf">here</a>.
-For more details, see the  <a href="/automotive-viss2/client#compression-client">compression client</a>.</p>
-<p>The gRPC protocol implementation, which requires that payloads are protobuf encoded, uses the VISSv2.proto file found <a href="https://github.com/w3c/automotive-viss2/tree/master/grpc_pb">here</a>.</p>
-
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">docker</span> <span style="color:#960050;background-color:#1e0010">compose</span> <span style="color:#960050;background-color:#1e0010">-f</span> <span style="color:#960050;background-color:#1e0010">docker-compose-rl.yml</span> <span style="color:#960050;background-color:#1e0010">build</span> 
+</span></span></code></pre></div><ul>
+<li>revisit the browser from step 1, press the start button, the recorded data playback starts.</li>
+<li>run the docker-compose:</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-json" data-lang="json"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">docker</span> <span style="color:#960050;background-color:#1e0010">compose</span> <span style="color:#960050;background-color:#1e0010">-f</span> <span style="color:#960050;background-color:#1e0010">docker-compose-rl.yml</span> <span style="color:#960050;background-color:#1e0010">up</span>
+</span></span></code></pre></div><p>If you get the following output to the docker console you have succesfully connected and started the vissv2server:</p>
+<pre tabindex="0"><code>feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Speed, Value=10.240000000000002&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:13Z&#34;}
+feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Speed, Value=10.32&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:14Z&#34;}
+feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Chassis.Accelerator.PedalPosition, Value=15.600000000000001&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:14Z&#34;}
+feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Speed, Value=10.399999999999999&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:14Z&#34;}
+feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Speed, Value=10.480000000000004&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:14Z&#34;}
+feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Speed, Value=10.560000000000002&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:14Z&#34;}
+feeder             | {&#34;file&#34;:&#34;feeder-rl.go:65&#34;,&#34;level&#34;:&#34;info&#34;,&#34;msg&#34;:&#34;Data written to statestorage: Name=Vehicle.Speed, Value=10.64&#34;,&#34;time&#34;:&#34;2023-11-01T11:36:14Z&#34;}
+</code></pre>
 
 
 
@@ -636,6 +594,23 @@ For more details, see the  <a href="/automotive-viss2/client#compression-client"
             
                 
                     
+                    
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
+                    
+                        
+            
+            
+                
+                    
                         
                         
                     
@@ -724,22 +699,6 @@ For more details, see the  <a href="/automotive-viss2/client#compression-client"
 
                     
                     
-                    
-
-                    
-            
-        
-                    
-                        
-            
-            
-                
-                    
-                
-                
-
-                    
-                    
                         
                     
                     
@@ -785,7 +744,6 @@ For more details, see the  <a href="/automotive-viss2/client#compression-client"
             
                 
                     
-                    
                 
                 
 
@@ -800,9 +758,6 @@ For more details, see the  <a href="/automotive-viss2/client#compression-client"
             
             
                 
-                    
-                        
-                        
                     
                 
                 
@@ -827,10 +782,10 @@ For more details, see the  <a href="/automotive-viss2/client#compression-client"
 	 
 	 
 		
-			<a class="nav nav-prev" href="/automotive-viss2/pocs/poc1/" title="Vehicle.Speed subscription example"> <i class="fa fa-chevron-left"></i></a>
+			<a class="nav nav-prev" href="/automotive-viss2/" title="W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial"> <i class="fa fa-chevron-left"></i></a>
 		
 		
-			<a class="nav nav-next" href="/automotive-viss2/server/access-control-servers/" title="VISSv2 Access Control Servers" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
+			<a class="nav nav-next" href="/automotive-viss2/build-system/" title="VISSv2 Build System" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
 		
 	
     </div>
