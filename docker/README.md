@@ -10,6 +10,8 @@ https://docs.docker.com/compose/install/
 The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-rl) which is configured and built to interface remotive labs cloud
 solution for recorded vehicle data translated/mapped to vss. The docker compose version should be from 3.8.
 
+Dockerfile and docker-compose-rl.yml is located in the project root.
+
 To build and run the docker example see below:
 
 ```bash
