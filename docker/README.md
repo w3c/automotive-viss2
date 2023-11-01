@@ -1,31 +1,43 @@
-### Using Docker-Compose to launch a W3CServer instance
+**DOCKER**
 
-The W3C server can also be built and launched using docker and docker-compose please follow below links to install docker and docker-compose
+**(C) 2023 Volvo Cars**<br>
+
+The server can also be built and launched using docker and docker-compose please follow below links to install docker and docker-compose
 
 https://docs.docker.com/install/linux/docker-ce/ubuntu/
 https://docs.docker.com/compose/install/
 
-to launch use
+The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-rl) which is configured and built to interface remotive labs cloud
+solution for recorded vehicle data translated/mapped to vss. The docker compose version should be from 3.8.
+
+Dockerfile and docker-compose-rl.yml is located in the project root.
+
+To build and run the docker example see below:
 
 ```bash
-$ docker-compose up -d
-Starting w3c_vehiclesignalinterfaceimpl_servercore_1 ... done
-Starting w3c_vehiclesignalinterfaceimpl_servicemgr_1 ... done
-Starting w3c_vehiclesignalinterfaceimpl_wsmgr_1      ... done
-Starting w3c_vehiclesignalinterfaceimpl_httpmgr_1    ... done
+$ docker compose -f docker-compose-rl.yml build 
+...
+ => => exporting layers                                                                                                                                                                                              0.1s
+ => => writing image sha256:f392918448ece4b26b5c430ffc53c5f2da8872d030c11a22b42360dbf9676934                                                                                                                         0.0s
+ => => naming to docker.io/library/automotive-viss2-feeder  
 ```
-to stop use 
+
+```bash
+$ docker compose -f docker-compose-rl.yml up
+  ✔ Container container_volumes  Created                                                                                                                                                                              0.0s 
+ ✔ Container vissv2server       Created                                                                                                                                                                              0.0s 
+ ✔ Container app_redis          Created                                                                                                                                                                              0.0s 
+ ✔ Container feeder             Recreated                                                                                                                                                                            0.1s 
+Attaching to app_redis, container_volumes, feeder, vissv2server  
+```
+to stop use
 
 ```bash
 $ docker-compose down
-Stopping w3c_vehiclesignalinterfaceimpl_servicemgr_1 ... done
-Stopping w3c_vehiclesignalinterfaceimpl_httpmgr_1    ... done
-Stopping w3c_vehiclesignalinterfaceimpl_wsmgr_1      ... done
-Stopping w3c_vehiclesignalinterfaceimpl_servercore_1 ... done
-Removing w3c_vehiclesignalinterfaceimpl_servicemgr_1 ... done
-Removing w3c_vehiclesignalinterfaceimpl_httpmgr_1    ... done
-Removing w3c_vehiclesignalinterfaceimpl_wsmgr_1      ... done
-Removing w3c_vehiclesignalinterfaceimpl_servercore_1 ... done
+✔ Container vissv2server        Stopped                                                                                                                                                                              0.2s 
+ ✔ Container app_redis          Stopped                                                                                                                                                                              0.2s 
+ ✔ Container feeder             Stopped                                                                                                                                                                              0.1s 
+ ✔ Container container_volumes  Stopped 
 ```
 
 if server needs to be rebuilt due to src code modifications
@@ -33,26 +45,4 @@ if server needs to be rebuilt due to src code modifications
 ```bash
 $ docker-compose up -d --force-recreate --build
 ```
-all log files are stored in a docker volume to find the local path for viewing the logs use the docker inspect command to find the Mountpoint
-```bash
-$ docker volume ls
-DRIVER              VOLUME NAME
-local               w3c_vehiclesignalinterfaceimpl_logdata
-$ docker volume inspect w3c_vehiclesignalinterfaceimpl_logdata
-[
-    {
-        "CreatedAt": "2019-12-12T15:32:13+01:00",
-        "Driver": "local",
-        "Labels": {
-            "com.docker.compose.project": "w3c_vehiclesignalinterfaceimpl",
-            "com.docker.compose.version": "1.25.1-rc1",
-            "com.docker.compose.volume": "logdata"
-        },
-        "Mountpoint": "/var/lib/docker/volumes/w3c_vehiclesignalinterfaceimpl_logdata/_data",
-        "Name": "w3c_vehiclesignalinterfaceimpl_logdata",
-        "Options": null,
-        "Scope": "local"
-    }
-]
 
-```

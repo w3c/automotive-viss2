@@ -37,10 +37,10 @@ The file VehicleVssMapData.json is used if the feeder is executed with
 
 docker-compose and Docker located in the project root files run/build the feeder, redis and the vissv2server containers.
 
-We neeed docker compose to run the system:
+We need docker compose to run the system:
 ```
-docker compose -f docker-compose.yml build
-docker compose -f docker-compose.yml up
+docker compose -f docker-compose-rl.yml build
+docker compose -f docker-compose-rl.yml up
 ```
 
 

@@ -80,44 +80,6 @@ The master branch is a fork from the single-process branch.
 
 ### Using Docker-Compose to launch a W3CServer instance
 
-The W3C server can also be built and launched using docker and docker-compose please follow below links to install docker and docker-compose
-
-https://docs.docker.com/install/linux/docker-ce/ubuntu/
-https://docs.docker.com/compose/install/
-
-to launch use
-
-```bash
-$ docker compose -f docker-compose.yml build 
-...
- => => exporting layers                                                                                                                                                                                              0.1s
- => => writing image sha256:f392918448ece4b26b5c430ffc53c5f2da8872d030c11a22b42360dbf9676934                                                                                                                         0.0s
- => => naming to docker.io/library/automotive-viss2-feeder  
-```
-
-```bash
-$ docker compose -f docker-compose.yml up
-  ✔ Container container_volumes  Created                                                                                                                                                                              0.0s 
- ✔ Container vissv2server       Created                                                                                                                                                                              0.0s 
- ✔ Container app_redis          Created                                                                                                                                                                              0.0s 
- ✔ Container feeder             Recreated                                                                                                                                                                            0.1s 
-Attaching to app_redis, container_volumes, feeder, vissv2server  
-```
-to stop use 
-
-```bash
-$ docker-compose down
-✔ Container vissv2server        Stopped                                                                                                                                                                              0.2s 
- ✔ Container app_redis          Stopped                                                                                                                                                                              0.2s 
- ✔ Container feeder             Stopped                                                                                                                                                                              0.1s 
- ✔ Container container_volumes  Stopped 
-```
-
-if server needs to be rebuilt due to src code modifications
-
-```bash
-$ docker-compose up -d --force-recreate --build
-```
 
 
 # 1. server
