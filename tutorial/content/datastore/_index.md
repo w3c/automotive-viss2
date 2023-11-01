@@ -27,7 +27,7 @@ This SQLite DB file then needs to be moved to the WAII/server/visv2server/servic
 (if server configuration is not changed to another name).
 
 ## Redis state storage
-When a Redis databae is used as the state storage then there is no explicit database file to handle as the database is managed in-memory by the Redis daemon.
+When a Redis database is used as the state storage then there is no explicit database file to handle as the database is managed in-memory by the Redis daemon.
 Instead it is necessary to configure and launch the daemon.
 The [redisInit.go](https://github.com/COVESA/ccs-components/tree/master/statestorage/redisImpl) file on this link will configure and launch it.
 The server uses the same configuration, which needs to be the case also for a feeder to work in concert with the server.

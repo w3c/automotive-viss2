@@ -2,6 +2,9 @@
 #
 # All files and artifacts in the repository at https://github.com/w3c/automotive-vissv2
 # are licensed under the provisions of the license provided by the LICENSE file in this repository.
+# To run with redis as state storage use docker compose. This can be used to build individual images but will not
+# run.
+
 ARG GO_VERSION=1.18
 ARG VSSTREE_NAME="vss_vissv2.binary"
 ARG BUILD_IMAGE="golang:latest"
