@@ -4,8 +4,6 @@
   <url>
     <loc>https://w3c.github.io/automotive-viss2/categories/</loc>
   </url><url>
-    <loc>https://w3c.github.io/automotive-viss2/docker-step-by-step/</loc>
-  </url><url>
     <loc>https://w3c.github.io/automotive-viss2/pocs/poc2/</loc>
   </url><url>
     <loc>https://w3c.github.io/automotive-viss2/tags/</loc>
@@ -19,6 +17,8 @@
     <loc>https://w3c.github.io/automotive-viss2/client/</loc>
   </url><url>
     <loc>https://w3c.github.io/automotive-viss2/datastore/</loc>
+  </url><url>
+    <loc>https://w3c.github.io/automotive-viss2/docker-step-by-step/</loc>
   </url><url>
     <loc>https://w3c.github.io/automotive-viss2/feeder/</loc>
   </url><url>
