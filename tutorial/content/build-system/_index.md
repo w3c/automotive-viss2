@@ -67,5 +67,9 @@ replace example.com/project/foo => ../foo
 For more information see https://github.com/golang/go/wiki/Modules#when-should-i-use-the-replace-directive
 
 ## Docker
+
 The server can also be built and launched using docker and docker-compose, see the [Docker README](https://github.com/w3c/automotive-viss2/tree/master/docker).
+Current example builds and runs using the redis state storage together with an implementation of the feeder interfacing 
+the remotiveLabs broker in the cloud.[feeder-rl](https://github.com/w3c/automotive-viss2/tree/master/feeder/feeder-rl) .
+
 
