@@ -7,10 +7,11 @@ The server can also be built and launched using docker and docker-compose please
 https://docs.docker.com/install/linux/docker-ce/ubuntu/
 https://docs.docker.com/compose/install/
 
-The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-rl) which is configured and built to interface remotive labs cloud
-solution for recorded vehicle data translated/mapped to vss. The docker compose version should be from 3.8.
+The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-rl) which is configured and built to interface the remotive labs cloud.
+The Remotive cloud have recorded vehicle data which we can play back to a cloud version of their data broker. We have an
+interface written in Go - https://github.com/petervolvowinz/viss-rl-interfaces -  that we have integrated into the WAII feeder application. The docker compose version should be from 3.8.
 
-Dockerfile and docker-compose-rl.yml is located in the project root.
+Dockerfile and docker-compose-rl.yml are located in the project root.
 
 To build and run the docker example see below:
 

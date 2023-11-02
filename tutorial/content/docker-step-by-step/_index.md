@@ -1,5 +1,5 @@
 ---
-title: "docker-compose step-by-step"
+title: "VISSv2 Docker"
 ---
 
 ## Intro

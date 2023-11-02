@@ -12,7 +12,7 @@ The signal filter specifies which signals we would like to filter out from them 
 
 ```json
 {
-"tls": "no",
+"tls": "yes",
 "cert_path_name": "certificate.pem",
 "name_spaces": ["vss"],
 "broker_url": "<broker url>",
