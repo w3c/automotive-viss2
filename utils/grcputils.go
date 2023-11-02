@@ -496,10 +496,10 @@ func createSubscribeStreamPb(protoMessage *pb.SubscribeStreamMessage, messageMap
 	if messageMap["action"] == "subscribe" { // RESPONSE
 		protoMessage.MType = pb.SubscribeResponseType_RESPONSE
 		protoMessage.Response = &pb.SubscribeStreamMessage_SubscribeResponseMessage{}
-		protoMessage.Response.SubscriptionId = messageMap["subscriptionId"].(string)
 		protoMessage.Response.RequestId = messageMap["requestId"].(string)
 		protoMessage.Response.Ts = messageMap["ts"].(string)
 		if messageMap["error"] == nil {
+			protoMessage.Response.SubscriptionId = messageMap["subscriptionId"].(string)
 			protoMessage.Status = pb.ResponseStatus_SUCCESS
 		} else {
 			protoMessage.Status = pb.ResponseStatus_ERROR
