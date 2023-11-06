@@ -66,3 +66,4 @@ logs/
 .gitignore
 ***workspace.code-workspace
 ***.vscode
+/client/client-1.0/grpc_client/grpc_map_client/static/node_modules/

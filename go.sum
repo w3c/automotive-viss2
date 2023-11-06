@@ -34,8 +34,8 @@ github.com/mattn/go-sqlite3 v1.14.14/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
 github.com/onsi/gomega v1.18.1 h1:M1GfJqGRrBrrGGsbxzV5dqM2U2ApXefZCQpkukxYRLE=
-github.com/petervolvowinz/viss-rl-interfaces v0.0.4 h1:g3mXTDUUZq9KzdqA1MQrD1uQ8tbQTZ4sz6HNcVjh1uk=
-github.com/petervolvowinz/viss-rl-interfaces v0.0.4/go.mod h1:a6KTJc08o+Vav1zS24N5GdSmEoB1uBbNZE67RTstVDo=
+github.com/petervolvowinz/viss-rl-interfaces v0.0.6 h1:2nAyhfTuTIxPqKTVolAiuHLLvJNeM0uBoInqtlzJp10=
+github.com/petervolvowinz/viss-rl-interfaces v0.0.6/go.mod h1:7jOb8sy+8GhzonzaTzgcVV9XCKXMWkRDWqFHY6RnXH4=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=

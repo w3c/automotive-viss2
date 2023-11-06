@@ -32,7 +32,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/mattn/go-sqlite3 v1.14.14
-	github.com/petervolvowinz/viss-rl-interfaces v0.0.4
+	github.com/petervolvowinz/viss-rl-interfaces v0.0.6
 	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0

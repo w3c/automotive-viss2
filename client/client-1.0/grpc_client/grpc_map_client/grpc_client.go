@@ -14,6 +14,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"github.com/akamensky/argparse"
+	"github.com/gorilla/mux"
+	"github.com/w3c/automotive-viss2/client/client-1.0/grpc_client/grpc_map_client/mapserver"
 	pb "github.com/w3c/automotive-viss2/grpc_pb"
 	utils "github.com/w3c/automotive-viss2/utils"
 	"google.golang.org/grpc"
@@ -144,6 +146,7 @@ func streamCall(commandIndex int) {
 
 func main() {
 	// Create new parser object
+	go mapserver.ServeWebViewSite(mux.NewRouter())
 
 	parser := argparse.NewParser("print", "gRPC client")
 	// Create string flag

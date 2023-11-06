@@ -687,14 +687,14 @@ func getJsonFilter(filter *pb.FilterExpressions) string {
 	}
 	filterExp = filter.GetFilterExp()
 	jsonFilter := ""
-	if (len(filterExp) > 1) {
+	if len(filterExp) > 1 {
 		jsonFilter = "["
 	}
-	for i := 0 ; i < len(filterExp) ; i++ {
+	for i := 0; i < len(filterExp); i++ {
 		jsonFilter += synthesizeFilter(filterExp[i]) + ","
 	}
 	jsonFilter = jsonFilter[:len(jsonFilter)-1]
-	if (len(filterExp) > 1) {
+	if len(filterExp) > 1 {
 		jsonFilter += "]"
 	}
 	return `,"filter":` + jsonFilter
