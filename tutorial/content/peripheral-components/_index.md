@@ -3,8 +3,26 @@ title: "VISSv2 peripheral components"
 ---
 
 A few other software components that can be useful when setting up a VISSv2 communication tech stack exists:
+* Authorization servers for access control and consent models.
 * Open Vehicle Data Set, a relational database with a table configuration that enables it to store time series of VSS data from multiple vehicles.
 * A "live simulator" that can read vehicle trip data stored in an OVDS database , and replay it so that it appears as live data from the recorded trip.
+
+## Access control authorization servers
+The VISS2 specification describes an access control model involving two authorization servers:
+* Access Grant Token server
+* Access Token server
+For details please read the [VISSv2: Access Control][https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model],
+and the [Consent Model]() chapters.
+
+### Access Grant Token server (AGTS)
+The [AGTS](https://github.com/w3c/automotive-viss2/tree/master/server/agt_server),
+which typically will be deployed off-vehicle, in the cloud, is separately built and deployed
+
+### Access Token server (ATS)
+The [ATS](https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer) is deployed on a separate thread within the VISSv2 server,
+to include it make sure it is uncommented in the serverComponents string array in [viss2server.go](https://github.com/w3c/automotive-viss2/blob/master/server/vissv2server/vissv2server.go).
+The ATS uses the [policy documents](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#policy-documents) described in the spec when validating an access token,
+examples of these are available in the purposelist.json and scopelist.json files.
 
 ## Open Vehicle Data Set (OVDS)
 The code to realize an OVDS database is found [here](https://github.com/COVESA/ccs-components/tree/master/ovds).
