@@ -992,6 +992,9 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			responseMap["action"] = requestMap["action"]
 			responseMap["requestId"] = requestMap["requestId"]
 			responseMap["ts"] = utils.GetRfcTime()
+			if requestMap["handle"] != nil {
+				responseMap["handle"] = requestMap["handle"]
+			}
 			switch requestMap["action"] {
 			case "set":
 				if strings.Contains(requestMap["path"].(string), "[") == true {

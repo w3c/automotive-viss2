@@ -80,9 +80,20 @@ The Access Token Server will reply to the request telling if the Access Token re
 
 ```
 {
-	"validation":"1"
+	"validation":"0"
 }
 ```
+The response may in one special case contain a token handle that a client may use instead of sending the entire ccess token in subsequent requests,
+see the chapter "Protected Resource Request" in the VISSv2 Core specification.
+
+If the response was successfully validated, then it may have one more key-value pair as shown in the example below, where its value is the token handle to be returned to the client.
+```
+{
+	"validation":"0"
+	"handle":"dyt0CoTl4WoVjAHI9Q_CwSKhl6d_9rhM3NrXuJttkao"
+}
+```
+
 
 In case it is not valid, a set of error codes has been defined:
 

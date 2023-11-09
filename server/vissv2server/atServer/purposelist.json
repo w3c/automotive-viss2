@@ -67,7 +67,7 @@
             ],
             "signal_access": [
                 {
-                    "path": "Vehicle.Powertrain.FuelSystem.Level",
+                    "path": "Vehicle.Powertrain.FuelSystem.AbsoluteLevel",
                     "access_mode": "read-only"
                 },
                 {

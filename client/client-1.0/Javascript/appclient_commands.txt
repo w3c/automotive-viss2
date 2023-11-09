@@ -70,23 +70,24 @@ HTTP GET
 URL: Vehicle/ADAS/ABS?filter={"type":"static-metadata", "parameter":""}
 
 // ********* Access control testing *************
-// requires that a binary VSS file has been generated with "validate" tags added into vspec file(s).
+// requires that a binary VSS file has been generated with "validate" tags added into vspec file(s) for the requested signals.
 
-//  AGTserver POST input:
-<Gen2 server IP address>
+//  AGTserver POST input @agtclient.html:
+<AGT server IP address>
 agtserver
-{"vin":"GEO001", "context":"Independent+OEM+Cloud", "proof":"ABC", "key":"DEF"}  // "key" may be omitted
+{"vin":"GEO001", "context":"Independent+OEM+Cloud", "proof":"ABC", "key":"DEF"}
 
 
-//  ATserver POST input:
-<Gen2 server IP address>
+//  ATserver POST input @atclient.html:
+<AT server IP address>
 atserver
 {"token":"ag-token", "purpose":"fuel-status", "pop":"GHI"}  // pop included only if a key was present in AGT request, token value must be replaced by the AG token, purpose must be on the Purpose list
 
 //VISSv2 server request for fuel-status use case: 
 wsclient_uncompressed.html:
-{"action":"get","path":"Vehicle.Powertrain.FuelSystem","filter":{"type":"paths","parameter":["Level","Range"]},"authorization":"at","requestId":"235"}
+{"action":"get","path":"Vehicle.Powertrain.FuelSystem","filter":{"type":"paths","parameter":["AbsoluteLevel","Range"]},"authorization":"at","requestId":"235"}
 // where "at" is the Access Token from ATS request
+
 http_client.html:
 URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
 Access token: from ATS request

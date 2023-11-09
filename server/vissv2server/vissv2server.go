@@ -243,7 +243,8 @@ func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 }
 
 // Sends a message to the Access Token Server to validate the Access Token paths and permissions
-func accessTokenServerValidation(token string, paths string, action string, validation int) int {
+func verifyToken(token string, action string, paths string, validation int) (int, string) {
+	handle := ""
 	hostIp := utils.GetServerIP()
 	var url string
 	if utils.SecureConfiguration.TransportSec == "yes" {
@@ -251,14 +252,14 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 	} else {
 		url = "http://" + hostIp + ":8600/ats"
 	}
-	utils.Info.Printf("accessTokenServerValidation: Sending validation request to AT, url = %s", url)
+	utils.Info.Printf("verifyToken: Sending validation request to AT, url = %s", url)
 
 	data := []byte(`{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`)
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
-		utils.Error.Print("accessTokenServerValidation: Error generating request. ", err)
-		return 42
+		utils.Error.Print("verifyToken: Error generating request. ", err)
+		return 42, handle
 	}
 
 	// Set headers
@@ -272,70 +273,38 @@ func accessTokenServerValidation(token string, paths string, action string, vali
 	// Send request
 	resp, err := client.Do(req)
 	if err != nil {
-		utils.Error.Print("accessTokenServerValidation: Can not stablish connection with ATS ", err)
-		//return -128
-		return 40
+		utils.Error.Print("verifyToken: Can not stablish connection with ATS ", err)
+		return 40, handle
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		utils.Error.Print("accessTokenServerValidation: Error reading response. ", err)
-		//return -128
-		return 41
+		utils.Error.Print("verifyToken: Error reading response. ", err)
+		return 41, handle
 	}
 
 	// Unmarshall json body to map containing the validation claim
 	var bdy map[string]interface{}
 	if err := json.Unmarshal(body, &bdy); err != nil {
-		utils.Error.Print("accessTokenServerValidation: Error unmarshalling ats response. ", err)
-		return 41
+		utils.Error.Print("verifyToken: Error unmarshalling ats response. ", err)
+		return 41, handle
 	}
 	if bdy["validation"] == nil {
-		utils.Error.Print("accessTokenServerValidation: Error reading validation claim. ", err)
-		return 42
+		utils.Error.Print("verifyToken: Error reading validation claim. ", err)
+		return 42, handle
 	}
 	// Converts the validation claim to int
-	if atsValidation, err := strconv.Atoi(bdy["validation"].(string)); err != nil {
-		utils.Error.Print("accessTokenServerValidation: Error converting validation claim to int. ", err)
-		return 42
-	} else {
-		return atsValidation
+	var atsValidation int
+	if atsValidation, err = strconv.Atoi(bdy["validation"].(string)); err != nil {
+		utils.Error.Print("verifyToken: Error converting validation claim to int. ", err)
+		return 42, handle
+	} else if atsValidation == 0 {
+			if bdy["handle"] != nil {
+				handle = bdy["handle"].(string)
+			}
 	}
-
-}
-
-// Validates the request comparing it with the access token
-// Returns int representing the error code
-func verifyToken(token string, action string, paths string, validation int) int {
-	// Calls Access Token to verify the token purpose and paths
-	if validateResult := accessTokenServerValidation(token, paths, action, validation); validateResult != 0 {
-		return validateResult
-	}
-	// Validates iat
-	iatStr := utils.ExtractFromToken(token, "iat")
-	iat, err := strconv.Atoi(iatStr)
-	if err != nil {
-		utils.Error.Print("Error reading iat. ", err)
-		return 10
-	}
-	now := time.Now()
-	if now.Before(time.Unix(int64(iat), 0)) {
-		utils.Error.Print("Invalid issued at time. Issued at time is in the future. ")
-		return 11
-	}
-	// Validates exp
-	expStr := utils.ExtractFromToken(token, "exp")
-	exp, err := strconv.Atoi(expStr)
-	if err != nil {
-		utils.Error.Print("Error reading exp. ", err)
-		return 15
-	}
-	if now.After(time.Unix(int64(exp), 0)) {
-		utils.Error.Print("Token expired. ")
-		return 16
-	}
-	return 0
+	return atsValidation, handle
 }
 
 // nativeCnodeDef.h: nodeTypes_t;
@@ -787,6 +756,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		maxValidation = 0
 	}
 
+	tokenHandle := ""
 	switch maxValidation {
 	case 0: // validation not required
 	case 1:
@@ -801,7 +771,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 				if authToken, ok := requestMap["authorization"].(string); !ok {
 					errorCode = 1
 				} else {
-					errorCode = verifyToken(authToken, requestMap["action"].(string), paths, maxValidation)
+					errorCode, tokenHandle = verifyToken(authToken, requestMap["action"].(string), paths, maxValidation)
 				}
 			}
 		}
@@ -816,6 +786,9 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		return
 	}
 	requestMap["path"] = paths
+	if tokenHandle != "" {
+		requestMap["handle"] = tokenHandle
+	}
 	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 }
 
@@ -931,7 +904,7 @@ func main() {
 			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
 			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 		case "atServer":
-			go atServer.AtServerInit() //communicates over UDS
+			go atServer.AtServerInit() //communicates over HTTP(S)
 		}
 	}
 
