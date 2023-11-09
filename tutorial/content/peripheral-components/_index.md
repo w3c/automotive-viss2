@@ -21,7 +21,8 @@ and then generate the VSS tree in binary format as described in [VSS tree config
 
 ### Access Grant Token server (AGTS)
 The [AGTS](https://github.com/w3c/automotive-viss2/tree/master/server/agt_server),
-which typically will be deployed off-vehicle, in the cloud, is separately built and deployed
+which typically will be deployed off-vehicle, in the cloud, is separately built and deployed.
+The file agt_public_key.rsa is generated at startup, which must be copied to the [AT server](https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer) directory.
 
 ### Access Token server (ATS)
 The [ATS](https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer) is deployed on a separate thread within the VISSv2 server,
