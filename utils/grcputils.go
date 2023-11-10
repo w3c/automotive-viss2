@@ -227,6 +227,10 @@ func createGetResponsePb(protoMessage *pb.GetResponseMessage, messageMap map[str
 		tsc := CompressTS(ts)
 		protoMessage.TsC = &tsc
 	}
+	if messageMap["authorization"] != nil {
+		auth := messageMap["authorization"].(string)
+		protoMessage.Authorization = &auth
+	}
 	if messageMap["error"] == nil {
 		protoMessage.Status = pb.ResponseStatus_SUCCESS
 		protoMessage.SuccessResponse = &pb.GetResponseMessage_SuccessResponseMessage{}
@@ -498,8 +502,15 @@ func createSubscribeStreamPb(protoMessage *pb.SubscribeStreamMessage, messageMap
 		protoMessage.Response = &pb.SubscribeStreamMessage_SubscribeResponseMessage{}
 		protoMessage.Response.RequestId = messageMap["requestId"].(string)
 		protoMessage.Response.Ts = messageMap["ts"].(string)
+		if messageMap["authorization"] != nil {
+			auth := messageMap["authorization"].(string)
+			protoMessage.Response.Authorization = &auth
+		}
 		if messageMap["error"] == nil {
-			protoMessage.Response.SubscriptionId = messageMap["subscriptionId"].(string)
+			if messageMap["subscriptionId"] != nil {
+				subId := messageMap["subscriptionId"].(string)
+				protoMessage.Response.SubscriptionId = &subId
+			}
 			protoMessage.Status = pb.ResponseStatus_SUCCESS
 		} else {
 			protoMessage.Status = pb.ResponseStatus_ERROR
@@ -549,6 +560,10 @@ func createSetResponsePb(protoMessage *pb.SetResponseMessage, messageMap map[str
 	requestId := messageMap["requestId"].(string)
 	protoMessage.RequestId = &requestId
 	protoMessage.Ts = messageMap["ts"].(string)
+	if messageMap["authorization"] != nil {
+		auth := messageMap["authorization"].(string)
+		protoMessage.Authorization = &auth
+	}
 	if messageMap["error"] == nil {
 		protoMessage.Status = pb.ResponseStatus_SUCCESS
 	} else {
@@ -599,9 +614,10 @@ func populateJsonFromProtoGetResp(protoMessage *pb.GetResponseMessage) string {
 		jsonMessage += getJsonError(protoMessage.GetErrorResponse())
 	}
 	if currentCompression == PB_LEVEL1 {
-		jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
+		jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + createJSON(protoMessage.GetAuthorization(), "authorization")
 	} else {
-		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
+		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + 
+				createJSON(protoMessage.GetAuthorization(), "authorization")
 	}
 	return jsonMessage + "}"
 }
@@ -621,9 +637,10 @@ func populateJsonFromProtoSetResp(protoMessage *pb.SetResponseMessage) string {
 		jsonMessage += getJsonError(protoMessage.GetErrorResponse())
 	}
 	//	if currentCompression == PB_LEVEL1 {
-	jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
+	jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + createJSON(protoMessage.GetAuthorization(), "authorization")
 	/*	} else {
-		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId")
+		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + 
+		createJSON(protoMessage.GetAuthorization(), "authorization")
 	}*/
 	return jsonMessage + "}"
 }
@@ -645,7 +662,7 @@ func populateJsonFromProtoSubscribeStream(protoMessage *pb.SubscribeStreamMessag
 			jsonMessage += getJsonError(protoMessage.Response.GetErrorResponse())
 		}
 		jsonMessage += `,"ts":"` + protoMessage.Response.GetTs() + `"` + createJSON(protoMessage.Response.GetSubscriptionId(), "subscriptionId") +
-			createJSON(protoMessage.Response.GetRequestId(), "requestId")
+			createJSON(protoMessage.Response.GetRequestId(), "requestId") + createJSON(protoMessage.Response.GetAuthorization(), "authorization")
 	case pb.SubscribeResponseType_EVENT:
 		jsonMessage += `"action":"subscription"`
 		if protoMessage.GetStatus() == 0 { //SUCCESSFUL
