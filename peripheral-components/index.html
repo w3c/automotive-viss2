@@ -12,21 +12,21 @@
     <title>VISSv2 peripheral components :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1699528301" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1699528301" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1699611257" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1699611257" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1699528301" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1699611257" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1699528301"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1699611257"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1699528301"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1699528301"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1699611257"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1699611257"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1699528301"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1699611257"></script>
 
     
   </div>
@@ -494,12 +494,17 @@
 <ul>
 <li>Access Grant Token server</li>
 <li>Access Token server
-For details please read the [VISSv2: Access Control][https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model],
+For details please read the <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model">VISSv2: Access Control</a>,
 and the <a href="">Consent Model</a> chapters.</li>
 </ul>
+<p>To trigger the access control and consent functionality it is necessary to tag the corresponding VSS nodes as described in the spec.
+This can either be done by editing of the actual vspec files from the <a href="https://github.com/COVESA/vehicle_signal_specification/tree/master/spec">VSS/spec</a> directory,
+or by creating overlay files and include them as described in <a href="https://github.com/COVESA/vss-tools">VSS-tools</a>,
+and then generate the VSS tree in binary format as described in <a href="https://w3c.github.io/automotive-viss2/server/#vss-tree-configuration">VSS tree configuration</a>.</p>
 <h3 id="access-grant-token-server-agts">Access Grant Token server (AGTS)</h3>
 <p>The <a href="https://github.com/w3c/automotive-viss2/tree/master/server/agt_server">AGTS</a>,
-which typically will be deployed off-vehicle, in the cloud, is separately built and deployed</p>
+which typically will be deployed off-vehicle, in the cloud, is separately built and deployed.
+The file agt_public_key.rsa is generated at startup, which must be copied to the <a href="https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer">AT server</a> directory.</p>
 <h3 id="access-token-server-ats">Access Token server (ATS)</h3>
 <p>The <a href="https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer">ATS</a> is deployed on a separate thread within the VISSv2 server,
 to include it make sure it is uncommented in the serverComponents string array in <a href="https://github.com/w3c/automotive-viss2/blob/master/server/vissv2server/vissv2server.go">viss2server.go</a>.
@@ -765,19 +770,19 @@ which needs to contain at least all the paths that are to be replayed from the O
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1699528301"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1699528301"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1699528301"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1699528301"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1699528301"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1699528301"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1699611257"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1699611257"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1699611257"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1699611257"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1699611257"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1699611257"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1699528301"></script>
-    <script src="/automotive-viss2/js/learn.js?1699528301"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1699528301"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1699611257"></script>
+    <script src="/automotive-viss2/js/learn.js?1699611257"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1699611257"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1699528301"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1699611257"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });
