@@ -11,12 +11,18 @@ A few other software components that can be useful when setting up a VISSv2 comm
 The VISS2 specification describes an access control model involving two authorization servers:
 * Access Grant Token server
 * Access Token server
-For details please read the [VISSv2: Access Control][https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model],
+For details please read the [VISSv2: Access Control](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model),
 and the [Consent Model]() chapters.
+
+To trigger the access control and consent functionality it is necessary to tag the corresponding VSS nodes as described in the spec.
+This can either be done by editing of the actual vspec files from the [VSS/spec](https://github.com/COVESA/vehicle_signal_specification/tree/master/spec) directory,
+or by creating overlay files and include them as described in [VSS-tools](https://github.com/COVESA/vss-tools),
+and then generate the VSS tree in binary format as described in [VSS tree configuration](https://w3c.github.io/automotive-viss2/server/#vss-tree-configuration).
 
 ### Access Grant Token server (AGTS)
 The [AGTS](https://github.com/w3c/automotive-viss2/tree/master/server/agt_server),
-which typically will be deployed off-vehicle, in the cloud, is separately built and deployed
+which typically will be deployed off-vehicle, in the cloud, is separately built and deployed.
+The file agt_public_key.rsa is generated at startup, which must be copied to the [AT server](https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer) directory.
 
 ### Access Token server (ATS)
 The [ATS](https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer) is deployed on a separate thread within the VISSv2 server,

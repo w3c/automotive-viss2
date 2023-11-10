@@ -106,6 +106,13 @@ type ScopeElement struct {
 	NoAccess []string
 }
 
+type TokenCacheElem struct {
+	Token  string
+	Handle string
+}
+
+var tokenCache []TokenCacheElem
+
 func initVssFile() bool {
 	filePath := "vss_vissv2.binary"
 	VSSTreeRoot = golib.VSSReadTree(filePath)
@@ -308,8 +315,6 @@ func noScopeResponse(input string) string {
 	return `{"no_access":` + res + `}`
 }
 
-// Validates an access token, returns validation message.
-// The only validation done is the one regading the Access Token List
 func tokenValidationResponse(input string) string {
 	var inputMap map[string]interface{}
 	err := json.Unmarshal([]byte(input), &inputMap)
@@ -319,6 +324,8 @@ func tokenValidationResponse(input string) string {
 	}
 	var atValidatePayload AtValidatePayload
 	extractAtValidatePayloadLevel1(inputMap, &atValidatePayload)
+	var isCached bool
+	atValidatePayload.Token, isCached = searchCache(atValidatePayload.Token)
 	err = utils.VerifyTokenSignature(atValidatePayload.Token, theAtSecret)
 	if err != nil {
 		utils.Info.Printf("tokenValidationResponse:invalid signature, error= %s, token=%s", err, atValidatePayload.Token)
@@ -330,7 +337,79 @@ func tokenValidationResponse(input string) string {
 		utils.Info.Printf("validateRequestAccess fails with result=%d", res)
 		return `{"validation":"` + strconv.Itoa(res) + `"}`
 	}
-	return `{"validation":"0"}`
+	res = validateTokenExpiry(atValidatePayload.Token)
+	if res != 0 {
+		utils.Info.Printf("validateTokenExpiry fails with result=%d", res)
+		return `{"validation":"` + strconv.Itoa(res) + `"}`
+	}
+	tokenHandle := cacheToken(atValidatePayload.Token, isCached)
+	if tokenHandle != "" {
+		return `{"validation":"0", "handle":"` + tokenHandle + `"}`
+	} else {
+		return `{"validation":"0"}`
+	}
+}
+
+func searchCache(token string) (string, bool) {
+	for i := 0; i < len(tokenCache); i++ {
+		if token == tokenCache[i].Token || token == tokenCache[i].Handle {
+			return tokenCache[i].Token, true
+		}
+	}
+	return token, false	
+}
+
+func cacheToken(token string, isCached bool) string {
+	for i := 0; i < len(tokenCache); i++ {
+		if isCached {
+			if token == tokenCache[i].Token {
+				return tokenCache[i].Handle
+			}
+		} else {
+			if tokenCache[i].Token == "" || validateTokenExpiry(token) != 0 {
+				tokenCache[i].Token = token
+				tokenCache[i].Handle = extractSignature(token)
+				return tokenCache[i].Handle
+			}
+		}
+	}
+	return ""
+}
+
+func extractSignature(token string) string {
+	lastDotIndex := strings.LastIndex(token, ".")
+	if lastDotIndex != -1 {
+		return token[lastDotIndex+1:]
+	}
+	utils.Error.Printf("extractSignature:Signature not found in token=%s")
+	return ""
+}
+
+func validateTokenExpiry(token string) int {
+	// Validates iat
+	iatStr := utils.ExtractFromToken(token, "iat")
+	iat, err := strconv.Atoi(iatStr)
+	if err != nil {
+		utils.Error.Print("Error reading iat. ", err)
+		return 10
+	}
+	now := time.Now()
+	if now.Before(time.Unix(int64(iat), 0)) {
+		utils.Error.Print("Invalid issued at time. Issued at time is in the future. ")
+		return 11
+	}
+	// Validates exp
+	expStr := utils.ExtractFromToken(token, "exp")
+	exp, err := strconv.Atoi(expStr)
+	if err != nil {
+		utils.Error.Print("Error reading exp. ", err)
+		return 15
+	}
+	if now.After(time.Unix(int64(exp), 0)) {
+		utils.Error.Print("Token expired. ")
+		return 16
+	}
+	return 0
 }
 
 func extractAtValidatePayloadLevel1(atValidateMap map[string]interface{}, atValidatePayload *AtValidatePayload) {
@@ -890,6 +969,13 @@ func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
 	}
 }
 
+func initTokenCache() {
+	tokenCache = make([]TokenCacheElem, 10)
+	for i := 0; i < len(tokenCache); i++ {
+		tokenCache[i].Token = ""
+	}
+}
+
 func AtServerInit() {
 	serverChan := make(chan string)
 	muxServer := http.NewServeMux()
@@ -898,6 +984,7 @@ func AtServerInit() {
 	initScopeList()
 	initVssFile()
 	initAgtKey()
+	initTokenCache()
 
 	go initAtServer(serverChan, muxServer)
 
