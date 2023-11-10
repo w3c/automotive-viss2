@@ -993,7 +993,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			responseMap["requestId"] = requestMap["requestId"]
 			responseMap["ts"] = utils.GetRfcTime()
 			if requestMap["handle"] != nil {
-				responseMap["handle"] = requestMap["handle"]
+				responseMap["authorization"] = requestMap["handle"]
 			}
 			switch requestMap["action"] {
 			case "set":
