@@ -135,6 +135,7 @@ message GetResponseMessage {
         optional string RequestId = 4;
         optional string Ts = 5;
         optional int32 TsC = 6;
+        optional string Authorization = 7;
 }
 
 message SetRequestMessage {
@@ -149,6 +150,7 @@ message SetResponseMessage {
         optional ErrorResponseMessage ErrorResponse = 2;
         optional string RequestId = 3;
         string Ts = 4;
+        optional string Authorization = 5;
 }
 
 message SubscribeRequestMessage {
@@ -164,9 +166,10 @@ message SubscribeStreamMessage {
 
     message SubscribeResponseMessage {
         optional ErrorResponseMessage ErrorResponse = 1;
-        string SubscriptionId = 2;
+        optional string SubscriptionId = 2;
         string RequestId = 3;
         string Ts = 4;
+        optional string Authorization = 5;
     }
     optional SubscribeResponseMessage Response = 3;
 
