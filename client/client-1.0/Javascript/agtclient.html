@@ -42,6 +42,9 @@
               }
           };
           var params = postValue.value;
+          console.log("params: " + params);
+          console.log("postpath: " + postPath.value);
+
           xhttp.open("POST", "http://" + hostIP + ":7500/" + postPath.value, true);
           xhttp.send(params);
           postPath.value = "";
