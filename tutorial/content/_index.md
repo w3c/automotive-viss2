@@ -17,4 +17,5 @@ These software components (SwCs) can be categorized as follows:
 * feeder
 
 The tutorial describes each SwC in a separate chapter.
-It also contains a few Proof of concept (POC) examples, and information about installing, building and running Golang based SwCs.
+It also contains a few Proof of concept (POC) examples, and information about installing,
+building and running Golang based SwCs, a Docker containerization, and about some peripheral components.
