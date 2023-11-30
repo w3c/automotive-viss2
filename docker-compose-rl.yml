@@ -43,9 +43,10 @@ services:
       target: vissv2server
     entrypoint: [ /app/vissv2server,-s,redis]
     ports:
-      - "127.0.0.1:8081:8081"
+      - "0.0.0.0:8081:8081"
       - "127.0.0.1:8888:8888"
-      - "127.0.0.1:8887:8887"
+      - "0.0.0.0:8887:8887"
+      - "127.0.0.1:8600:8600"
     volumes:
       - ./logs:/app/logs
     volumes_from:

@@ -190,7 +190,7 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 		utils.Error.Fatal(server.ListenAndServeTLS("../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
 			"../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
 	} else { // No TLSmtvacuc14uma
-		utils.Info.Printf("initAtServer():Starting AT Server without TLS on %s/ats", PORT)
+		//utils.Info.Printf("initAtServer():Starting AT Server without TLS on %s/ats", PORT)
 		utils.Error.Fatal(http.ListenAndServe(":"+strconv.Itoa(PORT), muxServer))
 	}
 }
@@ -315,6 +315,9 @@ func noScopeResponse(input string) string {
 	return `{"no_access":` + res + `}`
 }
 
+// Validates an access token, returns validation message.
+// The only validation done is the one regarding the Access Token List
+
 func tokenValidationResponse(input string) string {
 	var inputMap map[string]interface{}
 	err := json.Unmarshal([]byte(input), &inputMap)
@@ -356,7 +359,7 @@ func searchCache(token string) (string, bool) {
 			return tokenCache[i].Token, true
 		}
 	}
-	return token, false	
+	return token, false
 }
 
 func cacheToken(token string, isCached bool) string {
@@ -627,7 +630,7 @@ func validateRequest(payload AtGenPayload) (bool, string) {
 		return false, `{"error": "AG token exp timestamp malformed"}`
 	}
 	if !validateTokenTimestamps(iat, exp) {
-		utils.Info.Printf("validateRequest:invalid token timestamps, iat=%d, exp=%d", payload.Agt.PayloadClaims["iat"], payload.Agt.PayloadClaims["exp"])
+		//utils.Info.Printf("validateRequest:invalid token timestamps, iat=%d, exp=%d", payload.Agt.PayloadClaims["iat"], payload.Agt.PayloadClaims["exp"])
 		return false, `{"error": "AG token timestamp validation failed"}`
 	}
 	// POP Checking
