@@ -84,7 +84,7 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 				} else {
 					w.Header().Set("Access-Control-Allow-Origin", "*")
 					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(201)
+					w.WriteHeader(201) // USE 201 when responding to succesful POST requests
 					w.Write([]byte(response))
 				}
 			}
