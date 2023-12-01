@@ -24,8 +24,7 @@ const agt_posttesturl = "http://0.0.0.0:7500/agts"
 const SHORT_TERM_TOKEN_LENGTH = 14400
 const LONG_TERM_TOKEN_LENGTH = 345600
 
-func TestShortTermTokenAccess(t *testing.T) {
-
+func getShortTermAGTResponse() (*http.Response, error) {
 	body := []byte(`{"vin":"GEO001","context":"Independent+OEM+Cloud","proof":"ABC","key":"DEF"}`)
 
 	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
@@ -37,6 +36,59 @@ func TestShortTermTokenAccess(t *testing.T) {
 	res, err := client.Do(r)
 	if err != nil {
 		panic(err)
+	}
+	return res, err
+}
+
+func getLongTermAGTResponse() (*http.Response, error) {
+	var privKey *rsa.PrivateKey
+	err := utils.ImportRsaKey(PRIV_KEY_DIRECTORY, &privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	popToken := utils.PopToken{}
+	token, err := popToken.GenerateToken(privKey) // generate a proof-of-possession-token to get a LT token.
+
+	agtP := agtPayload{
+		Vin:     "GEO001",
+		Context: "Independent+OEM+Cloud",
+		Proof:   "ABC",
+		Key:     popToken.Jwk.Thumb, // Thumb print need to match.
+	}
+
+	body, err := json.Marshal(agtP) // POST a acces grant token request
+
+	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Add("Content-Type", "application/json")
+	r.Header.Add("PoP", token) // add the Pop as a proof of possesion.
+
+	client := &http.Client{}
+
+	return client.Do(r)
+}
+
+func TestShortTermTokenAccess(t *testing.T) {
+
+	/*body := []byte(`{"vin":"GEO001","context":"Independent+OEM+Cloud","proof":"ABC","key":"DEF"}`)
+
+	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
+	if err != nil {
+		panic(err)
+	}
+	r.Header.Add("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		panic(err)
+	}*/
+
+	res, err := getShortTermAGTResponse()
+	if err != nil {
+		t.Error(err)
 	}
 
 	defer res.Body.Close()
@@ -70,6 +122,7 @@ func TestShortTermTokenAccess(t *testing.T) {
 	if ctx != "Independent+OEM+Cloud" {
 		t.Error("roles fails to match => ", ctx)
 	}
+
 }
 
 const PRIV_KEY_DIRECTORY = "../../agt_server/agt_private_key.rsa"
