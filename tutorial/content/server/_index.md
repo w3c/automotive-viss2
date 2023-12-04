@@ -57,6 +57,8 @@ HTTP differs in that it does not support subscribe requests.
 The code is structured to make it reasonably easy to remove any of the protocols if that is desired for reducing the code footprint.
 Similarly it should be reasonably straight forward to add new protocols, given that the payload format transformation is not too complicated.
 
+The Websocket protocol manager terminates subscriptions if a client terminats the session without first terminating its ongoing subscriptions.
+
 ##### TLS configuration
 The server, and several of the clients, can be configured to apply TLS to the protocols (MQTT uses it integrated model for this).
 The first step in applying TLS is to generate the credentials needed, which is done by running the testCredGen.sh script found [here](https://github.com/w3c/automotive-viss2/tree/master/testCredGen/).
@@ -90,11 +92,15 @@ The VISSv2 specification provides a capability for clients to issue a request fo
 This server supports temporary recording of data that can then be requested by a client using a history filter.
 The model used in the implementation of this is that it is not the server that decides when to start or stop a recording, or how long to keep the recorded data,
 but it is controlled by some other vehicle system via a Unix domain socket based API.
+For more information, please see the [service manager](https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/serviceMgr) README.
 
 To test this functionality there is a rudimentary [history control client](https://github.com/w3c/automotive-viss2/blob/master/server/hist_ctrl_client.go)
 that can be used to instruct the server to start/stop/delete recording of signals.
 To reduce the amount of data that is recorded the server only saves a data value if it has changed compared to the latest captured,
 so to record more than a start and stop value the signals should be dynamic during a test.
+
+### Ignition life cycle
+Dynamic data handled by the server, such as subscriptions, and access token caching, does not survive between ignition cycles (restart of the server).
 
 ### Experimental compression
 VISSv2 uses JSON as the payload format, and as JSON is a textbased format there is a potential to reduce the payload size by using compression.
