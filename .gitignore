@@ -22,6 +22,7 @@ http-mgr-log.txt
 servercore-log.txt
 
 #helper files
+viss
 vsspathlist.json
 vss_vissv2.binary
 certificate.pem
@@ -52,6 +53,7 @@ http_mgr
 agt_server
 at_server
 mqtt_mgr
+vissv2server
 
 # Folders
 !server/service_mgr/
