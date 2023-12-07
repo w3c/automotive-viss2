@@ -15,7 +15,7 @@ import (
 )
 
 //Prequisites: AGT Server and Vissv2 Server should be up and running (0.0.0.0 in docker)
-type AGTResponse struct {
+type TResponse struct {
 	Token string `json:"token"`
 }
 
@@ -80,7 +80,7 @@ func TestShortTermTokenAccess(t *testing.T) {
 
 	defer res.Body.Close()
 
-	post := &AGTResponse{}
+	post := &TResponse{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		panic(derr)
@@ -132,7 +132,7 @@ func TestLongTermTokenAccess(t *testing.T) {
 
 	defer res.Body.Close()
 
-	post := &AGTResponse{}
+	post := &TResponse{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		panic(derr)
@@ -196,11 +196,11 @@ func getAtToken(agttoken string) (*http.Response, error) {
 	return res, err
 }
 
-func parseATToken(res http.Response, t *testing.T) *AGTResponse {
+func parseATToken(res http.Response, t *testing.T) *TResponse {
 
 	defer res.Body.Close()
 
-	post := &AGTResponse{}
+	post := &TResponse{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		t.Error("could not parse http response")
@@ -215,14 +215,14 @@ func parseATToken(res http.Response, t *testing.T) *AGTResponse {
 	return post
 }
 
-//
+// Viss server must be up and running
 func TestAtTokenAccess_ST(t *testing.T) {
-	res_ag, err := getShortTermAGTResponse()
+	res_ag, err := getShortTermAGTResponse() // Get Access Grant Token
 	if err != nil {
 		t.Error(err)
 	}
 
-	res, err := getAtToken(parseATToken(*res_ag, t).Token)
+	res, err := getAtToken(parseATToken(*res_ag, t).Token) // Get Access token
 
 	if err != nil {
 		t.Error(err)
@@ -230,7 +230,7 @@ func TestAtTokenAccess_ST(t *testing.T) {
 	if res.StatusCode != http.StatusCreated {
 		t.Error("status code expected to be 201 , got: ", res.StatusCode)
 	} else {
-		attokenpost := &AGTResponse{}
+		attokenpost := &TResponse{}
 		derr := json.NewDecoder(res.Body).Decode(attokenpost)
 
 		if derr != nil {
@@ -245,6 +245,8 @@ func TestAtTokenAccess_LT(t *testing.T) {
 	t.Error("not implemented yet")
 
 }
+
+// Test actual requests against server, server and a feeder for south-bound must be running.
 
 func TestGetAccessControlST(t *testing.T) {
 	t.Error("not implemented yet")
