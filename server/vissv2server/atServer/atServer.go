@@ -35,7 +35,7 @@ const GAP = 3      // Used for PoP check
 const LIFETIME = 5 // Used for PoP check
 
 const theAtSecret = "averysecretkeyvalue2" //not shared
-const AGT_PUB_KEY_DIRECTORY = "atServer/agt_public_key.rsa"
+const AGT_PUB_KEY_DIRECTORY = "agt_public_key.rsa"
 const PORT = 8600
 const AT_DURATION = 1 * 60 * 60 // 1 hour
 
@@ -164,6 +164,7 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 				} else {
 					w.Header().Set("Access-Control-Allow-Origin", "*")
 					//				    w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(201) // USE 201 when responding to succesful POST requests
 					w.Write([]byte(response))
 				}
 			}

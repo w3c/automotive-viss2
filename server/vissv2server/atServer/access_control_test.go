@@ -20,7 +20,7 @@ type TResponse struct {
 }
 
 const agt_posttesturl = "http://0.0.0.0:7500/agts"
-const at_url = "http://localhost:8600/"
+const at_url = "http://0.0.0.0:8600/ats"
 const SHORT_TERM_TOKEN_LENGTH = 14400
 const LONG_TERM_TOKEN_LENGTH = 345600
 
