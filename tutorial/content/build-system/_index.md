@@ -22,7 +22,12 @@ it is suitable to first build it (in the directory of the source code)
 
 $ go build
 
-and then run it
+If the image is to be run on another platform, golang has ample cross-compilation capabilities, more can be learned [here](https://opensource.com/article/21/1/go-cross-compiling). 
+To cross-compile, the command could look like the below.
+
+env GOOS=linux GOARCH=arm64 go build -o vissv2server
+
+To run it the command looks like:
 
 $ ./'name-of-executable' 'any-command-line-config-input'
 

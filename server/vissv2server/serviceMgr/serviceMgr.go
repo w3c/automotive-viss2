@@ -517,14 +517,12 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		if err != nil {
 			if err.Error() != "redis: nil" {
 				utils.Error.Printf("Job failed. Error()=%s\n", err.Error())
-				return ""
+				return `{"value":"Database-error", "ts":"` + utils.GetRfcTime() + `"}`
 			} else {
 				utils.Warning.Printf("Data not found.\n")
-				//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
-				return `{"value":"Database-error", "ts":"` + utils.GetRfcTime() + `"}`
+				return `{"value":"Data-not-found", "ts":"` + utils.GetRfcTime() + `"}`
 			}
 		} else {
-			//		    utils.Info.Printf("Datapoint=%s\n", dp)
 			return dp
 			/*			type RedisDp struct {
 							Val string
