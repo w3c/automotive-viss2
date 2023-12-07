@@ -15,17 +15,16 @@ import (
 )
 
 //Prequisites: AGT Server and Vissv2 Server should be up and running (0.0.0.0 in docker)
-type AGTResponse struct {
+type TResponse struct {
 	Token string `json:"token"`
 }
 
-const LT_TEST_POP = "eyJ0eXAiOiJkcG9wK2p3dCIsImFsZyI6IkVTMjU2IiwiandrIjp7Imt0eSI6IkVDIiwidXNlIjoic2lnbiIsImNydiI6IlAtMjU2IiwieCI6InRKeDJkcjJKOUZVN1loT21yME9jbTQ2dXMycFFjWTNRcnAxV0RGVTFfYWsiLCJ5IjoiVWdRQnhIRjVUX0xoT28tVmM4RGlmU3NlallKUVd0QTQ2ei1lbmFlazRyVSJ9fQ.eyJhdWQiOiJ2aXNzdjIvYWd0cyIsImlhdCI6IjE2NTUyOTI5MTkiLCJqdGkiOiIzZTZjNmNlMy00YmUyLTQwZmUtYjc5Yi00MzQ2YjBjNmY2MjkifQ.MqM57OE-m1hwyT63aHqHhMu9aMScQBEWQ3B-iG670zvlHIqyvbyVuEB-UhFVdi_pAscSII9FSROhzB9nrWM5sA"
 const agt_posttesturl = "http://0.0.0.0:7500/agts"
+const at_url = "http://localhost:8600/"
 const SHORT_TERM_TOKEN_LENGTH = 14400
 const LONG_TERM_TOKEN_LENGTH = 345600
 
-func TestShortTermTokenAccess(t *testing.T) {
-
+func getShortTermAGTResponse() (*http.Response, error) {
 	body := []byte(`{"vin":"GEO001","context":"Independent+OEM+Cloud","proof":"ABC","key":"DEF"}`)
 
 	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
@@ -38,10 +37,50 @@ func TestShortTermTokenAccess(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
+	return res, err
+}
+
+func getLongTermAGTResponse() (*http.Response, error) {
+	var privKey *rsa.PrivateKey
+	err := utils.ImportRsaKey(PRIV_KEY_DIRECTORY, &privKey)
+	if err != nil {
+		return nil, err
+	}
+
+	popToken := utils.PopToken{}
+	token, err := popToken.GenerateToken(privKey) // generate a proof-of-possession-token to get a LT token.
+
+	agtP := agtPayload{
+		Vin:     "GEO001",
+		Context: "Independent+OEM+Cloud",
+		Proof:   "ABC",
+		Key:     popToken.Jwk.Thumb, // Thumb print need to match.
+	}
+
+	body, err := json.Marshal(agtP) // POST a acces grant token request
+
+	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Add("Content-Type", "application/json")
+	r.Header.Add("PoP", token) // add the Pop as a proof of possesion.
+
+	client := &http.Client{}
+
+	return client.Do(r)
+}
+
+func TestShortTermTokenAccess(t *testing.T) {
+
+	res, err := getShortTermAGTResponse()
+	if err != nil {
+		t.Error(err)
+	}
 
 	defer res.Body.Close()
 
-	post := &AGTResponse{}
+	post := &TResponse{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		panic(derr)
@@ -70,6 +109,7 @@ func TestShortTermTokenAccess(t *testing.T) {
 	if ctx != "Independent+OEM+Cloud" {
 		t.Error("roles fails to match => ", ctx)
 	}
+
 }
 
 const PRIV_KEY_DIRECTORY = "../../agt_server/agt_private_key.rsa"
@@ -85,40 +125,14 @@ type agtPayload struct {
 
 func TestLongTermTokenAccess(t *testing.T) {
 
-	var privKey *rsa.PrivateKey
-	err := utils.ImportRsaKey(PRIV_KEY_DIRECTORY, &privKey)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	popToken := utils.PopToken{}
-	token, err := popToken.GenerateToken(privKey) // generate a proof-of-possession-token to get a LT token.
-
-	agtP := agtPayload{
-		Vin:     "GEO001",
-		Context: "Independent+OEM+Cloud",
-		Proof:   "ABC",
-		Key:     popToken.Jwk.Thumb, // Thumb print need to match.
-	}
-
-	body, err := json.Marshal(agtP) // POST a acces grant token request
-
-	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
-	if err != nil {
-		panic(err)
-	}
-	r.Header.Add("Content-Type", "application/json")
-	r.Header.Add("PoP", token) // add the Pop as a proof of possesion.
-
-	client := &http.Client{}
-	res, err := client.Do(r)
+	res, err := getLongTermAGTResponse()
 	if err != nil {
 		panic(err)
 	}
 
 	defer res.Body.Close()
 
-	post := &AGTResponse{}
+	post := &TResponse{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		panic(derr)
@@ -148,4 +162,96 @@ func TestLongTermTokenAccess(t *testing.T) {
 		t.Error("roles fails to match => ", ctx)
 	}
 
+}
+
+type atRequest struct {
+	Token   string `json:string "token"`
+	Purpose string `json:string "purpose"`
+	Pop     string `json:string "pop"`
+}
+
+func getAtToken(agttoken string) (*http.Response, error) {
+
+	atReq := &atRequest{
+		Token:   agttoken,
+		Purpose: "fuel-status",
+		Pop:     "GHI",
+	}
+	body, err := json.Marshal(atReq)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := http.NewRequest("POST", at_url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	r.Header.Add("Content-Type", "application/json")
+	client := &http.Client{}
+	res, err := client.Do(r)
+	if err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
+func parseATToken(res http.Response, t *testing.T) *TResponse {
+
+	defer res.Body.Close()
+
+	post := &TResponse{}
+	derr := json.NewDecoder(res.Body).Decode(post)
+	if derr != nil {
+		t.Error("could not parse http response")
+		return nil
+	}
+
+	if res.StatusCode != http.StatusCreated {
+		t.Error("status code expected to be 201 , got: ", res.StatusCode)
+
+	}
+
+	return post
+}
+
+// Viss server must be up and running
+func TestAtTokenAccess_ST(t *testing.T) {
+	res_ag, err := getShortTermAGTResponse() // Get Access Grant Token
+	if err != nil {
+		t.Error(err)
+	}
+
+	res, err := getAtToken(parseATToken(*res_ag, t).Token) // Get Access token
+
+	if err != nil {
+		t.Error(err)
+	}
+	if res.StatusCode != http.StatusCreated {
+		t.Error("status code expected to be 201 , got: ", res.StatusCode)
+	} else {
+		attokenpost := &TResponse{}
+		derr := json.NewDecoder(res.Body).Decode(attokenpost)
+
+		if derr != nil {
+			t.Error(derr)
+		}
+		log.Println(attokenpost.Token)
+	}
+
+}
+
+func TestAtTokenAccess_LT(t *testing.T) {
+	t.Error("not implemented yet")
+
+}
+
+// Test actual requests against server, server and a feeder for south-bound must be running.
+
+func TestGetAccessControlST(t *testing.T) {
+	t.Error("not implemented yet")
+}
+
+func TestGetAccessControlLT(t *testing.T) {
+	t.Error("not implemented yet")
 }

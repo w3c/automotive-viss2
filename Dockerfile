@@ -5,7 +5,7 @@
 # To run with redis as state storage use docker compose. This can be used to build individual images but will not
 # run.
 
-ARG GO_VERSION=1.18
+ARG GO_VERSION=1.18.3
 ARG VSSTREE_NAME="vss_vissv2.binary"
 ARG BUILD_IMAGE="golang:latest"
 ARG RUNTIME_IMAGE="debian:bullseye-slim"
@@ -17,6 +17,9 @@ WORKDIR /build
 
 #add bin folder to store the compiled files
 RUN mkdir bin
+#corporate proxy settings can sometimes cause tls verification error. Add root crt to docker container.
+COPY testCredGen/cicso-umbrella/cisco.crt /usr/local/share/ca-certificates/cisco.crt
+RUN update-ca-certificates
 
 #copy the content of the server and utils dir and .mod/.sum files to builder
 COPY redis/redis.conf ./etc/

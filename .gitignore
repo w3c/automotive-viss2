@@ -27,6 +27,8 @@ vss_vissv2.binary
 certificate.pem
 config.json
 feeder
+feeder/feeder-rl/config.json
+
 
 # Test binary, built with `go test -c`
 *.test

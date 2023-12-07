@@ -384,7 +384,7 @@ func extractSignature(token string) string {
 	if lastDotIndex != -1 {
 		return token[lastDotIndex+1:]
 	}
-	utils.Error.Printf("extractSignature:Signature not found in token=%s")
+	utils.Error.Printf("extractSignature:Signature not found in token=%s", token)
 	return ""
 }
 
