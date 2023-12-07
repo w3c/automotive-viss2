@@ -12,21 +12,21 @@
     <title>VISSv2 Server :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1699875252" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1701942726" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1699875252" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1701942726" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1699875252"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1701942726"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1699875252"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1699875252"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1701942726"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1701942726"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1699875252"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1701942726"></script>
 
     
   </div>
@@ -456,6 +456,7 @@
         <li><a href="#configure-the-server">Configure the server</a></li>
         <li><a href="#pathlist-file-generation">Pathlist file generation</a></li>
         <li><a href="#history-control">History control</a></li>
+        <li><a href="#ignition-life-cycle">Ignition life cycle</a></li>
         <li><a href="#experimental-compression">Experimental compression</a></li>
       </ul>
     </li>
@@ -528,6 +529,7 @@ However, to get it up and running there are other preparations lso needed, pleas
 HTTP differs in that it does not support subscribe requests.</p>
 <p>The code is structured to make it reasonably easy to remove any of the protocols if that is desired for reducing the code footprint.
 Similarly it should be reasonably straight forward to add new protocols, given that the payload format transformation is not too complicated.</p>
+<p>The Websocket protocol manager terminates subscriptions if a client terminats the session without first terminating its ongoing subscriptions.</p>
 <h5 id="tls-configuration">TLS configuration</h5>
 <p>The server, and several of the clients, can be configured to apply TLS to the protocols (MQTT uses it integrated model for this).
 The first step in applying TLS is to generate the credentials needed, which is done by running the testCredGen.sh script found <a href="https://github.com/w3c/automotive-viss2/tree/master/testCredGen/">here</a>.</p>
@@ -583,11 +585,14 @@ SwCs that use this file:</p>
 <p>The VISSv2 specification provides a capability for clients to issue a request for <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#history-filter-operation">historic data</a>.
 This server supports temporary recording of data that can then be requested by a client using a history filter.
 The model used in the implementation of this is that it is not the server that decides when to start or stop a recording, or how long to keep the recorded data,
-but it is controlled by some other vehicle system via a Unix domain socket based API.</p>
+but it is controlled by some other vehicle system via a Unix domain socket based API.
+For more information, please see the <a href="https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/serviceMgr">service manager</a> README.</p>
 <p>To test this functionality there is a rudimentary <a href="https://github.com/w3c/automotive-viss2/blob/master/server/hist_ctrl_client.go">history control client</a>
 that can be used to instruct the server to start/stop/delete recording of signals.
 To reduce the amount of data that is recorded the server only saves a data value if it has changed compared to the latest captured,
 so to record more than a start and stop value the signals should be dynamic during a test.</p>
+<h3 id="ignition-life-cycle">Ignition life cycle</h3>
+<p>Dynamic data handled by the server, such as subscriptions, and access token caching, does not survive between ignition cycles (restart of the server).</p>
 <h3 id="experimental-compression">Experimental compression</h3>
 <p>VISSv2 uses JSON as the payload format, and as JSON is a textbased format there is a potential to reduce the payload size by using compression.</p>
 <p>A first attempt on applying compression built on a proprietary algorithm that took advantage of knowing the VISSv2 payload format.
@@ -840,19 +845,19 @@ For more details, see the  <a href="/automotive-viss2/client#compression-client"
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1699875252"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1699875252"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1701942726"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1701942726"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1699875252"></script>
-    <script src="/automotive-viss2/js/learn.js?1699875252"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1699875252"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1701942726"></script>
+    <script src="/automotive-viss2/js/learn.js?1701942726"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1701942726"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1699875252"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1701942726"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });

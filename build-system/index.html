@@ -12,21 +12,21 @@
     <title>VISSv2 Build System :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1699875252" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1699875252" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1701942726" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1701942726" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1699875252" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1701942726" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1699875252"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1701942726"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1699875252"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1699875252"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1701942726"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1701942726"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1699875252"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1701942726"></script>
 
     
   </div>
@@ -494,7 +494,10 @@ Since this project uses Go modules all dependencies will automatically download 
 <p>As several of the Golang based Sw components on this repo can be started with command line input to configure its behavior,
 it is suitable to first build it (in the directory of the source code)</p>
 <p>$ go build</p>
-<p>and then run it</p>
+<p>If the image is to be run on another platform, golang has ample cross-compilation capabilities, more can be learned <a href="https://opensource.com/article/21/1/go-cross-compiling">here</a>.
+To cross-compile, the command could look like the below.</p>
+<p>env GOOS=linux GOARCH=arm64 go build -o vissv2server</p>
+<p>To run it the command looks like:</p>
 <p>$ ./&rsquo;name-of-executable&rsquo; &lsquo;any-command-line-config-input&rsquo;</p>
 <p>If the SwC supports command line configuration input it is possible to add &ldquo;-h&rdquo; (no quotes) on the command line, which will then show a help text.
 Checking the first lines of the main() function in the source code is another possibility to find out.
@@ -769,19 +772,19 @@ the remotiveLabs broker in the cloud.<a href="https://github.com/w3c/automotive-
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1699875252"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1699875252"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1699875252"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1701942726"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1701942726"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1701942726"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1699875252"></script>
-    <script src="/automotive-viss2/js/learn.js?1699875252"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1699875252"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1701942726"></script>
+    <script src="/automotive-viss2/js/learn.js?1701942726"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1701942726"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1699875252"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1701942726"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });
