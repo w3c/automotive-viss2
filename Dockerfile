@@ -77,7 +77,7 @@ COPY --from=builder /build/bin/vissv2server .
 COPY --from=builder /build/server/transport_sec/transportSec.json ../transport_sec/transportSec.json
 COPY --from=builder /build/server/vissv2server/atServer/purposelist.json atServer/purposelist.json
 COPY --from=builder /build/server/vissv2server/atServer/scopelist.json atServer/scopelist.json
-COPY --from=builder /build/server/vissv2server/feeder-registration.json feeder-registration.json
+COPY --from=builder /build/server/vissv2server/feeder-registration.docker.json feeder-registration.json
 COPY --from=builder /build/server/vissv2server/vss_vissv2.binary .
 COPY --from=builder /build/server/agt_server/agt_public_key.rsa .
 
