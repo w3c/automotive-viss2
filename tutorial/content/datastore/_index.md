@@ -35,3 +35,9 @@ For more information, please check the README on the provided link.
 
 The federclient and serverclient implementations on this link are not needed in this context, they are only meant to make possible some initial testing of using Redis for this,
 and as a simple template code base for creating new feeders.
+
+Communication with the Redis daemon is for security reasons configured to use Unix domain sockets. This requires that the socket file, and the directory it is stored in exist.
+If not then create it with the commands
+
+$ makedir path-to-socket-file-directory
+$ touch socket-file-name
