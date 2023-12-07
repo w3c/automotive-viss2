@@ -120,3 +120,12 @@ In case it is not valid, a set of error codes has been defined:
 #### 60-69 Permission Errors
 	- 60: Permission error: no access allowed with that purpose
 	- 61: Permission error: read-only access trying to write
+
+**Unit tests**
+Testing the Access Grant Token server and the Access Token server can be done running access_control_test.go
+The default feeder can be used but also a rl-feeder with recorded data playback. The AGT server must currently
+be started manually. Test cases can also be built and run,debugged individually. Recommend to use an IDE with debugger
+for this. 
+
+
+
