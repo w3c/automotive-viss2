@@ -27,9 +27,9 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.3.5
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/golang/protobuf v1.5.3
+	// github.com/golang/protobuf v1.5.3
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.4.2
 	github.com/mattn/go-sqlite3 v1.14.14
 	github.com/petervolvowinz/viss-rl-interfaces v0.0.8
@@ -37,6 +37,8 @@ require (
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 )
+
+require github.com/golang/protobuf v1.5.3
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

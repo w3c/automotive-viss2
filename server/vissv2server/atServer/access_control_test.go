@@ -242,7 +242,28 @@ func TestAtTokenAccess_ST(t *testing.T) {
 }
 
 func TestAtTokenAccess_LT(t *testing.T) {
-	t.Error("not implemented yet")
+	res_ag, err := getLongTermAGTResponse() // Get Access Grant Token
+	if err != nil {
+		t.Error(err)
+	}
+
+	res, err := getAtToken(parseATToken(*res_ag, t).Token)
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	if res.StatusCode != http.StatusCreated {
+		t.Error("status code expected to be 201 , got: ", res.StatusCode)
+	} else {
+		attokenpost := &TResponse{}
+		derr := json.NewDecoder(res.Body).Decode(attokenpost)
+
+		if derr != nil {
+			t.Error(derr)
+		}
+		log.Println(attokenpost.Token)
+	}
 
 }
 
