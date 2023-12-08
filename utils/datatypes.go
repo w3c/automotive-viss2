@@ -289,7 +289,7 @@ func (popToken *PopToken) Initialize(headerMap, payloadMap map[string]string, pu
 }
 
 // Generates popToken using a PrivateKey, can be used even if popToken is not initialized (claims are auto-fulfilled)
-func (popToken PopToken) GenerateToken(privKey crypto.PrivateKey) (token string, err error) {
+func (popToken *PopToken) GenerateToken(privKey crypto.PrivateKey) (token string, err error) {
 	// Initialization if is not
 	if popToken.HeaderClaims == nil {
 		if rsaPriv, ok := privKey.(*rsa.PrivateKey); ok {
@@ -315,6 +315,8 @@ func (popToken PopToken) GenerateToken(privKey crypto.PrivateKey) (token string,
 		return
 	}
 	popToken.PayloadClaims["jti"] = unparsedId.String()
+	popToken.PayloadClaims["aud"] = "vissv2/agts"
+	// popToken.PayloadClaims[""]
 	// Marshal header (must be in order)
 	iterator := []string{"typ", "alg", "jwk"}
 	for _, iter := range iterator {
