@@ -72,3 +72,4 @@ logs/
 ***.vscode
 /client/client-1.0/grpc_client/grpc_map_client/static/node_modules/
 /client/client-1.0/grpc_client/grpc_client
+/client/client-1.0/client-1.0
