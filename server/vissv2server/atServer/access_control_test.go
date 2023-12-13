@@ -1,17 +1,24 @@
-/******** Peter Winzell (c), 11/27/23 *********************************************/
+/******** Peter Winzell  11/27/23 *********************************************/
+/******** (C) Volvo Cars, 2023 **********/
 
 package atServer
 
 import (
 	"bytes"
+	"context"
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
+	pb "github.com/w3c/automotive-viss2/grpc_pb"
 	"github.com/w3c/automotive-viss2/utils"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	_ "log"
 	"net/http"
 	"strconv"
 	"testing"
+	"time"
 )
 
 //Prequisites: AGT Server and Vissv2 Server should be up and running (0.0.0.0 in docker)
@@ -165,9 +172,9 @@ func TestLongTermTokenAccess(t *testing.T) {
 }
 
 type atRequest struct {
-	Token   string `json:string "token"`
-	Purpose string `json:string "purpose"`
-	Pop     string `json:string "pop"`
+	Token   string `json:"token"`
+	Purpose string `json:"purpose"`
+	// Pop     string `json:string "pop"`
 }
 
 func getAtToken(agttoken string) (*http.Response, error) {
@@ -175,8 +182,8 @@ func getAtToken(agttoken string) (*http.Response, error) {
 	atReq := &atRequest{
 		Token:   agttoken,
 		Purpose: "fuel-status",
-		Pop:     "GHI",
 	}
+
 	body, err := json.Marshal(atReq)
 	if err != nil {
 		return nil, err
@@ -215,8 +222,7 @@ func parseATToken(res http.Response, t *testing.T) *TResponse {
 	return post
 }
 
-// Viss server must be up and running
-func TestAtTokenAccess_ST(t *testing.T) {
+func getShToken(t *testing.T) string {
 	res_ag, err := getShortTermAGTResponse() // Get Access Grant Token
 	if err != nil {
 		t.Error(err)
@@ -237,8 +243,14 @@ func TestAtTokenAccess_ST(t *testing.T) {
 			t.Error(derr)
 		}
 		log.Println(attokenpost.Token)
+		return attokenpost.Token
 	}
+	return ""
+}
 
+// Viss server must be up and running
+func TestAtTokenAccess_ST(t *testing.T) {
+	getShToken(t)
 }
 
 func TestAtTokenAccess_LT(t *testing.T) {
@@ -268,9 +280,68 @@ func TestAtTokenAccess_LT(t *testing.T) {
 }
 
 // Test actual requests against server, server and a feeder for south-bound must be running.
+// gRPC get request with credentials
+func getGRPCServerConnection() (*grpc.ClientConn, error) {
+	var connection *grpc.ClientConn
+	connection, err := grpc.Dial("0.0.0.0"+":8887", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		return nil, err
+	}
+	return connection, nil
+}
+
+func getVISSClient(connection *grpc.ClientConn) pb.VISSv2Client {
+	client := pb.NewVISSv2Client(connection)
+	return client
+}
+
+func getgRPCGetRequest() []string {
+	commandList := make([]string, 4)
+	commandList[0] = `{"action":"get","path":"Vehicle/Body/Lights","filter":{"type":"paths","parameter":"*"},"requestId":"235"}`
+	commandList[1] = `{"action":"get","path":"Vehicle/Speed","requestId":"236"}`
+	return commandList
+}
+
+func infuseTokengRPCGetRequest(at_token string) []string {
+
+	commandList := make([]string, 2)
+	str := fmt.Sprintf(`{"action":"get","path":"Vehicle/Body/Lights","filter":{"type":"paths","parameter":"*"},,"authorization":"%s","requestId":"235"}`, at_token)
+	commandList[0] = str
+	str = fmt.Sprintf(`{"action":"get","path":"Vehicle/Speed","authorization":"%s","requestId":"236"}`, at_token)
+	commandList[1] = str
+
+	return commandList
+}
 
 func TestGetAccessControlST(t *testing.T) {
-	t.Error("not implemented yet")
+
+	utils.InitLog("servercore-log.txt", "./logs", false, "Info")
+
+	AT := getShToken(t)
+	if AT != "" {
+		grpcConnectiontion, err := getGRPCServerConnection()
+		if err != nil {
+			t.Error(err)
+		}
+		defer grpcConnectiontion.Close()
+		vissClient := getVISSClient(grpcConnectiontion)
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		request := infuseTokengRPCGetRequest(AT)
+		pbRequest := utils.GetRequestJsonToPb(request[1], utils.PB_LEVEL1)
+		pbResponse, err := vissClient.GetRequest(ctx, pbRequest)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		vssResponse := utils.GetResponsePbToJson(pbResponse, utils.PB_LEVEL1)
+		t.Log(vssResponse)
+	} else {
+		t.Error("AT token not delivered")
+	}
 }
 
 func TestGetAccessControlLT(t *testing.T) {
