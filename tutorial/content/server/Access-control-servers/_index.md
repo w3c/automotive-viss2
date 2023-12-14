@@ -42,7 +42,8 @@ If the cache is full, caching of one more is rejected until a cached token becom
 
 ### Server configuration
 The configuration available for the servers is whether the protocols that they implement to expose their APIS are TLS protected or not.
-The same framework that is used for generating credentials for the client-server communication described [here](/automotive-viss2/server#tls-configuration) can be used here also.
+The same framework that is used for generating credentials for the client-server communication described [here](https://github.com/w3c/automotive-viss2/tree/master/testCredGen/)
+can be used in this case also.
 These credentials should however to follow good security practises be separate from what is used in the client-server communication.
 The different port number for the respective servers are shown below.
 | Server  | Port number: No TLS | Port number: TLS |
