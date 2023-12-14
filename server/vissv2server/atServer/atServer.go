@@ -602,7 +602,7 @@ func validatePop(payload AtGenPayload) (bool, string) {
 		return false, `{"error": "Keys in POP and AGToken are not matching"}`
 	}
 	// Check aud
-	if ok, _ := payload.PopTk.CheckAud("vissv2/ats"); !ok {
+	if ok, _ := payload.PopTk.CheckAud("vissv2/agts"); !ok {
 		utils.Info.Printf("validateRequest: Aud in POP not valid")
 		return false, `{"error": "Invalid aud"}`
 	}

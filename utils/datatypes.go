@@ -394,6 +394,7 @@ func (popToken PopToken) CheckThumb(thumprint string) (bool, string) {
 
 func (popToken *PopToken) CheckAud(aud string) (bool, string) {
 	if valid := popToken.PayloadClaims["aud"] == aud; !valid {
+		fmt.Println(aud + " ===== " + popToken.PayloadClaims["aud"])
 		return false, "Aud not valid"
 	}
 	return true, ""
