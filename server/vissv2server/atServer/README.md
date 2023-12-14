@@ -122,12 +122,29 @@ In case it is not valid, a set of error codes has been defined:
 	- 61: Permission error: read-only access trying to write
 
 
-**Unit tests**
+**Tests, access_control_test.go**
 
 Testing the Access Grant Token server and the Access Token server can be done running access_control_test.go
 The default feeder can be used but also a rl-feeder with recorded data playback. The AGT server must currently
 be started manually. Test cases can also be built and run,debugged individually. Recommend to use an IDE with debugger
 for this. 
 
+To run the tests, configure the ***config.json*** file for the ***feeder-rl*** to point to the demo broker.
+See: https://demo.remotivelabs.com/orgs/remotidemo. 
+
+
+Commandline
+
+```
+0. Build and run the AGTServer (locally)
+1. Open the Turning Torso Drive Cycle and select  configuration_vss
+2. Select play
+3. Start the playback
+4. Copy the broker url and api key and enter into the config.json for the feeder-rl
+5. $ docker compose -f docker-compose-rl.yml build
+6. $ docker compose -f docker-compose-rl.yml up
+7. navigate to atServer
+8. $ go test -v
+```
 
 
