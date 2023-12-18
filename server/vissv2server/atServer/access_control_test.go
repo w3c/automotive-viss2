@@ -310,7 +310,7 @@ func TestLongTermTokenAccess(t *testing.T) {
 
 	//test that it is correct length
 	if (exp - iat) != LONG_TERM_TOKEN_LENGTH {
-		t.Error("short term token error: ", exp-iat)
+		t.Error("long term token error: ", exp-iat)
 	}
 	//test vin and context
 	if vin != "GEO001" {
