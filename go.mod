@@ -7,8 +7,8 @@ go 1.18
 replace github.com/w3c/automotive-viss2/utils => ./utils
 
 replace (
-	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20220524163944-c753a539973f
-	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20220524163944-c753a539973f
+	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc
+	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc
 	github.com/w3c/automotive-viss2/grpc_pb => ./grpc_pb
 	github.com/w3c/automotive-viss2/server/vissv2server/atServer => ./server/vissv2server/atServer
 	github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr => ./server/vissv2server/grpcMgr
@@ -21,28 +21,29 @@ replace (
 //replace github.com/w3c/automotive-viss2/protobuf/protoc-out => ./protobuf/protoc-out
 
 require (
-	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20220104185813-cad8492de65f
-	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20220104185813-cad8492de65f
-	github.com/akamensky/argparse v1.3.1
-	github.com/eclipse/paho.mqtt.golang v1.3.5
+	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20231218135229-3cd370821711
+	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20231218135229-3cd370821711
+	github.com/akamensky/argparse v1.4.0
+	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/protobuf v1.5.3
-	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
-	github.com/gorilla/websocket v1.4.2
-	github.com/mattn/go-sqlite3 v1.14.14
-	github.com/petervolvowinz/viss-rl-interfaces v0.0.6
+	github.com/google/uuid v1.5.0
+	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/websocket v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.19
+	github.com/petervolvowinz/viss-rl-interfaces v0.0.8
 	github.com/sirupsen/logrus v1.9.3
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
 )
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	golang.org/x/net v0.9.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
+	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/sync v0.5.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20231212172506-995d672761c0 // indirect
 )

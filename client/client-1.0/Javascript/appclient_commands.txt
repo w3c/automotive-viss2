@@ -7,7 +7,7 @@
 
  // Websocket request examples
 Get request:
-{"action":"get","path":"Vehicle/Cabin/Door/Row1/Right/IsOpen","requestId":"232"}
+{"action":"get","path":"Vehicle/Cabin/Door/Row1/DriverSide/IsOpen","requestId":"232"}
 {"action":"get","path":"Vehicle.Acceleration.Longitudinal","requestId":"233"}
 
 Get request for historic data:
@@ -81,7 +81,7 @@ agtserver
 //  ATserver POST input @atclient.html:
 <AT server IP address>
 atserver
-{"token":"ag-token", "purpose":"fuel-status", "pop":"GHI"}  // pop included only if a key was present in AGT request, token value must be replaced by the AG token, purpose must be on the Purpose list
+{"token":"ag-token", "purpose":"fuel-status", "pop":""}
 
 //VISSv2 server request for fuel-status use case: 
 wsclient_uncompressed.html:
