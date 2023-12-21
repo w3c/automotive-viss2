@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+
+  agt_server:
+    container_name: agt_server
+    build:
+      context: ../../  # context set to repo root
+      target: agt_server
+    entrypoint: [/app/agt_server]
+    ports:
+      - "0.0.0.0:7500:7500"
+    volumes:
+      - ./logs:/app/logs
