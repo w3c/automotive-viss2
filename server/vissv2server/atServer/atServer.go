@@ -1341,7 +1341,7 @@ func setExpiryTicker() {
 	}
 }
 
-func AtServerInit(viss2Chan chan string, viss2CancelChan chan string) {
+func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, consentSupport bool) {
 	clientChan := make(chan string)
 	ecfReceiveChan := make(chan string)
 	ecfSendChan := make(chan string)
@@ -1356,7 +1356,9 @@ func AtServerInit(viss2Chan chan string, viss2CancelChan chan string) {
 	expiryTicker = time.NewTicker(24 * time.Hour)
 
 	go initClientComm(clientChan, muxServer[0])  //HTTP to client
-	go initEcfComm(ecfReceiveChan, ecfSendChan, muxServer[1])	    // websocket client to ECF
+	if consentSupport {
+		go initEcfComm(ecfReceiveChan, ecfSendChan, muxServer[1])	    // websocket client to ECF
+	}
 	utils.Info.Printf("atServer started...")
 
 	for {

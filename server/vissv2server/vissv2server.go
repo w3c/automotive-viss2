@@ -857,6 +857,7 @@ func main() {
 		Required: false,
 		Help:     "statestorage database filename",
 		Default:  "serviceMgr/statestorage.db"})
+	consentSupport := parser.Flag("c", "consentsupport", &argparse.Options{Required: false, Help: "try to connect to ECF", Default: false})
 
 	// Parse input
 	err := parser.Parse(os.Args)
@@ -916,7 +917,7 @@ func main() {
 			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
 			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 		case "atServer":
-			go atServer.AtServerInit(atsChannel[0], atsChannel[1])
+			go atServer.AtServerInit(atsChannel[0], atsChannel[1], *consentSupport)
 		}
 	}
 

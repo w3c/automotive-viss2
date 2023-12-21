@@ -63,6 +63,8 @@ The model for this is that the process for obtaining the owner consent is delega
 and the details ofthis process is out-of-scope in relation to the VISSv2 specification.
 What is in scope is a high-level description of the protocol between the VISSv2 server and the ECF, see the
 [VISSv2 consent support](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#consent-support) chapter.
+To configure the VISSv2 server to try to connect to an ECF, it must be started with the command parameter -c".
+
 The figure below shows the the different steps in the dataflow that is necessary when a client wants to initiate a subscription of data that is
 access controlled and require consent from the data owner.
 ![VISSv2 consent subscribe dataflow](/automotive-viss2/images/VISSv2-consent-subscribe-dataflow.jpg?width=25pc)
