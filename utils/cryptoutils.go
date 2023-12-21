@@ -193,7 +193,7 @@ func ImportRsaKey(filename string, privKey **rsa.PrivateKey) error {
 	return err
 }
 
-// Gets rsa public ket from pem file
+// Gets rsa public key from pem file
 func ImportRsaPubKey(filename string, pubKey **rsa.PublicKey) error {
 	pubFile, err := os.Open(filename)
 	if err != nil {

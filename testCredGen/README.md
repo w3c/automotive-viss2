@@ -1,3 +1,5 @@
+**TLS** 
+
 The testCredGen script can be used to generate credentials for server and client(s) communication over HTTPS and WSS. 
 
 It uses openSSL for the generation, so this package must be installed on the computer if not there already.
@@ -64,6 +66,15 @@ client/client.ctr
 client/client.key
 to the corresponding ca and client directories in that repo, 
 and change the "transportSec" parameter in the corresponding transportSec.json file to "yes".
+
+
+**Docker and TLS build verification**
+
+In the directory cisco-umbrella we have downloaded a cisco - https://docs.umbrella.com/deployment-umbrella/docs/install-cisco-umbrella-root-certificate -  root certificate and included that in the docker file. Sometimes
+corporate proxy settings are updated so that the build machines certificates does not recognize external repos. Including
+a root certificate in the docker file allows the build to use tls verification on these repos.
+
+
 
 
 

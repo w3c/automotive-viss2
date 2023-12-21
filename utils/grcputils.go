@@ -616,8 +616,8 @@ func populateJsonFromProtoGetResp(protoMessage *pb.GetResponseMessage) string {
 	if currentCompression == PB_LEVEL1 {
 		jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + createJSON(protoMessage.GetAuthorization(), "authorization")
 	} else {
-		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + 
-				createJSON(protoMessage.GetAuthorization(), "authorization")
+		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId") +
+			createJSON(protoMessage.GetAuthorization(), "authorization")
 	}
 	return jsonMessage + "}"
 }
@@ -639,7 +639,7 @@ func populateJsonFromProtoSetResp(protoMessage *pb.SetResponseMessage) string {
 	//	if currentCompression == PB_LEVEL1 {
 	jsonMessage += `,"ts":"` + protoMessage.GetTs() + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + createJSON(protoMessage.GetAuthorization(), "authorization")
 	/*	} else {
-		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId") + 
+		jsonMessage += `,"ts":"` + DecompressTs(protoMessage.GetTsC()) + `"` + createJSON(protoMessage.GetRequestId(), "requestId") +
 		createJSON(protoMessage.GetAuthorization(), "authorization")
 	}*/
 	return jsonMessage + "}"
