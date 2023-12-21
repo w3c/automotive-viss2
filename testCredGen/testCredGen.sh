@@ -26,6 +26,9 @@ COMPANY=""                  # company name
 ########################### CA ############################
 if [[ "$ROLE" == "ca" ]]
 then
+if ! test -d ca; then
+  mkdir ca
+fi
 echo -e "${BOLD}Generating RSA AES-256 Private Key for Root Certificate Authority${CLEAR}"
 openssl genrsa -aes256 -out ca/Root.CA.key 4096
 echo -e "${BOLD}Generating Certificate for Root Certificate Authority${CLEAR}"

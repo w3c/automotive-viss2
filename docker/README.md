@@ -45,5 +45,18 @@ if server needs to be rebuilt due to src code modifications
 
 ```bash
 $ docker-compose up -d --force-recreate --build
+
 ```
 
+
+**Access control**
+
+If you want to run the server with access control, we need to copy the access grant token server's public key and make
+the key available in the container. These keys will be generated at the AGT server startup if not present.
+
+If we are not using access control servers comment this row in the _vissv2server_ section of the Dockerfile in the project
+root.
+
+```
+COPY --from=builder /build/server/agt_server/agt_public_key.rsa .
+```

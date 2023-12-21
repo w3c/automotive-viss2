@@ -22,11 +22,14 @@ http-mgr-log.txt
 servercore-log.txt
 
 #helper files
+viss
 vsspathlist.json
 vss_vissv2.binary
 certificate.pem
 config.json
 feeder
+feeder/feeder-rl/config.json
+
 
 # Test binary, built with `go test -c`
 *.test
@@ -50,6 +53,7 @@ http_mgr
 agt_server
 at_server
 mqtt_mgr
+vissv2server
 
 # Folders
 !server/service_mgr/
@@ -67,3 +71,5 @@ logs/
 ***workspace.code-workspace
 ***.vscode
 /client/client-1.0/grpc_client/grpc_map_client/static/node_modules/
+/client/client-1.0/grpc_client/grpc_client
+/client/client-1.0/client-1.0
