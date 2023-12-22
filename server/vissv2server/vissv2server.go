@@ -43,16 +43,6 @@ import (
 	"github.com/w3c/automotive-viss2/utils"
 )
 
-/*
-* Core-server main tasks:
-    - server in transportmgr data channel requests
-    - client in servicemgr data channel requests
-    - router hub for request-response messages
-    - request message path verification
-    - request message access restriction control
-    - signal discovery response synthesis
-*/
-
 var VSSTreeRoot *gomodel.Node_t
 
 // set to MAXFOUNDNODES in cparserlib.h
@@ -81,6 +71,11 @@ var transportMgrChannel = []chan string{
 
 var serviceMgrChannel = []chan string{
 	make(chan string), // Vehicle service
+}
+
+var atsChannel = []chan string{
+	make(chan string),  // access token verification
+	make(chan string),  // token cancellation
 }
 
 // add element to both channels if support for new transport protocol is added
@@ -243,8 +238,10 @@ func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 }
 
 // Sends a message to the Access Token Server to validate the Access Token paths and permissions
-func verifyToken(token string, action string, paths string, validation int) (int, string) {
+func verifyToken(token string, action string, paths string, validation int) (int, string, int) {
 	handle := ""
+	gatingId := -1
+/*
 	hostIp := utils.GetServerIP()
 	var url string
 	if utils.SecureConfiguration.TransportSec == "yes" {
@@ -277,34 +274,47 @@ func verifyToken(token string, action string, paths string, validation int) (int
 		return 40, handle
 	}
 	defer resp.Body.Close()
-
+*/
+	request := `{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`
+	atsChannel[0] <- request
+/*
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Print("verifyToken: Error reading response. ", err)
 		return 41, handle
 	}
-
+*/
+	body := <- atsChannel[0]
 	// Unmarshall json body to map containing the validation claim
 	var bdy map[string]interface{}
-	if err := json.Unmarshal(body, &bdy); err != nil {
+	var err error
+	if err = json.Unmarshal([]byte(body), &bdy); err != nil {
 		utils.Error.Print("verifyToken: Error unmarshalling ats response. ", err)
-		return 41, handle
+		return 41, handle, gatingId
 	}
 	if bdy["validation"] == nil {
-		utils.Error.Print("verifyToken: Error reading validation claim. ", err)
-		return 42, handle
+		utils.Error.Print("verifyToken: Error reading validation claim. ")
+		return 42, handle, gatingId
 	}
+
 	// Converts the validation claim to int
 	var atsValidation int
 	if atsValidation, err = strconv.Atoi(bdy["validation"].(string)); err != nil {
 		utils.Error.Print("verifyToken: Error converting validation claim to int. ", err)
-		return 42, handle
+		return 42, handle, gatingId
 	} else if atsValidation == 0 {
 			if bdy["handle"] != nil {
 				handle = bdy["handle"].(string)
 			}
+			if bdy["gatingId"] != nil {
+				gatingId, err = strconv.Atoi(bdy["gatingId"].(string))
+				if err != nil {
+					utils.Error.Print("verifyToken: Error converting gatingId to int. ", err)
+					gatingId = -1
+				}
+			}
 	}
-	return atsValidation, handle
+	return atsValidation, handle, gatingId
 }
 
 // nativeCnodeDef.h: nodeTypes_t;
@@ -374,7 +384,7 @@ func jsonifyTreeNode(nodeHandle *gomodel.Node_t, jsonBuffer string, depth int, m
 	case 3: // attribute
 		// TODO Look for other metadata, unit, enum, ...
 		nodeDatatype := golib.VSSgetDatatype(nodeHandle)
-		newJsonBuffer += `"datatype":` + `"` + nodeDataTypesToString(int(nodeDatatype)) + `",`
+		newJsonBuffer += `"datatype":` + `"` + nodeDatatype + `",`
 	default:
 		return ""
 
@@ -650,7 +660,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 }
 
 func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDChanIndex int) {
-	if requestMap["action"] == "internal-killsubscriptions" {
+	if requestMap["action"] == "internal-killsubscriptions" || requestMap["action"] == "internal-cancelsubscription" {
 		serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap) // internal message
 		return
 	}
@@ -731,9 +741,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			paths += "\"" + string(searchData[i].NodePath[:pathLen]) + "\", "
 		}
 		totalMatches += matches
-		if int(validation) > maxValidation {
-			maxValidation = int(validation)
-		}
+		maxValidation = utils.GetMaxValidation(int(validation), maxValidation)
 	}
 	if totalMatches == 0 {
 		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
@@ -757,7 +765,8 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	}
 
 	tokenHandle := ""
-	switch maxValidation {
+	gatingId := -1
+	switch maxValidation%10 {
 	case 0: // validation not required
 	case 1:
 		fallthrough
@@ -771,7 +780,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 				if authToken, ok := requestMap["authorization"].(string); !ok {
 					errorCode = 1
 				} else {
-					errorCode, tokenHandle = verifyToken(authToken, requestMap["action"].(string), paths, maxValidation)
+					errorCode, tokenHandle, gatingId = verifyToken(authToken, requestMap["action"].(string), paths, maxValidation)
 				}
 			}
 		}
@@ -788,6 +797,9 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	requestMap["path"] = paths
 	if tokenHandle != "" {
 		requestMap["handle"] = tokenHandle
+	}
+	if gatingId != -1 {
+		requestMap["gatingId"] = gatingId
 	}
 	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
 }
@@ -845,6 +857,7 @@ func main() {
 		Required: false,
 		Help:     "statestorage database filename",
 		Default:  "serviceMgr/statestorage.db"})
+	consentSupport := parser.Flag("c", "consentsupport", &argparse.Options{Required: false, Help: "try to connect to ECF", Default: false})
 
 	// Parse input
 	err := parser.Parse(os.Args)
@@ -904,7 +917,7 @@ func main() {
 			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
 			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 		case "atServer":
-			go atServer.AtServerInit() //communicates over HTTP(S)
+			go atServer.AtServerInit(atsChannel[0], atsChannel[1], *consentSupport)
 		}
 	}
 
@@ -919,6 +932,9 @@ func main() {
 			serveRequest(request, 2, 0)
 		case request := <-transportDataChan[3]: // request from gRPC mgr
 			serveRequest(request, 3, 0)
+		case gatingId := <- atsChannel[1]:
+			request := `{"action": "internal-cancelsubscription", "gatingId":"` + gatingId + `"}`
+			serveRequest(request, 0, 0)
 			//  case request := <- transportDataChan[X]:  // implement when there is a Xth transport protocol mgr
 		}
 	}

@@ -1,4 +1,5 @@
 /**
+* (C) 2023 Ford Motor Company
 * (C) 2020 Geotab Inc
 *
 * All files and artifacts in the repository at https://github.com/w3c/automotive-viss2
@@ -15,10 +16,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"github.com/gorilla/websocket"
+	"flag"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	"math/rand"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -42,6 +47,16 @@ const AT_DURATION = 1 * 60 * 60 // 1 hour
 var agtKey *rsa.PublicKey
 
 var jtiCache map[string]struct{} // PoPs JTIs that must be refused to not be reused
+
+var muxServer = []*http.ServeMux{
+	http.NewServeMux(), // HTTP
+	http.NewServeMux(), // Websocket
+}
+
+var Upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 type NoScopePayload struct {
 	Context string `json:"context"`
@@ -106,12 +121,31 @@ type ScopeElement struct {
 	NoAccess []string
 }
 
-type TokenCacheElem struct {
-	Token  string
-	Handle string
+/*type TokenCacheElem struct {
+	GatingId int
+	Token    string
+	Handle   string
+}*/
+
+type PendingListElem struct {
+	GatingId      int
+	Consent       string
+	AtGenData     AtGenPayload
+	AgtExpiryTime string
 }
 
-var tokenCache []TokenCacheElem
+type ActiveListElem struct {
+	GatingId     int
+	Atoken       string
+	AtokenHandle string
+	AtExpiryTime string
+}
+
+const LISTSIZE = 100
+//var tokenCache []TokenCacheElem
+var pendingList []PendingListElem
+var activeList []ActiveListElem
+var expiryTicker *time.Ticker
 
 func initVssFile() bool {
 	filePath := "vss_vissv2.binary"
@@ -135,7 +169,7 @@ func initAgtKey() {
 	utils.Info.Printf("AGT key imported correctly.")
 }
 
-func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *http.Request) {
+func makeAtServerHandler(atsChannel chan string) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		utils.Info.Printf("atServer:url=%s", req.URL.Path)
 		if req.URL.Path != "/ats" {
@@ -156,8 +190,8 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 				http.Error(w, "400 request unreadable.", 400)
 			} else {
 				utils.Info.Printf("atServer:received POST request=%s", string(bodyBytes))
-				serverChannel <- string(bodyBytes) // Sends request to server channel
-				response := <-serverChannel
+				atsChannel <- string(bodyBytes) // Sends request to server channel
+				response := <-atsChannel
 				utils.Info.Printf("atServer:POST response=%s", response)
 				if len(response) == 0 {
 					http.Error(w, "400 bad input.", 400)
@@ -172,11 +206,10 @@ func makeAtServerHandler(serverChannel chan string) func(http.ResponseWriter, *h
 	}
 }
 
-// Initializes the AT Server with the given port
-func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
-	utils.Info.Printf("initAtServer(): Starting AT server")
+func initClientComm(atsChannel chan string, muxServer *http.ServeMux) {
+	utils.Info.Printf("initClientComm(): Initializing AT Client server")
 	utils.ReadTransportSecConfig()                        // loads the secure configuration file
-	atServerHandler := makeAtServerHandler(serverChannel) // Generates handlers for the AT server
+	atServerHandler := makeAtServerHandler(atsChannel) // Generates handlers for the AT server
 	muxServer.HandleFunc("/ats", atServerHandler)
 	// Initializes the AT Server depending on sec configuration
 	if utils.SecureConfiguration.TransportSec == "yes" {
@@ -186,7 +219,7 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 			TLSConfig: utils.GetTLSConfig("localhost", "../transport_sec/"+utils.SecureConfiguration.CaSecPath+"Root.CA.crt",
 				tls.ClientAuthType(utils.CertOptToInt(utils.SecureConfiguration.ServerCertOpt)), nil),
 		}
-		utils.Info.Printf("initAtServer():Starting AT Server with TLS on %s/ats", utils.SecureConfiguration.AtsSecPort)
+		utils.Info.Printf("initClientComm():Starting AT Server with TLS on %s/ats", utils.SecureConfiguration.AtsSecPort)
 		utils.Info.Printf("HTTPS:CerOpt=%s", utils.SecureConfiguration.ServerCertOpt)
 		utils.Error.Fatal(server.ListenAndServeTLS("../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.crt",
 			"../transport_sec/"+utils.SecureConfiguration.ServerSecPath+"server.key"))
@@ -196,15 +229,138 @@ func initAtServer(serverChannel chan string, muxServer *http.ServeMux) {
 	}
 }
 
-// Generates response depending on the request received
-func generateResponse(input string) string {
-	if strings.Contains(input, "purpose") { // Purpose request
-		return accessTokenResponse(input)
-	} else if strings.Contains(input, "context") { // No scope request
+func initEcfComm(ecfReceiveChan chan string, ecfSendChan chan string, muxServer *http.ServeMux) {
+	scheme := "ws"
+	portNum := "8445"
+	var addr = flag.String("addr", "localhost:"+portNum, "http service address")
+	dataSessionUrl := url.URL{Scheme: scheme, Host: *addr, Path: ""}
+	dialer := websocket.Dialer{
+		HandshakeTimeout: time.Second,
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
+	}
+	conn := reDialer(dialer, dataSessionUrl)
+	if conn != nil {
+		go ecfClient(conn, ecfSendChan)
+		ecfReceiveChan <- "internal-ecfAvailable"
+		go ecfReceiver(conn, ecfReceiveChan)
+	}
+}
+
+func reDialer(dialer websocket.Dialer, sessionUrl url.URL) *websocket.Conn {
+	for i := 0 ; i < 15 ; i++ {
+		conn, _, err := dialer.Dial(sessionUrl.String(), nil)
+		if err != nil {
+			utils.Error.Printf("Data session dial error:%s\n", err)
+			time.Sleep(2 * time.Second)
+		} else {
+			return conn
+		}
+	}
+	return nil
+}
+
+func ecfClient(conn *websocket.Conn, ecfSendChan chan string) {
+	defer conn.Close()
+	for {
+		ecfRequest := <- ecfSendChan
+		err := conn.WriteMessage(websocket.TextMessage, []byte(ecfRequest))
+		if err != nil {
+			utils.Error.Printf("ecfClient:Request write error:%s\n", err)
+			return 
+		}
+	}
+}
+
+func ecfReceiver(conn *websocket.Conn, ecfReceiveChan chan string) {
+	defer conn.Close()
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			utils.Error.Printf("ecfReceiver read error: %s", err)
+			break
+		}
+		message := string(msg)
+		utils.Info.Printf("ECF message: %s", message)
+		ecfReceiveChan <- message
+	}
+}
+
+func generateParentResponse(input string) string {
+	if strings.Contains(input, "context") { // No scope request
 		return noScopeResponse(input)
 	} else { // AT validation request
 		return tokenValidationResponse(input)
 	}
+}
+
+func generateClientResponse(input string, ecfSendChan chan string, ecfAvailable bool) string {
+	if strings.Contains(input, "purpose") { // Request for access token
+		return accessTokenResponse(input, ecfSendChan, ecfAvailable)
+	} else { // consent inquiry request
+		return consentInquiryResponse(input)
+	}
+}
+
+func generateEcfResponse(input string, vissChan chan string) string {
+	if strings.Contains(input, "consent-reply") { // Consent reply request
+		return consentReplyResponse(input)
+	} else { // consent cancel request
+		return consentCancelResponse(input, vissChan)
+	}
+}
+
+func consentReplyResponse(request string) string {
+	var requestMap map[string]interface{}
+	err := json.Unmarshal([]byte(request), &requestMap)
+	if err != nil {
+		utils.Error.Printf("consentReplyResponse:error request=%s", request)
+		return `{"action":"consent-reply", "status":"401-Bad request"}`
+	}
+	if requestMap["messageId"] != nil  {
+		gatingId, err := strconv.Atoi(requestMap["messageId"].(string))
+		if err != nil {
+			utils.Error.Printf("consentReplyResponse:error converting id=%s", err)
+			return `{"action":"consent-reply", "status":"401-Bad request"}`
+		}
+		for i := 0; i < LISTSIZE; i++ {
+			if pendingList[i].GatingId == gatingId {
+				pendingList[i].Consent = requestMap["consent"].(string)
+				return `{"action":"consent-reply", "status":"200-OK"}`
+			}
+		}
+	}
+	return `{"action":"consent-reply", "status":"404-Not found"}`
+}
+
+func consentCancelResponse(request string, vissChan chan string) string {
+	var requestMap map[string]interface{}
+	err := json.Unmarshal([]byte(request), &requestMap)
+	if err != nil {
+		utils.Error.Printf("consentCancelResponse:error request=%s", request)
+		return `{"action":"consent-cancel", "status":"401-Bad request"}`
+	}
+	if requestMap["messageId"] != nil  {
+		gatingId, err := strconv.Atoi(requestMap["messageId"].(string))
+		if err != nil {
+			utils.Error.Printf("consentCancelResponse:error converting id=%s", err)
+			return `{"action":"consent-cancel", "status":"401-Bad request"}`
+		}
+		for i := 0; i < LISTSIZE; i++ {
+			if pendingList[i].GatingId == gatingId {
+				removeFromPendingList(i)
+				return `{"action":"consent-cancel", "status":"200-OK"}`
+			}
+		}
+		for i := 0; i < LISTSIZE; i++ {
+			if pendingList[i].GatingId == gatingId {
+				removeFromActiveList(i)
+				vissChan <- requestMap["messageId"].(string)  // remove eventual subscription
+				return `{"action":"consent-cancel", "status":"200-OK"}`
+			}
+		}
+	}
+	return `{"action":"consent-cancel", "status":"404-Not found"}`
 }
 
 func getPathLen(path string) int {
@@ -328,8 +484,9 @@ func tokenValidationResponse(input string) string {
 	}
 	var atValidatePayload AtValidatePayload
 	extractAtValidatePayloadLevel1(inputMap, &atValidatePayload)
-	var isCached bool
-	atValidatePayload.Token, isCached = searchCache(atValidatePayload.Token)
+//	var isCached bool
+//	atValidatePayload.Token, isCached = searchCache(atValidatePayload.Token)
+	atValidatePayload.Token = getTokenSaveHandle(atValidatePayload.Token)
 	err = utils.VerifyTokenSignature(atValidatePayload.Token, theAtSecret)
 	if err != nil {
 		utils.Info.Printf("tokenValidationResponse:invalid signature, error= %s, token=%s", err, atValidatePayload.Token)
@@ -346,24 +503,34 @@ func tokenValidationResponse(input string) string {
 		utils.Info.Printf("validateTokenExpiry fails with result=%d", res)
 		return `{"validation":"` + strconv.Itoa(res) + `"}`
 	}
-	tokenHandle := cacheToken(atValidatePayload.Token, isCached)
+//	tokenHandle := cacheToken(atValidatePayload.Token, isCached)
+	tokenHandle, gatingId := getGatingIdAndTokenHandle(atValidatePayload.Token)
 	if tokenHandle != "" {
-		return `{"validation":"0", "handle":"` + tokenHandle + `"}`
+		return `{"validation":"0", "gatingId":"` + gatingId + `", "handle":"` + tokenHandle + `"}`
 	} else {
-		return `{"validation":"0"}`
+		return `{"validation":"0", "gatingId":"` + gatingId + `"}`
 	}
 }
 
-func searchCache(token string) (string, bool) {
-	for i := 0; i < len(tokenCache); i++ {
+func getTokenSaveHandle(token string) string {  //input token may be handle or complete token. If handle then save it. Return complete token.
+/*	for i := 0; i < len(tokenCache); i++ {
 		if token == tokenCache[i].Token || token == tokenCache[i].Handle {
 			return tokenCache[i].Token, true
 		}
+	}*/
+	for i := 0; i < LISTSIZE; i++ {
+		if token == activeList[i].Atoken || token == activeList[i].AtokenHandle {
+			if token != activeList[i].AtokenHandle {
+				activeList[i].AtokenHandle = extractSignature(token)
+			}
+			return activeList[i].Atoken
+		}
 	}
-	return token, false
+	return ""	
 }
 
-func cacheToken(token string, isCached bool) string {
+func getGatingIdAndTokenHandle(token string) (string, string) {
+/*func cacheToken(token string, isCached bool) string {
 	for i := 0; i < len(tokenCache); i++ {
 		if isCached {
 			if token == tokenCache[i].Token {
@@ -376,8 +543,13 @@ func cacheToken(token string, isCached bool) string {
 				return tokenCache[i].Handle
 			}
 		}
+	}*/
+	for i := 0; i < LISTSIZE; i++ {
+		if token == activeList[i].Atoken {
+			return strconv.Itoa(activeList[i].GatingId), activeList[i].AtokenHandle
+		}
 	}
-	return ""
+	return "", ""
 }
 
 func extractSignature(token string) string {
@@ -456,11 +628,11 @@ func extractAtValidatePayloadLevel2(pathList []interface{}, atValidatePayload *A
 }
 
 // Calls method to check a correct AT request. If all ok, calls AT generator and returns the AT
-func accessTokenResponse(input string) string {
+func accessTokenResponse(request string, ecfSendChan chan string, ecfAvailable bool) string {
 	var payload AtGenPayload
-	err := json.Unmarshal([]byte(input), &payload) // Unmarshalls the request
+	err := json.Unmarshal([]byte(request), &payload) // Unmarshalls the request
 	if err != nil {
-		utils.Error.Printf("accessTokenResponse:error input=%s", input)
+		utils.Error.Printf("accessTokenResponse:error request=%s", request)
 		return `{"error": "Client request malformed"}`
 	}
 	err = payload.Agt.DecodeFromFull(payload.Token) // Decodes the AGT included in the request
@@ -477,10 +649,85 @@ func accessTokenResponse(input string) string {
 	}
 	valid, errResponse := validateRequest(payload) // Validates the request
 	if valid {
-		return generateAt(payload) // Generates the at if the request is valid
-
+		gatingId := newGatingId()
+		requiresConsent := checkifConsent(payload.Purpose)
+		if requiresConsent {
+			if ecfAvailable {
+				writeToPendingList(gatingId, payload)
+				utils.Info.Printf("requesting ECF about consent")
+				ecfSendChan<-`{"action": "consent-ask", "purpose": "`+payload.Purpose+`", "user-roles": "`+payload.Agt.PayloadClaims["clx"]+`", "messageId": "`+strconv.Itoa(gatingId) + `"}`
+				return `{"sessionId":"` + strconv.Itoa(gatingId) + `"}`
+			} else {
+				return `{"error":"consent framework not accessible"}`
+			}
+		} else {
+			at := generateAt(payload)
+			writeToActiveList(gatingId, at)
+			return at
+		}
 	}
 	return errResponse
+}
+
+func checkifConsent(purpose string) bool {
+	for i := 0; i < len(pList); i++ {
+		//utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, pList[i].Short)
+		if pList[i].Short == purpose {
+			for j := 0; j < len(pList[i].Access); j++ {
+				validation := -1
+				golib.VSSsearchNodes(pList[i].Access[j].Path, VSSTreeRoot, MAXFOUNDNODES, true, true, 0, nil, &validation)
+					if validation/10 == 1 {
+						return true
+					}
+			}
+		}
+	}
+	return false
+}
+
+var GatingId int
+func initGatingId() {
+	GatingId = 666 + rand.Intn(9999-666)
+}
+
+func newGatingId() int {
+	gatingId := (GatingId + 1)%9999
+	return gatingId
+}
+
+func consentInquiryResponse(input string) string {
+	gatingId := extractGatingId(input)
+	for i := 0; i < LISTSIZE; i++ {
+		if pendingList[i].GatingId == gatingId {
+			if pendingList[i].Consent == "NOT_SET" {
+				return `{"sessionId":` + strconv.Itoa(gatingId) + `", "consent":"NOT_SET"}`
+			} else if pendingList[i].Consent == "NO" {
+				removeFromPendingList(i)
+				return `{"consent":"NO"}`
+			} else { // YES or IN_VEHICLE
+				atGenData := removeFromPendingList(i)
+				at := generateAt(atGenData)
+				writeToActiveList(gatingId, at)
+				return `{"token":"` + at + `", "consent":"` + pendingList[i].Consent + `"}`
+			}
+		}
+	}
+	return `{"error":"404 - Not-found"}`
+}
+
+func extractGatingId(input string) int {
+	var inputMap map[string]interface{}
+	err := json.Unmarshal([]byte(input), &inputMap)
+	if err != nil {
+		utils.Error.Printf("extractGatingId:error input=%s", err)
+		return -1
+	}
+	gatingId, err := strconv.Atoi(inputMap["sessionId"].(string))
+	if err != nil {
+		utils.Error.Printf("extractGatingId:error converting id=%s", err)
+		return -1
+	}
+	return gatingId
 }
 
 func validateTokenTimestamps(iat int, exp int) bool {
@@ -495,7 +742,7 @@ func validateTokenTimestamps(iat int, exp int) bool {
 }
 
 // *** PURPOSE VALIDATION ***
-func validatePurpose(purpose string, context string) bool { // TODO: learn how to code to parse the purpose list, then use it to validate the purpose
+func validatePurpose(purpose string, context string) bool {
 	for i := 0; i < len(pList); i++ {
 		//utils.Info.Printf("validatePurpose:purposeList[%d].Short=%s", i, pList[i].Short)
 		if pList[i].Short == purpose {
@@ -973,29 +1220,180 @@ func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
 	}
 }
 
-func initTokenCache() {
-	tokenCache = make([]TokenCacheElem, 10)
-	for i := 0; i < len(tokenCache); i++ {
-		tokenCache[i].Token = ""
+func initLists() {
+//	tokenCache = make([]TokenCacheElem, LISTSIZE)
+	pendingList = make([]PendingListElem, LISTSIZE)
+	activeList = make([]ActiveListElem, LISTSIZE)
+	for i := 0; i < LISTSIZE; i++ {
+//		tokenCache[i].Token = ""
+		pendingList[i].GatingId = -1
+		activeList[i].GatingId = -1
 	}
 }
 
-func AtServerInit() {
-	serverChan := make(chan string)
-	muxServer := http.NewServeMux()
+func writeToPendingList(gatingId int, payload AtGenPayload) {
+	for i := 0; i < LISTSIZE; i++ {
+		if pendingList[i].GatingId == -1 {
+			pendingList[i].GatingId = gatingId
+			pendingList[i].AtGenData = payload
+			pendingList[i].AgtExpiryTime = utils.ExtractFromToken(payload.Token, "exp")
+			setExpiryTicker()
+			return
+		}
+	}
+	utils.Error.Printf("writeToPendingList: No empty element found")
+}
+
+func writeToActiveList(gatingId int, at string) {
+	for i := 0; i < LISTSIZE; i++ {
+		if activeList[i].GatingId == -1 {
+			activeList[i].GatingId = gatingId
+			activeList[i].Atoken = at
+			activeList[i].AtExpiryTime = utils.ExtractFromToken(at, "exp")
+			setExpiryTicker()
+			return
+		}
+	}
+	utils.Error.Printf("writeToActiveList: No empty element found")
+}
+
+func removeFromPendingList(index int) AtGenPayload {
+	atGenData := pendingList[index].AtGenData
+	pendingList[index].GatingId = -1
+	return atGenData
+}
+
+func removeFromActiveList(index int) {
+	activeList[index].GatingId = -1
+}
+
+func purgeLists() string {
+	var listExpiryStr string
+	now := time.Now()
+	for i := 0; i < LISTSIZE; i++ {
+		if pendingList[i].GatingId == -1 {
+			continue
+		}
+		listExpiryStr = pendingList[i].AgtExpiryTime
+		listExpiry, err := strconv.Atoi(listExpiryStr)
+		if err != nil {
+			utils.Error.Print("Error reading expiry time. ", err)
+			return ""
+		}
+		if now.After(time.Unix(int64(listExpiry), 0)) {
+			removeFromPendingList(i)
+			setExpiryTicker()
+			return "" // no need for subscription cancel
+		}
+	}
+	for i := 0; i < LISTSIZE; i++ {
+		if activeList[i].GatingId == -1 {
+			continue
+		}
+		listExpiryStr = activeList[i].AtExpiryTime
+		listExpiry, err := strconv.Atoi(listExpiryStr)
+		if err != nil {
+			utils.Error.Print("Error reading expiry time. ", err)
+			return ""
+		}
+		if now.After(time.Unix(int64(listExpiry), 0)) {
+			removeFromActiveList(i)
+			setExpiryTicker()
+			return strconv.Itoa(activeList[i].GatingId)
+		}
+	}
+	return ""
+}
+
+func setExpiryTicker() {
+	var listExpiryStr string
+	isUpdated := false
+	minExpiry := time.Now().Add(10*8760*time.Hour)  // listExpiry times should be less than 10 years from now...
+	for i := 0; i < LISTSIZE; i++ {
+		if pendingList[i].GatingId == -1 {
+			continue
+		}
+		listExpiryStr = pendingList[i].AgtExpiryTime
+		listExpiry, err := strconv.Atoi(listExpiryStr)
+		if err != nil {
+			utils.Error.Print("Error reading expiry time. ", err)
+			return
+		}
+		if minExpiry.After(time.Unix(int64(listExpiry), 0)) {
+			minExpiry = time.Unix(int64(listExpiry), 0)
+			isUpdated = true
+		}
+	}
+	for i := 0; i < LISTSIZE; i++ {
+		if activeList[i].GatingId == -1 {
+			continue
+		}
+		listExpiryStr = activeList[i].AtExpiryTime
+		listExpiry, err := strconv.Atoi(listExpiryStr)
+		if err != nil {
+			utils.Error.Print("Error reading expiry time. ", err)
+			return
+		}
+		if minExpiry.After(time.Unix(int64(listExpiry), 0)) {
+			minExpiry = time.Unix(int64(listExpiry), 0)
+			isUpdated = true
+		}
+	}
+	tickerValue := minExpiry.Sub(time.Now())
+	if tickerValue > 0 && isUpdated {
+		expiryTicker.Reset(tickerValue)
+	}
+}
+
+func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, consentSupport bool) {
+	clientChan := make(chan string)
+	ecfReceiveChan := make(chan string)
+	ecfSendChan := make(chan string)
+	ecfAvailable := false
 
 	initPurposelist()
 	initScopeList()
 	initVssFile()
 	initAgtKey()
-	initTokenCache()
+	initLists()
+	initGatingId()
+	expiryTicker = time.NewTicker(24 * time.Hour)
 
-	go initAtServer(serverChan, muxServer)
+	go initClientComm(clientChan, muxServer[0])  //HTTP to client
+	if consentSupport {
+		go initEcfComm(ecfReceiveChan, ecfSendChan, muxServer[1])	    // websocket client to ECF
+	}
+	utils.Info.Printf("atServer started...")
 
 	for {
-		request := <-serverChan
-		response := generateResponse(request)
-		utils.Info.Printf("atServer response=%s", response)
-		serverChan <- response
+		select {
+		  case request := <-clientChan:
+			utils.Info.Printf("atServer client request=%s", request)
+			response := generateClientResponse(request, ecfSendChan, ecfAvailable)
+			utils.Info.Printf("atServer client response=%s", response)
+			clientChan <- response
+		  case request := <-viss2Chan:
+			utils.Info.Printf("VISSv2 server request=%s", request)
+			response := generateParentResponse(request)
+			utils.Info.Printf("VISSv2 server response=%s", response)
+			viss2Chan <- response
+		  case message := <-ecfReceiveChan:
+			utils.Info.Printf("atServer ECF message=%s", message)
+			if message == "internal-ecfAvailable" {
+				ecfAvailable = true
+			} else if strings.Contains(message, "status") {
+				//TODO: if not OK then take action on that...
+			} else {
+				response := generateEcfResponse(message, viss2CancelChan)
+				utils.Info.Printf("atServer ECF response=%s", response)
+				ecfSendChan <- response
+			}
+		case <-expiryTicker.C:
+			utils.Info.Printf("atServer expiryTicker triggered")
+			gatingId := purgeLists()
+			if gatingId != "" {
+				viss2CancelChan <- gatingId
+			}
+		}
 	}
 }

@@ -24,6 +24,25 @@ import (
 const IpModel = 0 // IpModel = [0,1,2] = [localhost,extIP,envVarIP]
 const IpEnvVarName = "GEN2MODULEIP"
 
+// Access control values: none=0, write-only=1. read-write=2, consent +=10
+// matrix preserving inherited value with read-write having priority over write-only and consent over no consent
+var validationMatrix [5][5]int = [5][5]int{{0,1,2,11,12}, {1,1,2,11,12}, {2,2,2,12,12}, {11,11,12,11,12}, {12,12,12,12,12}}
+
+func GetMaxValidation(newValidation int, currentMaxValidation int) int {
+	return validationMatrix [translateToMatrixIndex(newValidation)][translateToMatrixIndex(currentMaxValidation)]
+}
+
+func translateToMatrixIndex(index int) int {
+	switch index {
+		case 0: return 0
+		case 1: return 1
+		case 2: return 2
+		case 11: return 3
+		case 12: return 4
+	}
+	return 0
+}
+
 func GetServerIP() string {
 	if value, ok := os.LookupEnv(IpEnvVarName); ok {
 		Info.Println("ServerIP:", value)
