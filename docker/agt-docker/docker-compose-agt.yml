@@ -5,6 +5,7 @@ services:
     container_name: agt_server
     build:
       context: ../../  # context set to repo root
+      dockerfile: Dockerfile.agtserver
       target: agt_server
     entrypoint: [/app/agt_server]
     ports:
