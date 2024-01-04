@@ -16,7 +16,10 @@ The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-r
 The Remotive cloud have recorded vehicle data which we can play back to a cloud version of their data broker. We have an
 interface written in Go - https://github.com/petervolvowinz/viss-rl-interfaces -  that we have integrated into the WAII feeder application. The docker compose version should be from 3.8.
 
-Dockerfile and docker-compose-rl.yml are located in the docker/viss-docker-rl folder.
+The *docker-compose-rl.yml* is located in the docker/viss-docker-rl folder. The docker file *Dockerfile.rlserver* is located in the project root. 
+Placing the dockerfile which is used to build the image in the root is done for
+practical reasons. See: https://www.baeldung.com/ops/docker-include-files-outside-build-context
+
 
 To build and run the docker example see below:
 
@@ -67,5 +70,12 @@ COPY --from=builder /build/server/agt_server/agt_public_key.rsa .
 *agt-docker*
 
 The access grant token server can be built a run in a separate docker container. The typical place for the agt server
-would be in the cloud, but is not further specified. The agt server is, however, a prerequisite for the viss server to be able to run with access control.
+would be in the cloud, but is not further specified. The agt server is, however, a prerequisite for the viss server to 
+be able to run with access control. The *docker-compose-agt.yml* can be used to
+build and run the agt server. The docker file *Dockerfile.agt* is also located in the project root.
+
+```
+$ docker compose -f docker-compose-agt.yml build
+$ docker compose -f docker-compose-agt.yml up
+```
 
