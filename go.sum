@@ -1,7 +1,8 @@
-github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc h1:IhfqGgTj5bMuyxrpriL/ijQ83n8ieUcCRwhCO61oGt4=
-github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc/go.mod h1:g2N97BLJNriANqodWem0usF9fKwwUFHP+VxG1dfSsZQ=
-github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc h1:h2Pml3Esx5Wikvw/rjLbBj6ob3KLUGdSqx8LsEU1sUw=
-github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc/go.mod h1:rWjamgjPuXRJ5kKJrwibrR1Pe771seoUO/9OauCu/Y4=
+github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20211207094201-7208d48f32b6/go.mod h1:g2N97BLJNriANqodWem0usF9fKwwUFHP+VxG1dfSsZQ=
+github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20231222140420-5343e9c0884d h1:xDbVda6eQvHk6MotDq4iKnKO/zCmSpLdkDtTkyljBV4=
+github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20231222140420-5343e9c0884d/go.mod h1:g2N97BLJNriANqodWem0usF9fKwwUFHP+VxG1dfSsZQ=
+github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20231222140420-5343e9c0884d h1:/m3tP0SJlrfGVnX52eNu/oSo/aFFH2u4NtmcqRCdl/E=
+github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20231222140420-5343e9c0884d/go.mod h1:rWjamgjPuXRJ5kKJrwibrR1Pe771seoUO/9OauCu/Y4=
 github.com/akamensky/argparse v1.4.0 h1:YGzvsTqCvbEZhL8zZu2AiA5nq805NZh75JNj4ajn1xc=
 github.com/akamensky/argparse v1.4.0/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=

@@ -68,7 +68,7 @@ To configure the VISSv2 server to try to connect to an ECF, it must be started w
 
 The figure below shows the the different steps in the dataflow that is necessary when a client wants to initiate a subscription of data that is
 access controlled and require consent from the data owner.
-![VISSv2 consent subscribe dataflow](/automotive-viss2/images/VISSv2-consent-subscribe-dataflow.jpg?width=25pc)
+![VISSv2 consent subscribe dataflow](/automotive-viss2/images/VISSv2-consent-subscribe-dataflow.jpg?width=40pc)
 The dataflow describes a scenario when the client successfully subscribes to data the require both access control and consent by the data owner.
 Consent can only be required in combination with requiring access control, please see the
 [Access Control Model](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model) chapter.
@@ -120,8 +120,7 @@ B. The ECF issues a consent cancellation request to the ATS.
 C. The AT expiry time is reached.
 
 Alternative A:
-The service manager will delete the entry on the subscription list, and issue a request to the ATS to delete the entry on the Active list corresponding to the
-reference Id from its deleted entry.
+The service manager will delete the entry on the subscription list. The corresponding entry on the Active list will remain.
 
 Alternative B:
 The ATS will delete the entry on the Active list, and issue a request to the service manager to delete the entry on the subscription list corresponding to the
@@ -133,30 +132,39 @@ and issue a request to the service manager to delete the entry on the subscripti
 
 #### Payload syntax for the messages in the client-to-ATGS communication:
 
-AGT request: {"vin":"pseudo-vin", "context":"triplet-sub-roles-see-spec", "proof":"ABC", "key":"DEF"}
+AGT request: {“action”: “agt-request”, "vin":"pseudo-vin", "context":"triplet-sub-roles-see-spec", "proof":"ABC", "key":"DEF"}
 
-AGT response: {"token":"xxx"}  // if successful validation
+AGT response: {“action”: “agt-request”, "token":"x.y.z"}  // if successful validation
 
-AGT response: {"error":"error-reason"}  // if unsuccessful validation
+Error response: {“action”: “agt-request”, "error":"error-reason"}  // if unsuccessful validation
 
 #### Payload syntax for the messages in the client-to-ATS communication:
 
-AT request: {"agToken":"xyz", "purpose":"purpose-description", "pop":""}  // pop shall be an empty string for access control short term flow.
+AT request: {“action”: “at-request”, "agToken":"x.y.z", "purpose":"purpose-description", "pop":""}  // pop shall be an empty string for access control short term flow.
 
-AT response: {"aToken":"", “consent”:””} ATS->Client // consent only if consent required, error message if fail on token or consent validation
+AT response 1: {“action”: “at-request”, "aToken":"x.y.z"} ATS->Client // Consent is not required.
+.
+AT response 2: {“action”: “at-request”, "sessionId ":"reference-Id", “consent”:”NOT_SET”} // Consent is required, and consent reply not obtained yet from ECF.
 
-AT response: {" sessionId ":""} // if consent required, and consent reply not obtained yet from ECF
+AT inquiry request: {“action”: “at-inquiry”, "sessionId":"reference-Id"}  // may need to be issued multiple times until consent is provided by ECF.
 
-AT inquiry request: {"sessionId":""}  // may need to be issued multiple times until consent is provided by ECF
+AT inquiry response 1: {“action”: “at-inquiry”, "aToken":"x.y.z", “consent”:”YES”} ATS->Client // ECF has provided a positive consent.
+
+AT inquiry response 2: {“action”: “at-inquiry”, "sessionId ":"reference-Id", “consent”:”NOT_SET”} // Reply is not obtained yet from ECF.
+
+AT inquiry response 3: {“action”: “at-inquiry”, “consent”:”NO”} // ECF has provided a negative consent.
+
+Error response: {“action”: “same-as-in-request”, "error":"error-reason"}
 
 
 #### Payload syntax for the messages in the ATS-to-ECF communication:
 
-Consent request: {“action”: “consent-ask”, “purpose”: “purpose-description”, “user-roles”: “triplet-sub-roles-see-spec”, “messageId”: ”reference-Id”}
+Consent request: {“action”: “consent-ask”, “user-roles”: “triplet-sub-roles-see-spec”, “purpose”: “purpose-description”, "signal_access": [{},..{}], “messageId”: ”reference-Id”}
 
 Consent reply request: {“action”: “consent-reply”, “consent”: “YES/NO”, “messageId”: ”reference-Id”}
 
 Consent cancellation request: {“action”: “consent-cancel”, “messageId”: ”reference-Id”}
 
-Response to above requests: {“action”: “x”, “status”: “200-OK/404-Not found/401-Bad request”} // action must have same value as in corresponding request. Status is one of the three shown.
+Response to above requests: {“action”: “same-as-in-request”, “status”: “200-OK/404-Not found/401-Bad request”} // Status is one of the three examples shown.
 
+See the specification chapter[Purpose list](https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#purpose-list) for the definition of the signal_access object.

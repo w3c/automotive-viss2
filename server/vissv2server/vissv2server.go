@@ -226,66 +226,15 @@ func getTokenErrorMessage(index int) string {
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
 	utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", getTokenErrorMessage(errorCode))
-	// errMsg := ""
-	// bitValid := 1
-	// for i := 0; i < 8; i++ {
-	// 	if errorCode&bitValid == bitValid {
-	// 		errMsg += getTokenErrorMessage(i)
-	// 	}
-	// 	bitValid = bitValid << 1
-	// }
-	// utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", errMsg)
 }
 
 // Sends a message to the Access Token Server to validate the Access Token paths and permissions
-func verifyToken(token string, action string, paths string, validation int) (int, string, int) {
+func verifyToken(token string, action string, paths string, validation int) (int, string, string) {
 	handle := ""
-	gatingId := -1
-/*
-	hostIp := utils.GetServerIP()
-	var url string
-	if utils.SecureConfiguration.TransportSec == "yes" {
-		url = "https://" + hostIp + ":" + utils.SecureConfiguration.AtsSecPort + "/ats"
-	} else {
-		url = "http://" + hostIp + ":8600/ats"
-	}
-	utils.Info.Printf("verifyToken: Sending validation request to AT, url = %s", url)
-
-	data := []byte(`{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`)
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
-	if err != nil {
-		utils.Error.Print("verifyToken: Error generating request. ", err)
-		return 42, handle
-	}
-
-	// Set headers
-	req.Header.Set("Access-Control-Allow-Origin", "*")
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Host", hostIp+":8600")
-
-	// Set client timeout
-	client := &http.Client{Timeout: time.Second * 10}
-
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		utils.Error.Print("verifyToken: Can not stablish connection with ATS ", err)
-		return 40, handle
-	}
-	defer resp.Body.Close()
-*/
-	request := `{"token":"` + token + `","paths":` + paths + `,"action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`
+	gatingId := ""
+	request := `{"token":"` + token + `","paths":"` + paths + `","action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`
 	atsChannel[0] <- request
-/*
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		utils.Error.Print("verifyToken: Error reading response. ", err)
-		return 41, handle
-	}
-*/
 	body := <- atsChannel[0]
-	// Unmarshall json body to map containing the validation claim
 	var bdy map[string]interface{}
 	var err error
 	if err = json.Unmarshal([]byte(body), &bdy); err != nil {
@@ -307,11 +256,7 @@ func verifyToken(token string, action string, paths string, validation int) (int
 				handle = bdy["handle"].(string)
 			}
 			if bdy["gatingId"] != nil {
-				gatingId, err = strconv.Atoi(bdy["gatingId"].(string))
-				if err != nil {
-					utils.Error.Print("verifyToken: Error converting gatingId to int. ", err)
-					gatingId = -1
-				}
+				gatingId = bdy["gatingId"].(string)
 			}
 	}
 	return atsValidation, handle, gatingId
@@ -530,10 +475,10 @@ func validRequest(request string, action string) bool {
 		return isValidSubscribeParams(request)
 	case "unsubscribe":
 		return isValidUnsubscribeParams(request)
-	default:
-		if action == "internal-killsubscriptions" {
-			return true
-		}
+	case "internal-killsubscriptions":
+		return true
+	case "internal-cancelsubscription":
+		return true
 	}
 	return false
 }
@@ -765,7 +710,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	}
 
 	tokenHandle := ""
-	gatingId := -1
+	gatingId := ""
 	switch maxValidation%10 {
 	case 0: // validation not required
 	case 1:
@@ -775,7 +720,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		if requestMap["authorization"] == nil {
 			errorCode = 2
 		} else {
-			if requestMap["action"] == "set" || maxValidation == 2 { // no validation for get/subscribe when validation is 1 (write-only)
+			if requestMap["action"] == "set" || maxValidation%10 == 2 { // no validation for get/subscribe when validation is 1 (write-only)
 				// checks if requestmap authorization is a string
 				if authToken, ok := requestMap["authorization"].(string); !ok {
 					errorCode = 1
@@ -798,7 +743,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 	if tokenHandle != "" {
 		requestMap["handle"] = tokenHandle
 	}
-	if gatingId != -1 {
+	if gatingId != "" {
 		requestMap["gatingId"] = gatingId
 	}
 	serviceDataChan[sDChanIndex] <- utils.FinalizeMessage(requestMap)
@@ -917,7 +862,7 @@ func main() {
 			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
 			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 		case "atServer":
-			go atServer.AtServerInit(atsChannel[0], atsChannel[1], *consentSupport)
+			go atServer.AtServerInit(atsChannel[0], atsChannel[1], VSSTreeRoot, *consentSupport)
 		}
 	}
 

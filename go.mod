@@ -7,8 +7,8 @@ go 1.18
 replace github.com/w3c/automotive-viss2/utils => ./utils
 
 replace (
-	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc
-	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc
+//	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc
+//	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc
 	github.com/w3c/automotive-viss2/grpc_pb => ./grpc_pb
 	github.com/w3c/automotive-viss2/server/vissv2server/atServer => ./server/vissv2server/atServer
 	github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr => ./server/vissv2server/grpcMgr
@@ -21,8 +21,8 @@ replace (
 //replace github.com/w3c/automotive-viss2/protobuf/protoc-out => ./protobuf/protoc-out
 
 require (
-	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20231218135229-3cd370821711
-	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20231218135229-3cd370821711
+	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20231222140420-5343e9c0884d
+	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20231222140420-5343e9c0884d
 	github.com/akamensky/argparse v1.4.0
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/go-redis/redis v6.15.9+incompatible
@@ -37,8 +37,6 @@ require (
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
 )
-
-require github.com/golang/protobuf v1.5.3
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

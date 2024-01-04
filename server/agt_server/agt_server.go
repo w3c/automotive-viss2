@@ -45,7 +45,7 @@ type Payload struct {
 	Context string `json:"context"`
 	Proof   string `json:"proof"`
 	//Key     utils.JsonWebKey `json:"key"`
-	Key string `json:"key"`
+	Key     string `json:"key"`
 }
 
 // Handles the request depending on the url and the method for the request
@@ -143,7 +143,7 @@ func generateResponse(input string, pop string) string {
 	err := json.Unmarshal([]byte(input), &payload)
 	if err != nil {
 		utils.Error.Printf("generateResponse:error input=%s", input)
-		return `{"error": "Client request malformed"}`
+		return `{"action": "agt-request", "error": "Client request malformed"}`
 	}
 	if authenticateClient(payload) {
 		if pop != "" {
@@ -151,7 +151,7 @@ func generateResponse(input string, pop string) string {
 		}
 		return generateAgt(payload) // In case no pop claim appears, an ST AGT is issued
 	}
-	return `{"error": "Client authentication failed"}`
+	return `{"action": "agt-request", "error": "Client authentication failed"}`
 }
 
 // Client roles checking
@@ -223,27 +223,27 @@ func generateLTAgt(payload Payload, pop string) string {
 	err := popToken.Unmarshal(pop)
 	if err != nil {
 		utils.Error.Printf("generateLTAgt: Error unmarshalling pop, err = %s", err)
-		return `{"error": "Client request malformed"}`
+		return `{"action": "agt-request", "error": "Client request malformed"}`
 	}
 	if !addCheckJti(popToken.PayloadClaims["jti"]) {
 		utils.Error.Printf("generateLTAgt: JTI used")
-		return `{"error": "Repeated JTI"}`
+		return `{"action": "agt-request", "error": "Repeated JTI"}`
 	}
 	err = popToken.CheckSignature()
 	if err != nil {
 		utils.Info.Printf("generateLTAgt: Invalid POP signature")
-		return `{"error": "Invalid POP signature"}`
+		return `{"action": "agt-request", "error": "Invalid POP signature"}`
 	}
 	if ok, info := popToken.Validate(payload.Key, "vissv2/agts", GAP, LIFETIME); !ok {
 		utils.Info.Printf("generateLTAgt: Not valid POP Token: %s", info)
-		return `{"error": "Invalid POP Token"}`
+		return `{"action": "agt-request", "error": "Invalid POP Token"}`
 	}
 	// Generates the response token
 	var jwtoken utils.JsonWebToken
 	var unparsedId uuid.UUID
 	if unparsedId, err = uuid.NewRandom(); err != nil { // Better way to generate uuid than calling an ext program
 		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
-		return `{"error": "Internal error"}`
+		return `{"action": "agt-request", "error": "Internal error"}`
 	}
 	iat := int(time.Now().Unix())
 	exp := iat + LT_DURATION // defined by const
@@ -259,7 +259,7 @@ func generateLTAgt(payload Payload, pop string) string {
 	//utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
 	jwtoken.Encode()
 	jwtoken.AssymSign(privKey)
-	return `{"token":"` + jwtoken.GetFullToken() + `"}`
+	return `{"action": "agt-request", "token":"` + jwtoken.GetFullToken() + `"}`
 }
 
 // Generates an AGT (short term)
@@ -268,7 +268,7 @@ func generateAgt(payload Payload) string {
 	uuid, err := exec.Command("uuidgen").Output()
 	if err != nil {
 		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
-		return `{"error": "Internal error"}`
+		return `{"action": "agt-request", "error": "Internal error"}`
 	}
 	uuid = uuid[:len(uuid)-1] // remove '\n' char
 	iat := int(time.Now().Unix())
@@ -285,7 +285,7 @@ func generateAgt(payload Payload) string {
 	utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
 	jwtoken.Encode()
 	jwtoken.AssymSign(privKey)
-	return `{"token":"` + jwtoken.GetFullToken() + `"}`
+	return `{"action": "agt-request", "token":"` + jwtoken.GetFullToken() + `"}`
 }
 
 func main() {

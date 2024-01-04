@@ -75,13 +75,14 @@ URL: Vehicle/ADAS/ABS?filter={"type":"static-metadata", "parameter":""}
 //  AGTserver POST input @agtclient.html:
 <AGT server IP address>
 agtserver
-{"vin":"GEO001", "context":"Independent+OEM+Cloud", "proof":"ABC", "key":"DEF"}
+{"action": "agt-request", "vin":"GEO001", "context":"Independent+OEM+Cloud", "proof":"ABC", "key":"DEF"}
 
 
 //  ATserver POST input @atclient.html:
 <AT server IP address>
 atserver
-{"token":"ag-token", "purpose":"fuel-status", "pop":""}
+{"action": "at-request", "agToken":"xyz", "purpose":"fuel-status", "pop":""}
+{"action": "at-inquiry", "sessionId":"xxx"}
 
 //VISSv2 server request for fuel-status use case: 
 wsclient_uncompressed.html:
@@ -90,5 +91,5 @@ wsclient_uncompressed.html:
 
 http_client.html:
 URL: Vehicle/Cabin/Door/Row1/Right/IsOpen
-Access token: from ATS request
+Access token: from at-request response
 
