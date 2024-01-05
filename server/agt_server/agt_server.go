@@ -17,7 +17,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -265,9 +264,12 @@ func generateLTAgt(payload Payload, pop string) string {
 // Generates an AGT (short term)
 func generateAgt(payload Payload) string {
 	var jwtoken utils.JsonWebToken
-	uuid, err := exec.Command("uuidgen").Output()
-	if err != nil {
-		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
+
+	uuid := uuid.New().NodeID()
+
+	//uuid, err := exec.Command("uuidgen").Output()
+	if len(uuid) <= 0 {
+		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", "uuidgen")
 		return `{"error": "Internal error"}`
 	}
 	uuid = uuid[:len(uuid)-1] // remove '\n' char
