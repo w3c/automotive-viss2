@@ -1,6 +1,6 @@
 module github.com/w3c/automotive-viss2
 
-go 1.19
+go 1.21
 
 //example on how to use replace to point to fork or local path
 //replace github.com/w3c/automotive-viss2/utils => github.com/MagnusGun/WAII/utils master
@@ -34,11 +34,12 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.14
 	github.com/petervolvowinz/viss-rl-interfaces v0.0.8
 	github.com/sirupsen/logrus v1.9.3
-	google.golang.org/grpc v1.60.0
+	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
 )
 
-require github.com/golang/protobuf v1.5.3
+// require github.com/golang/protobuf v1.5.3
+
 
 require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

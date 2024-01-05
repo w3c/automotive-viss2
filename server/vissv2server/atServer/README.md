@@ -136,15 +136,18 @@ See: https://demo.remotivelabs.com/orgs/remotidemo.
 Commandline
 
 ```
-0. Build and run the AGTServer (locally)
-1. Open the Turning Torso Drive Cycle and select  configuration_vss
-2. Select play
-3. Start the playback
-4. Copy the broker url and api key and enter into the config.json for the feeder-rl
-5. $ docker compose -f docker-compose-rl.yml build
-6. $ docker compose -f docker-compose-rl.yml up
-7. navigate to atServer
-8. $ go test -v
+0. Build and run the AGTServer, using the docker/agt-docker/docker-compose-agt.yml
+1. $ docker compose -f docker-compose-agt.yml build
+2. $ docker compose -f docker-compose-agt.yml up
+3. From the Remotive labs cloud demo Open the Turning Torso Drive Cycle and select  configuration_vss.
+4. Select play
+5. Start the playback
+7. Copy the broker url and api key and enter into the config.json for the feeder-rl
+8. $ docker compose -f docker-compose-rl.yml build
+9. $ docker compose -f docker-compose-rl.yml up
+10. navigate to server/vissv2server/atServer
+11. $ go test -v
 ```
+
 
 
