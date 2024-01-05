@@ -12,21 +12,21 @@
     <title>VISSv2 Access Control Servers :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1704191118" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1704191118" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1704465778" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1704465778" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1704191118" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1704465778" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1704191118"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1704465778"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1704191118"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1704191118"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1704465778"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1704465778"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1704191118"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1704465778"></script>
 
     
   </div>
@@ -559,7 +559,7 @@ What is in scope is a high-level description of the protocol between the VISSv2 
 To configure the VISSv2 server to try to connect to an ECF, it must be started with the command parameter -c&quot;.</p>
 <p>The figure below shows the the different steps in the dataflow that is necessary when a client wants to initiate a subscription of data that is
 access controlled and require consent from the data owner.
-<img src="/automotive-viss2/images/VISSv2-consent-subscribe-dataflow.jpg?width=25pc" alt="VISSv2 consent subscribe dataflow">
+<img src="/automotive-viss2/images/VISSv2-consent-subscribe-dataflow.jpg?width=40pc" alt="VISSv2 consent subscribe dataflow">
 The dataflow describes a scenario when the client successfully subscribes to data the require both access control and consent by the data owner.
 Consent can only be required in combination with requiring access control, please see the
 <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model">Access Control Model</a> chapter.</p>
@@ -596,8 +596,7 @@ This will continue until any of the following happens:</p>
 <p>B. The ECF issues a consent cancellation request to the ATS.</p>
 <p>C. The AT expiry time is reached.</p>
 <p>Alternative A:
-The service manager will delete the entry on the subscription list, and issue a request to the ATS to delete the entry on the Active list corresponding to the
-reference Id from its deleted entry.</p>
+The service manager will delete the entry on the subscription list. The corresponding entry on the Active list will remain.</p>
 <p>Alternative B:
 The ATS will delete the entry on the Active list, and issue a request to the service manager to delete the entry on the subscription list corresponding to the
 reference Id from its deleted entry.</p>
@@ -605,19 +604,25 @@ reference Id from its deleted entry.</p>
 The ATS will delete the entry on the Active list correspnding to the reference Id received from the ECF,
 and issue a request to the service manager to delete the entry on the subscription list corresponding to the reference Id.</p>
 <h4 id="payload-syntax-for-the-messages-in-the-client-to-atgs-communication">Payload syntax for the messages in the client-to-ATGS communication:</h4>
-<p>AGT request: {&ldquo;vin&rdquo;:&ldquo;pseudo-vin&rdquo;, &ldquo;context&rdquo;:&ldquo;triplet-sub-roles-see-spec&rdquo;, &ldquo;proof&rdquo;:&ldquo;ABC&rdquo;, &ldquo;key&rdquo;:&ldquo;DEF&rdquo;}</p>
-<p>AGT response: {&ldquo;token&rdquo;:&ldquo;xxx&rdquo;}  // if successful validation</p>
-<p>AGT response: {&ldquo;error&rdquo;:&ldquo;error-reason&rdquo;}  // if unsuccessful validation</p>
+<p>AGT request: {“action”: “agt-request”, &ldquo;vin&rdquo;:&ldquo;pseudo-vin&rdquo;, &ldquo;context&rdquo;:&ldquo;triplet-sub-roles-see-spec&rdquo;, &ldquo;proof&rdquo;:&ldquo;ABC&rdquo;, &ldquo;key&rdquo;:&ldquo;DEF&rdquo;}</p>
+<p>AGT response: {“action”: “agt-request”, &ldquo;token&rdquo;:&ldquo;x.y.z&rdquo;}  // if successful validation</p>
+<p>Error response: {“action”: “agt-request”, &ldquo;error&rdquo;:&ldquo;error-reason&rdquo;}  // if unsuccessful validation</p>
 <h4 id="payload-syntax-for-the-messages-in-the-client-to-ats-communication">Payload syntax for the messages in the client-to-ATS communication:</h4>
-<p>AT request: {&ldquo;agToken&rdquo;:&ldquo;xyz&rdquo;, &ldquo;purpose&rdquo;:&ldquo;purpose-description&rdquo;, &ldquo;pop&rdquo;:&quot;&quot;}  // pop shall be an empty string for access control short term flow.</p>
-<p>AT response: {&ldquo;aToken&rdquo;:&quot;&quot;, “consent”:””} ATS-&gt;Client // consent only if consent required, error message if fail on token or consent validation</p>
-<p>AT response: {&quot; sessionId &ldquo;:&rdquo;&quot;} // if consent required, and consent reply not obtained yet from ECF</p>
-<p>AT inquiry request: {&ldquo;sessionId&rdquo;:&quot;&quot;}  // may need to be issued multiple times until consent is provided by ECF</p>
+<p>AT request: {“action”: “at-request”, &ldquo;agToken&rdquo;:&ldquo;x.y.z&rdquo;, &ldquo;purpose&rdquo;:&ldquo;purpose-description&rdquo;, &ldquo;pop&rdquo;:&quot;&quot;}  // pop shall be an empty string for access control short term flow.</p>
+<p>AT response 1: {“action”: “at-request”, &ldquo;aToken&rdquo;:&ldquo;x.y.z&rdquo;} ATS-&gt;Client // Consent is not required.
+.
+AT response 2: {“action”: “at-request”, &ldquo;sessionId &ldquo;:&ldquo;reference-Id&rdquo;, “consent”:”NOT_SET”} // Consent is required, and consent reply not obtained yet from ECF.</p>
+<p>AT inquiry request: {“action”: “at-inquiry”, &ldquo;sessionId&rdquo;:&ldquo;reference-Id&rdquo;}  // may need to be issued multiple times until consent is provided by ECF.</p>
+<p>AT inquiry response 1: {“action”: “at-inquiry”, &ldquo;aToken&rdquo;:&ldquo;x.y.z&rdquo;, “consent”:”YES”} ATS-&gt;Client // ECF has provided a positive consent.</p>
+<p>AT inquiry response 2: {“action”: “at-inquiry”, &ldquo;sessionId &ldquo;:&ldquo;reference-Id&rdquo;, “consent”:”NOT_SET”} // Reply is not obtained yet from ECF.</p>
+<p>AT inquiry response 3: {“action”: “at-inquiry”, “consent”:”NO”} // ECF has provided a negative consent.</p>
+<p>Error response: {“action”: “same-as-in-request”, &ldquo;error&rdquo;:&ldquo;error-reason&rdquo;}</p>
 <h4 id="payload-syntax-for-the-messages-in-the-ats-to-ecf-communication">Payload syntax for the messages in the ATS-to-ECF communication:</h4>
-<p>Consent request: {“action”: “consent-ask”, “purpose”: “purpose-description”, “user-roles”: “triplet-sub-roles-see-spec”, “messageId”: ”reference-Id”}</p>
+<p>Consent request: {“action”: “consent-ask”, “user-roles”: “triplet-sub-roles-see-spec”, “purpose”: “purpose-description”, &ldquo;signal_access&rdquo;: [{},..{}], “messageId”: ”reference-Id”}</p>
 <p>Consent reply request: {“action”: “consent-reply”, “consent”: “YES/NO”, “messageId”: ”reference-Id”}</p>
 <p>Consent cancellation request: {“action”: “consent-cancel”, “messageId”: ”reference-Id”}</p>
-<p>Response to above requests: {“action”: “x”, “status”: “200-OK/404-Not found/401-Bad request”} // action must have same value as in corresponding request. Status is one of the three shown.</p>
+<p>Response to above requests: {“action”: “same-as-in-request”, “status”: “200-OK/404-Not found/401-Bad request”} // Status is one of the three examples shown.</p>
+<p>See the specification chapter<a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#purpose-list">Purpose list</a> for the definition of the signal_access object.</p>
 
 
 
@@ -860,19 +865,19 @@ and issue a request to the service manager to delete the entry on the subscripti
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1704191118"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1704191118"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1704191118"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1704191118"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1704191118"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1704191118"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1704465778"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1704465778"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1704465778"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1704465778"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1704465778"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1704465778"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1704191118"></script>
-    <script src="/automotive-viss2/js/learn.js?1704191118"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1704191118"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1704465778"></script>
+    <script src="/automotive-viss2/js/learn.js?1704465778"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1704465778"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1704191118"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1704465778"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });
