@@ -70,24 +70,13 @@ type AtValidatePayload struct {
 }
 
 type AtGenPayload struct {
-	Token   string `json:"token"`
+	Token   string `json:"agToken"`
 	Purpose string `json:"purpose"`
 	Pop     string `json:"pop"`
 	Agt     utils.ExtendedJwt
 	PopTk   utils.PopToken
 }
 
-/***** No needed, as we use utils.JsonWebToken
-type AgToken struct {
-	Vin      string `json:"vin"`
-	Iat      int    `json:"iat"`
-	Exp      int    `json:"exp"`
-	Context  string `json:"clx"`
-	Key      string `json:"pub"`
-	Audience string `json:"aud"`
-	JwtId    string `json:"jti"`
-}
-*****/
 var purposeList map[string]interface{}
 
 var pList []PurposeElement
@@ -121,12 +110,6 @@ type ScopeElement struct {
 	NoAccess []string
 }
 
-/*type TokenCacheElem struct {
-	GatingId int
-	Token    string
-	Handle   string
-}*/
-
 type PendingListElem struct {
 	GatingId      int
 	Consent       string
@@ -142,22 +125,9 @@ type ActiveListElem struct {
 }
 
 const LISTSIZE = 100
-//var tokenCache []TokenCacheElem
 var pendingList []PendingListElem
 var activeList []ActiveListElem
 var expiryTicker *time.Ticker
-
-func initVssFile() bool {
-	filePath := "vss_vissv2.binary"
-	VSSTreeRoot = golib.VSSReadTree(filePath)
-
-	if VSSTreeRoot == nil {
-		utils.Error.Println("Tree file not found")
-		return false
-	}
-
-	return true
-}
 
 // Initializes AGT Server public key for AGT checking
 func initAgtKey() {
@@ -254,9 +224,11 @@ func reDialer(dialer websocket.Dialer, sessionUrl url.URL) *websocket.Conn {
 			utils.Error.Printf("Data session dial error:%s\n", err)
 			time.Sleep(2 * time.Second)
 		} else {
+			utils.Info.Printf("ECF dial success.\n")
 			return conn
 		}
 	}
+	utils.Error.Printf("ECF dial failure.\n")
 	return nil
 }
 
@@ -295,18 +267,22 @@ func generateParentResponse(input string) string {
 }
 
 func generateClientResponse(input string, ecfSendChan chan string, ecfAvailable bool) string {
-	if strings.Contains(input, "purpose") { // Request for access token
+	if strings.Contains(input, "at-request") {
 		return accessTokenResponse(input, ecfSendChan, ecfAvailable)
-	} else { // consent inquiry request
+	} else if strings.Contains(input, "at-inquiry") {
 		return consentInquiryResponse(input)
+	} else {
+		return `{"action":"unknown","status":"401-Bad request"}`
 	}
 }
 
 func generateEcfResponse(input string, vissChan chan string) string {
-	if strings.Contains(input, "consent-reply") { // Consent reply request
+	if strings.Contains(input, "consent-reply") {
 		return consentReplyResponse(input)
-	} else { // consent cancel request
+	} else if strings.Contains(input, "consent-cancel") {
 		return consentCancelResponse(input, vissChan)
+	} else {
+		return `{"action":"unknown","status":"401-Bad request"}`
 	}
 }
 
@@ -353,7 +329,7 @@ func consentCancelResponse(request string, vissChan chan string) string {
 			}
 		}
 		for i := 0; i < LISTSIZE; i++ {
-			if pendingList[i].GatingId == gatingId {
+			if activeList[i].GatingId == gatingId {
 				removeFromActiveList(i)
 				vissChan <- requestMap["messageId"].(string)  // remove eventual subscription
 				return `{"action":"consent-cancel", "status":"200-OK"}`
@@ -472,9 +448,6 @@ func noScopeResponse(input string) string {
 	return `{"no_access":` + res + `}`
 }
 
-// Validates an access token, returns validation message.
-// The only validation done is the one regarding the Access Token List
-
 func tokenValidationResponse(input string) string {
 	var inputMap map[string]interface{}
 	err := json.Unmarshal([]byte(input), &inputMap)
@@ -484,9 +457,7 @@ func tokenValidationResponse(input string) string {
 	}
 	var atValidatePayload AtValidatePayload
 	extractAtValidatePayloadLevel1(inputMap, &atValidatePayload)
-//	var isCached bool
-//	atValidatePayload.Token, isCached = searchCache(atValidatePayload.Token)
-	atValidatePayload.Token = getTokenSaveHandle(atValidatePayload.Token)
+	atValidatePayload.Token = getCompleteToken(atValidatePayload.Token)
 	err = utils.VerifyTokenSignature(atValidatePayload.Token, theAtSecret)
 	if err != nil {
 		utils.Info.Printf("tokenValidationResponse:invalid signature, error= %s, token=%s", err, atValidatePayload.Token)
@@ -503,8 +474,7 @@ func tokenValidationResponse(input string) string {
 		utils.Info.Printf("validateTokenExpiry fails with result=%d", res)
 		return `{"validation":"` + strconv.Itoa(res) + `"}`
 	}
-//	tokenHandle := cacheToken(atValidatePayload.Token, isCached)
-	tokenHandle, gatingId := getGatingIdAndTokenHandle(atValidatePayload.Token)
+	gatingId, tokenHandle := getGatingIdAndTokenHandle(atValidatePayload.Token)
 	if tokenHandle != "" {
 		return `{"validation":"0", "gatingId":"` + gatingId + `", "handle":"` + tokenHandle + `"}`
 	} else {
@@ -512,17 +482,9 @@ func tokenValidationResponse(input string) string {
 	}
 }
 
-func getTokenSaveHandle(token string) string {  //input token may be handle or complete token. If handle then save it. Return complete token.
-/*	for i := 0; i < len(tokenCache); i++ {
-		if token == tokenCache[i].Token || token == tokenCache[i].Handle {
-			return tokenCache[i].Token, true
-		}
-	}*/
+func getCompleteToken(token string) string {  //input token may be handle or complete token. Return complete token.
 	for i := 0; i < LISTSIZE; i++ {
 		if token == activeList[i].Atoken || token == activeList[i].AtokenHandle {
-			if token != activeList[i].AtokenHandle {
-				activeList[i].AtokenHandle = extractSignature(token)
-			}
 			return activeList[i].Atoken
 		}
 	}
@@ -530,20 +492,6 @@ func getTokenSaveHandle(token string) string {  //input token may be handle or c
 }
 
 func getGatingIdAndTokenHandle(token string) (string, string) {
-/*func cacheToken(token string, isCached bool) string {
-	for i := 0; i < len(tokenCache); i++ {
-		if isCached {
-			if token == tokenCache[i].Token {
-				return tokenCache[i].Handle
-			}
-		} else {
-			if tokenCache[i].Token == "" || validateTokenExpiry(token) != 0 {
-				tokenCache[i].Token = token
-				tokenCache[i].Handle = extractSignature(token)
-				return tokenCache[i].Handle
-			}
-		}
-	}*/
 	for i := 0; i < LISTSIZE; i++ {
 		if token == activeList[i].Atoken {
 			return strconv.Itoa(activeList[i].GatingId), activeList[i].AtokenHandle
@@ -633,18 +581,18 @@ func accessTokenResponse(request string, ecfSendChan chan string, ecfAvailable b
 	err := json.Unmarshal([]byte(request), &payload) // Unmarshalls the request
 	if err != nil {
 		utils.Error.Printf("accessTokenResponse:error request=%s", request)
-		return `{"error": "Client request malformed"}`
+		return `{"action": "at-request", "error": "Client request malformed"}`
 	}
 	err = payload.Agt.DecodeFromFull(payload.Token) // Decodes the AGT included in the request
 	if err != nil {
 		utils.Error.Printf("accessTokenResponse: error decoding token=%s", payload.Token)
-		return `{"error":"AGT Malformed"}`
+		return `{"action": "at-request", "error":"AGT Malformed"}`
 	}
 	if payload.Pop != "" { // Checks for POP token and decodes if exists
 		err = payload.PopTk.Unmarshal(payload.Pop)
 		if err != nil {
 			utils.Error.Printf("accessTokenResponse: error decoding pop, error=%s, pop=%s", err, payload.Agt.PayloadClaims["pop"])
-			return `{"error":"POP malformed"}`
+			return `{"action": "at-request", "error":"POP malformed"}`
 		}
 	}
 	valid, errResponse := validateRequest(payload) // Validates the request
@@ -655,18 +603,34 @@ func accessTokenResponse(request string, ecfSendChan chan string, ecfAvailable b
 			if ecfAvailable {
 				writeToPendingList(gatingId, payload)
 				utils.Info.Printf("requesting ECF about consent")
-				ecfSendChan<-`{"action": "consent-ask", "purpose": "`+payload.Purpose+`", "user-roles": "`+payload.Agt.PayloadClaims["clx"]+`", "messageId": "`+strconv.Itoa(gatingId) + `"}`
-				return `{"sessionId":"` + strconv.Itoa(gatingId) + `"}`
+//				ecfSendChan<-`{"action": "consent-ask", "purpose": "`+ payload.Purpose + `", "user-roles": "`+ payload.Agt.PayloadClaims["clx"] +
+				ecfSendChan<-`{"action": "consent-ask", "user-roles": "`+ payload.Agt.PayloadClaims["clx"] + `", "purpose": "`+ payload.Purpose +
+						`", "signal_access":` + getSignalAccess(payload.Purpose) + `, "messageId": "`+strconv.Itoa(gatingId) + `"}`
+				return `{"action": "at-request", "sessionId":"` + strconv.Itoa(gatingId) + `", "consent":"NOT_SET"}`
 			} else {
-				return `{"error":"consent framework not accessible"}`
+				return `{"action": "at-request", "error":"consent framework not accessible"}`
 			}
 		} else {
 			at := generateAt(payload)
 			writeToActiveList(gatingId, at)
-			return at
+			return `{"action": "at-request", "aToken":"` + at + `"}`
 		}
 	}
 	return errResponse
+}
+
+func getSignalAccess(purpose string) string {
+	for i := 0; i < len(pList); i++ {
+		if pList[i].Short == purpose {
+			signalAccess, err := json.Marshal(pList[i].Access)
+			if err != nil {
+				utils.Error.Printf("getSignalAccess:Marshall error=%s", err)
+				return ""
+			}
+			return string(signalAccess)
+		}
+	}
+	return ""
 }
 
 func checkifConsent(purpose string) bool {
@@ -700,34 +664,39 @@ func consentInquiryResponse(input string) string {
 	for i := 0; i < LISTSIZE; i++ {
 		if pendingList[i].GatingId == gatingId {
 			if pendingList[i].Consent == "NOT_SET" {
-				return `{"sessionId":` + strconv.Itoa(gatingId) + `", "consent":"NOT_SET"}`
+				return `{"action": "at-inquiry", "sessionId":` + strconv.Itoa(gatingId) + `", "consent":"NOT_SET"}`
 			} else if pendingList[i].Consent == "NO" {
 				removeFromPendingList(i)
-				return `{"consent":"NO"}`
+				return `{"action": "at-inquiry", "consent":"NO"}`
 			} else { // YES or IN_VEHICLE
 				atGenData := removeFromPendingList(i)
 				at := generateAt(atGenData)
 				writeToActiveList(gatingId, at)
-				return `{"token":"` + at + `", "consent":"` + pendingList[i].Consent + `"}`
+				return `{"action": "at-inquiry", "aToken":"` + at + `", "consent":"` + pendingList[i].Consent + `"}`
 			}
 		}
 	}
-	return `{"error":"404 - Not-found"}`
+	return `{"action": "at-inquiry", "error":"404 - Not-found"}`
 }
 
 func extractGatingId(input string) int {
-	var inputMap map[string]interface{}
-	err := json.Unmarshal([]byte(input), &inputMap)
-	if err != nil {
-		utils.Error.Printf("extractGatingId:error input=%s", err)
-		return -1
-	}
-	gatingId, err := strconv.Atoi(inputMap["sessionId"].(string))
+	gatingIdStr := extractKeyValue("sessionId", input)
+	gatingId, err := strconv.Atoi(gatingIdStr)
 	if err != nil {
 		utils.Error.Printf("extractGatingId:error converting id=%s", err)
 		return -1
 	}
 	return gatingId
+}
+
+func extractKeyValue(key string, input string) string {
+	var inputMap map[string]interface{}
+	err := json.Unmarshal([]byte(input), &inputMap)
+	if err != nil {
+		utils.Error.Printf("extractKeyValue:error input=%s", err)
+		return ""
+	}
+	return inputMap[key].(string)
 }
 
 func validateTokenTimestamps(iat int, exp int) bool {
@@ -829,31 +798,31 @@ func deleteJti(jti string) {
 func validatePop(payload AtGenPayload) (bool, string) {
 	// Check jti
 	if !addCheckJti(payload.PopTk.PayloadClaims["jti"]) {
-		utils.Error.Printf("validateRequest: JTI used")
+		utils.Error.Printf("validatePop: JTI used")
 		return false, `{"error": "Repeated JTI"}`
 	}
 	// Check signaure
 	if err := payload.PopTk.CheckSignature(); err != nil {
-		utils.Info.Printf("validateRequest: Invalid POP signature: %s", err)
+		utils.Info.Printf("validatePop: Invalid POP signature: %s", err)
 		return false, `{"error": "Cannot validate POP signature"}`
 	}
 	// Check exp: no need, iat will be used instead
 	// Check iat
 	if ok, cause := payload.PopTk.CheckIat(GAP, LIFETIME); !ok {
-		utils.Info.Printf("validateRequest: Invalid POP iat: %s", cause)
+		utils.Info.Printf("validatePop: Invalid POP iat: %s", cause)
 		return false, `{"error": "Cannot validate POP iat"}`
 	}
 	// Check that pub (thumprint) corresponds with pop key
 	if ok, _ := payload.PopTk.CheckThumb(payload.Agt.PayloadClaims["pub"]); !ok {
-		utils.Info.Printf("validateRequest: PubKey in POP is not same as in AGT")
+		utils.Info.Printf("validatePop: PubKey in POP is not same as in AGT")
 		return false, `{"error": "Keys in POP and AGToken are not matching"}`
 	}
 	// Check aud
 	if ok, _ := payload.PopTk.CheckAud("vissv2/agts"); !ok {
-		utils.Info.Printf("validateRequest: Aud in POP not valid")
+		utils.Info.Printf("validatePop: Aud in POP not valid")
 		return false, `{"error": "Invalid aud"}`
 	}
-	//utils.Info.Printf("validateRequest:Proof of possession of key pair failed")
+	//utils.Info.Printf("validatePop:Proof of possession of key pair failed")
 	//return false, `{"error": "Proof of possession of key pair failed"}`
 	return true, ""
 }
@@ -915,7 +884,7 @@ func generateAt(payload AtGenPayload) string {
 	utils.Info.Printf("generateAt:jwtPayload=%s", jwtoken.GetPayload())
 	jwtoken.Encode()
 	jwtoken.SymmSign(theAtSecret)
-	return `{"token":"` + jwtoken.GetFullToken() + `"}`
+	return jwtoken.GetFullToken()
 }
 
 func initPurposelist() {
@@ -1221,11 +1190,9 @@ func extractScopeElementsL4NoAccessL1(index int, noAccessElem []interface{}) {
 }
 
 func initLists() {
-//	tokenCache = make([]TokenCacheElem, LISTSIZE)
 	pendingList = make([]PendingListElem, LISTSIZE)
 	activeList = make([]ActiveListElem, LISTSIZE)
 	for i := 0; i < LISTSIZE; i++ {
-//		tokenCache[i].Token = ""
 		pendingList[i].GatingId = -1
 		activeList[i].GatingId = -1
 	}
@@ -1249,6 +1216,7 @@ func writeToActiveList(gatingId int, at string) {
 		if activeList[i].GatingId == -1 {
 			activeList[i].GatingId = gatingId
 			activeList[i].Atoken = at
+			activeList[i].AtokenHandle = extractSignature(activeList[i].Atoken)
 			activeList[i].AtExpiryTime = utils.ExtractFromToken(at, "exp")
 			setExpiryTicker()
 			return
@@ -1297,9 +1265,10 @@ func purgeLists() string {
 			return ""
 		}
 		if now.After(time.Unix(int64(listExpiry), 0)) {
+			gatingId := activeList[i].GatingId
 			removeFromActiveList(i)
 			setExpiryTicker()
-			return strconv.Itoa(activeList[i].GatingId)
+			return strconv.Itoa(gatingId)
 		}
 	}
 	return ""
@@ -1316,7 +1285,7 @@ func setExpiryTicker() {
 		listExpiryStr = pendingList[i].AgtExpiryTime
 		listExpiry, err := strconv.Atoi(listExpiryStr)
 		if err != nil {
-			utils.Error.Print("Error reading expiry time. ", err)
+			utils.Error.Print("Error reading expiry time.", err)
 			return
 		}
 		if minExpiry.After(time.Unix(int64(listExpiry), 0)) {
@@ -1331,7 +1300,7 @@ func setExpiryTicker() {
 		listExpiryStr = activeList[i].AtExpiryTime
 		listExpiry, err := strconv.Atoi(listExpiryStr)
 		if err != nil {
-			utils.Error.Print("Error reading expiry time. ", err)
+			utils.Error.Print("Error reading expiry time.", err)
 			return
 		}
 		if minExpiry.After(time.Unix(int64(listExpiry), 0)) {
@@ -1340,12 +1309,16 @@ func setExpiryTicker() {
 		}
 	}
 	tickerValue := minExpiry.Sub(time.Now())
+//	utils.Info.Print("Expiry ticker period=%s", tickerValue)
 	if tickerValue > 0 && isUpdated {
 		expiryTicker.Reset(tickerValue)
+	} else {
+		expiryTicker.Stop()
 	}
 }
 
-func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, consentSupport bool) {
+func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, vssRootReference *gomodel.Node_t, consentSupport bool) {
+	VSSTreeRoot = vssRootReference
 	clientChan := make(chan string)
 	ecfReceiveChan := make(chan string)
 	ecfSendChan := make(chan string)
@@ -1353,7 +1326,6 @@ func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, consentSup
 
 	initPurposelist()
 	initScopeList()
-	initVssFile()
 	initAgtKey()
 	initLists()
 	initGatingId()
@@ -1393,7 +1365,7 @@ func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, consentSup
 			gatingId := purgeLists()
 			if gatingId != "" {
 				viss2CancelChan <- gatingId
-			}
+			} else
 		}
 	}
 }

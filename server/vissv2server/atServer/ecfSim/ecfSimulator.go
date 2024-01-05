@@ -30,6 +30,8 @@ var statusIndex int
 var replyStatus [3]string = [3]string{`“status”: “200-OK”`, `“status”: “401-Bad request”`, `“status”: “404-Not found”`}
 var postponeTicker *time.Ticker
 var postponedRequest string
+var cancelTicker *time.Ticker
+var cancelRequest string
 
 func initEcfComm(receiveChan chan string, sendChan chan string, muxServer *http.ServeMux) {
 	ecfHandler := makeEcfHandler(receiveChan, sendChan)
@@ -83,15 +85,14 @@ func ecfSender(conn *websocket.Conn, sendChan chan string) {
 }
 
 func dispatchResponse(request string, sendChan chan string) {
-	var response string
 	var requestMap map[string]interface{}
+	errorIndex := statusIndex
 	err := json.Unmarshal([]byte(request), &requestMap)
 	if err != nil {
 		fmt.Printf("dispatchResponse:Request unmarshal error=%s", err)
-		response = `{"error":"request malformed"}`
-	} else {
-		response = `{"action":"` + requestMap["action"].(string) + `", "status":"` + replyStatus[statusIndex] + `"}`
+		errorIndex = 1  //bad request
 	}
+	response := `{"action":"` + requestMap["action"].(string) + `", "status":"` + replyStatus[errorIndex] + `"}`
 	sendChan <- response
 }
 
@@ -99,9 +100,9 @@ func uiDialogue(request string) string {
 	var actionNum string
 	var newstatusIndex int
 	fmt.Printf("\nCurrent response to all requests=%s\n", replyStatus[statusIndex])
-	fmt.Printf("Change to 0:200-OK / 1:401-Bad request / 2:404-Not found / 4:Keep current response: ")
+	fmt.Printf("Change to 0:200-OK / 1:401-Bad request / 2:404-Not found / 3:Keep current response: ")
 	fmt.Scanf("%d", &newstatusIndex)
-	if newstatusIndex >= 0 && newstatusIndex <= 3 {
+	if newstatusIndex >= 0 && newstatusIndex <= 2 {
 		statusIndex = newstatusIndex
 	}
 	fmt.Printf("\natServer request=%s\n", request)
@@ -109,6 +110,13 @@ func uiDialogue(request string) string {
 	fmt.Scanf("%s", &actionNum)
 	switch actionNum {
 		case "0":
+			if prepareCancelRequest(request) {
+				var cancelSecs int
+				fmt.Printf("Time to activate event to cancel request in seconds: ")
+				fmt.Scanf("%d", &cancelSecs)
+				cancelTicker.Reset(time.Duration(cancelSecs) * time.Second)
+				cancelRequest = request
+			}
 			return createReply(request, true)
 		case "1":
 			return createReply(request, false)
@@ -126,8 +134,32 @@ func uiDialogue(request string) string {
 	return ""
 }
 
+func prepareCancelRequest(request string) bool {
+	var cancelDecision string
+	fmt.Printf("Request= %s", request)
+	fmt.Printf("Activate event for allowing cancelling of this request (yes/no): ")
+	fmt.Scanf("%s", &cancelDecision)
+	if cancelDecision == "yes" {
+		return true
+	}
+	return false
+}
+
+func extractMessageId(request string) string {
+	var requestMap map[string]interface{}
+	err := json.Unmarshal([]byte(request), &requestMap)
+	if err != nil {
+		fmt.Printf("extractMessageId:Request unmarshal error=%s", err)
+		return ""
+	}
+	if requestMap["messageId"] == nil {
+		fmt.Printf("extractMessageId:Missing messageId key in request=%s", request)
+		return ""
+	}
+	return requestMap["messageId"].(string)
+}
+
 func createReply(request string, consent bool) string {
-	var reply string
 	var requestMap map[string]interface{}
 	yesNo := "NO"
 	if consent {
@@ -136,11 +168,10 @@ func createReply(request string, consent bool) string {
 	err := json.Unmarshal([]byte(request), &requestMap)
 	if err != nil {
 		fmt.Printf("createReply:Request unmarshal error=%s", err)
-		reply = `{"error":"request malformed"}`
+		return ""
 	} else {
-		reply = `{"action":"consent-reply", "consent":"` + yesNo +  `", "messageId":"` + requestMap["messageId"].(string) + `"}`
+		return `{"action":"consent-reply", "consent":"` + yesNo +  `", "messageId":"` + requestMap["messageId"].(string) + `"}`
 	}
-	return reply
 }
 
 func main() {
@@ -148,6 +179,7 @@ func main() {
 	sendChan := make(chan string)
 	statusIndex = 0
 	postponeTicker = time.NewTicker(24 * time.Hour)
+	cancelTicker = time.NewTicker(24 * time.Hour)
 
 	go initEcfComm(receiveChan, sendChan, muxServer[0])
 	fmt.Printf("ECF simulator started. Waiting for request from Access Token server...")
@@ -158,20 +190,27 @@ func main() {
 			fmt.Printf("Message received=%s\n", message)
 			if !strings.Contains(message, "status\":") {
 			  	dispatchResponse(message, sendChan)
-				response := uiDialogue(message)
-				if response != "" {
-					fmt.Printf("Response to atServer=%s\n", response)
-					sendChan <- response
+				reply := uiDialogue(message)
+				if reply != "" {
+					fmt.Printf("Reply to atServer=%s\n", reply)
+					sendChan <- reply
 				}
 			}
 		case <-postponeTicker.C:
 			fmt.Printf("postpone ticker triggered")
-			response := uiDialogue(postponedRequest)
-			if response != "" {
-				fmt.Printf("Postponed response to atServer=%s\n", response)
-				sendChan <- response
+			reply := uiDialogue(postponedRequest)
+			if reply != "" {
+				fmt.Printf("Postponed reply to atServer=%s\n", reply)
+				sendChan <- reply
+			}
+		case <-cancelTicker.C:
+			fmt.Printf("Cancel ticker triggered")
+			messageId := extractMessageId(cancelRequest)
+			if messageId != "" {
+				request := `{"action":"consent-cancel", "messageId":"` + messageId + `"}`
+				fmt.Printf("Cancel request to atServer=%s\n", request)
+				sendChan <- request
 			}
 		}
 	}
-
 }

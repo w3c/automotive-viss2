@@ -1085,12 +1085,19 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			case "internal-killsubscriptions":
 				isRemoved := true
 				for isRemoved == true {
-					isRemoved, subscriptionList = scanAndRemoveListItem(subscriptionList, requestMap["RouterId"].(string), "")
+					isRemoved, subscriptionList = scanAndRemoveListItem(subscriptionList, requestMap["RouterId"].(string))
 				}
 			case "internal-cancelsubscription":
-				utils.SetErrorResponse(requestMap, errorResponseMap, "401", "Token expired.", "")
-				dataChan <- utils.FinalizeMessage(errorResponseMap)
-				_, subscriptionList = scanAndRemoveListItem(subscriptionList, "", requestMap["gatingId"].(string))
+				routerId, subscriptionId := getSubscriptionData(subscriptionList, requestMap["gatingId"].(string))
+				if routerId != "" {
+					requestMap["RouterId"] = routerId
+					requestMap["action"] = "subscription"
+					requestMap["requestId"] = nil
+					requestMap["subscriptionId"] = subscriptionId
+					utils.SetErrorResponse(requestMap, errorResponseMap, "401", "Token expired or consent cancelled.", "")
+					dataChan <- utils.FinalizeMessage(errorResponseMap)
+					_, subscriptionList = scanAndRemoveListItem(subscriptionList, routerId)
+				}
 			default:
 				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unknown action.", "")
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
@@ -1147,22 +1154,22 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	} // for
 }
 
-func scanAndRemoveListItem(subscriptionList []SubscriptionState, routerId string, gatingId string) (bool, []SubscriptionState) {
+func getSubscriptionData(subscriptionList []SubscriptionState, gatingId string) (string, string) {
+	for i := 0; i < len(subscriptionList); i++ {
+		if subscriptionList[i].GatingId == gatingId {
+			return subscriptionList[i].RouterId, strconv.Itoa(subscriptionList[i].SubscriptionId)
+		}
+	}
+	utils.Error.Printf("getSubscriptionData: gatingId = %s not on subscription list", gatingId)
+	return "", ""
+}
+
+func scanAndRemoveListItem(subscriptionList []SubscriptionState, routerId string) (bool, []SubscriptionState) {
 	removed := false
 	doRemove := false
-	isRouterId := true
-	if routerId == "" && gatingId != "" {
-		isRouterId = false
-	}
 	for i := 0; i < len(subscriptionList); i++ {
-		if isRouterId {
-			if subscriptionList[i].RouterId == routerId {
-				doRemove = true
-			}
-		} else {
-			if subscriptionList[i].GatingId == gatingId {
-				doRemove = true
-			}
+		if subscriptionList[i].RouterId == routerId {
+			doRemove = true
 		}
 		if doRemove {
 			_, subscriptionList = deactivateSubscription(subscriptionList, strconv.Itoa(subscriptionList[i].SubscriptionId))
