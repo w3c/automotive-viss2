@@ -167,7 +167,7 @@ func makeAtServerHandler(atsChannel chan string) func(http.ResponseWriter, *http
 					http.Error(w, "400 bad input.", 400)
 				} else {
 					w.Header().Set("Access-Control-Allow-Origin", "*")
-					//				    w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(201) // USE 201 when responding to succesful POST requests
 					w.Write([]byte(response))
 				}
@@ -1365,7 +1365,7 @@ func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, vssRootRef
 			gatingId := purgeLists()
 			if gatingId != "" {
 				viss2CancelChan <- gatingId
-			} else
+			}
 		}
 	}
 }
