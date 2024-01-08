@@ -216,6 +216,17 @@ func deleteJti(jti string) {
 	delete(jtiCache, jti)
 }
 
+// generate UUID
+func getUUID() string {
+	var unparsedId uuid.UUID
+	var err error
+	if unparsedId, err = uuid.NewRandom(); err != nil { // Generates a new uuid
+		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
+		return ""
+	}
+	return unparsedId.String()
+}
+
 // Generates Long Term AGT after doing all the checks related to it
 func generateLTAgt(payload Payload, pop string) string {
 	var popToken utils.PopToken
@@ -239,11 +250,6 @@ func generateLTAgt(payload Payload, pop string) string {
 	}
 	// Generates the response token
 	var jwtoken utils.JsonWebToken
-	var unparsedId uuid.UUID
-	if unparsedId, err = uuid.NewRandom(); err != nil { // Better way to generate uuid than calling an ext program
-		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", err)
-		return `{"error": "Internal error"}`
-	}
 	iat := int(time.Now().Unix())
 	exp := iat + LT_DURATION // defined by const
 	jwtoken.SetHeader("RS256")
@@ -252,10 +258,8 @@ func generateLTAgt(payload Payload, pop string) string {
 	jwtoken.AddClaim("exp", strconv.Itoa(exp))
 	jwtoken.AddClaim("clx", payload.Context)
 	jwtoken.AddClaim("aud", "w3org/gen2")
-	jwtoken.AddClaim("jti", unparsedId.String())
+	jwtoken.AddClaim("jti", getUUID())
 	jwtoken.AddClaim("pub", payload.Key)
-	//utils.Info.Printf("generateAgt:jwtHeader=%s", jwtoken.GetHeader())
-	//utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
 	jwtoken.Encode()
 	jwtoken.AssymSign(privKey)
 	return `{"token":"` + jwtoken.GetFullToken() + `"}`
@@ -265,14 +269,6 @@ func generateLTAgt(payload Payload, pop string) string {
 func generateAgt(payload Payload) string {
 	var jwtoken utils.JsonWebToken
 
-	uuid := uuid.New().NodeID()
-
-	//uuid, err := exec.Command("uuidgen").Output()
-	if len(uuid) <= 0 {
-		utils.Error.Printf("generateAgt:Error generating uuid, err=%s", "uuidgen")
-		return `{"error": "Internal error"}`
-	}
-	uuid = uuid[:len(uuid)-1] // remove '\n' char
 	iat := int(time.Now().Unix())
 	exp := iat + ST_DURATION
 	// Token generation (used utils.JsonWebToken)
@@ -282,9 +278,9 @@ func generateAgt(payload Payload) string {
 	jwtoken.AddClaim("exp", strconv.Itoa(exp))
 	jwtoken.AddClaim("clx", payload.Context)
 	jwtoken.AddClaim("aud", "w3org/gen2")
-	jwtoken.AddClaim("jti", string(uuid))
-	utils.Info.Printf("generateAgt:jwtHeader=%s", jwtoken.GetHeader())
-	utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
+	jwtoken.AddClaim("jti", getUUID())
+	//utils.Info.Printf("generateAgt:jwtHeader=%s", jwtoken.GetHeader())
+	//utils.Info.Printf("generateAgt:jwtPayload=%s", jwtoken.GetPayload())
 	jwtoken.Encode()
 	jwtoken.AssymSign(privKey)
 	return `{"token":"` + jwtoken.GetFullToken() + `"}`
