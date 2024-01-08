@@ -40,6 +40,7 @@ type SubscriptionState struct {
 	Path                []string
 	FilterList          []utils.FilterObject
 	LatestDataPoint     string
+	GatingId	    string
 }
 
 var subscriptionId int
@@ -72,7 +73,7 @@ var dbErr error
 var redisClient *redis.Client
 var stateDbType string
 
-var dummyValue int // dummy value returned when nothing better is available. Counts from 0 to 999, wrap around, updated every 50 msec
+var dummyValue int // dummy value returned when DB configured to none. Counts from 0 to 999, wrap around, updated every 47 msec
 
 type FeederReg struct {
 	RootName   string `json:"root"`
@@ -497,7 +498,7 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 
 		rows, err := dbHandle.Query("SELECT `c_value`, `c_ts` FROM VSS_MAP WHERE `path`=?", path)
 		if err != nil {
-			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
+			return `{"value":"Data-error", "ts":"` + utils.GetRfcTime() + `"}`
 		}
 		defer rows.Close()
 		value := ""
@@ -507,7 +508,6 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		err = rows.Scan(&value, &timestamp)
 		if err != nil {
 			utils.Warning.Printf("Data not found: %s for path=%s\n", err, path)
-			//			return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 			return `{"value":"Data-not-available", "ts":"` + utils.GetRfcTime() + `"}`
 		}
 		return `{"value":"` + value + `", "ts":"` + timestamp + `"}`
@@ -975,8 +975,11 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
 	go historyServer(historyAccessChannel, udsPath, vss_data)
-	dummyTicker := time.NewTicker(47 * time.Millisecond)
-	subscriptTicker := time.NewTicker(15 * time.Millisecond) //range/change subscriptions
+	var dummyTicker *time.Ticker
+	if stateDbType != "none" {
+		dummyTicker = time.NewTicker(47 * time.Millisecond)
+	}
+	subscriptTicker := time.NewTicker(23 * time.Millisecond) //range/change subscriptions
 
 	for {
 		select {
@@ -1054,6 +1057,9 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 				}
+				if requestMap["gatingId"] != nil {
+					subscriptionState.GatingId = requestMap["gatingId"].(string)
+				}
 				subscriptionState.LatestDataPoint = getVehicleData(subscriptionState.Path[0])
 				subscriptionList = append(subscriptionList, subscriptionState)
 				responseMap["subscriptionId"] = strconv.Itoa(subscriptionId)
@@ -1080,6 +1086,17 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				isRemoved := true
 				for isRemoved == true {
 					isRemoved, subscriptionList = scanAndRemoveListItem(subscriptionList, requestMap["RouterId"].(string))
+				}
+			case "internal-cancelsubscription":
+				routerId, subscriptionId := getSubscriptionData(subscriptionList, requestMap["gatingId"].(string))
+				if routerId != "" {
+					requestMap["RouterId"] = routerId
+					requestMap["action"] = "subscription"
+					requestMap["requestId"] = nil
+					requestMap["subscriptionId"] = subscriptionId
+					utils.SetErrorResponse(requestMap, errorResponseMap, "401", "Token expired or consent cancelled.", "")
+					dataChan <- utils.FinalizeMessage(errorResponseMap)
+					_, subscriptionList = scanAndRemoveListItem(subscriptionList, routerId)
 				}
 			default:
 				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unknown action.", "")
@@ -1137,14 +1154,29 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	} // for
 }
 
+func getSubscriptionData(subscriptionList []SubscriptionState, gatingId string) (string, string) {
+	for i := 0; i < len(subscriptionList); i++ {
+		if subscriptionList[i].GatingId == gatingId {
+			return subscriptionList[i].RouterId, strconv.Itoa(subscriptionList[i].SubscriptionId)
+		}
+	}
+	utils.Error.Printf("getSubscriptionData: gatingId = %s not on subscription list", gatingId)
+	return "", ""
+}
+
 func scanAndRemoveListItem(subscriptionList []SubscriptionState, routerId string) (bool, []SubscriptionState) {
 	removed := false
+	doRemove := false
 	for i := 0; i < len(subscriptionList); i++ {
 		if subscriptionList[i].RouterId == routerId {
+			doRemove = true
+		}
+		if doRemove {
 			_, subscriptionList = deactivateSubscription(subscriptionList, strconv.Itoa(subscriptionList[i].SubscriptionId))
 			removed = true
 			break
 		}
+		doRemove = false
 	}
 	return removed, subscriptionList
 }
