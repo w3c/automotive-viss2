@@ -18,15 +18,11 @@ $ ./W3CServer.sh startme
 To stop:
 $ ./W3CServer.sh stopme
 
-To build manually, copy the commands from the script file. 
-Depending on whether the implementation with multiple separate processes, or the implementation where they are running as threads is used, 
-the order of starting the different components must be the following for them to start up correctly:
-1. servercore.go
-2. service_mgr.go
-3. ws_mgr.go and/or http_mgr.go and/or mqtt_mgr.go
-4. agt_server.go and at_server.go (if access control is to be used)
+To build manually, have look in *Dockerfile.rlserver* in the project root. The server runs in one single process. If access
+control is to be used the access grant token server must be running. The access grant token server is a separate process,
+see *Dockerfile.agtserver* for build instructions. 
 
-At startup the VISSv2 server core reads the vss_vissv2.binary file, which contains the VSS tree in binary format. 
+At startup the VISSv2 server reads the vss_vissv2.binary file, which contains the VSS tree in binary format. 
 It then generates the file vsspathlist.json in the server parent directory. 
 Binary files containing the latest VSS tree on the VSS repo can be generated after cloning the VSS repo, and then issuing the 'make binary' command.
 
