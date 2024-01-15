@@ -40,6 +40,7 @@ var privKey *rsa.PrivateKey
 var jtiCache map[string]struct{}
 
 type Payload struct {
+	// Action  string `json:"action"`
 	Vin     string `json:"vin"`
 	Context string `json:"context"`
 	Proof   string `json:"proof"`

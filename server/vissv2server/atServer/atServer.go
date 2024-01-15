@@ -13,17 +13,18 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
-	"github.com/gorilla/websocket"
 	"flag"
+	"fmt"
+	"github.com/gorilla/websocket"
+	"io"
+	"io/ioutil"
+	"math/rand"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	"math/rand"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -125,6 +126,7 @@ type ActiveListElem struct {
 }
 
 const LISTSIZE = 100
+
 var pendingList []PendingListElem
 var activeList []ActiveListElem
 var expiryTicker *time.Ticker
@@ -155,7 +157,7 @@ func makeAtServerHandler(atsChannel chan string) func(http.ResponseWriter, *http
 				http.Error(w, "400 bad request method.", 400)
 			}
 		} else {
-			bodyBytes, err := ioutil.ReadAll(req.Body)
+			bodyBytes, err := io.ReadAll(req.Body)
 			if err != nil {
 				http.Error(w, "400 request unreadable.", 400)
 			} else {
@@ -178,7 +180,7 @@ func makeAtServerHandler(atsChannel chan string) func(http.ResponseWriter, *http
 
 func initClientComm(atsChannel chan string, muxServer *http.ServeMux) {
 	utils.Info.Printf("initClientComm(): Initializing AT Client server")
-	utils.ReadTransportSecConfig()                        // loads the secure configuration file
+	utils.ReadTransportSecConfig()                     // loads the secure configuration file
 	atServerHandler := makeAtServerHandler(atsChannel) // Generates handlers for the AT server
 	muxServer.HandleFunc("/ats", atServerHandler)
 	// Initializes the AT Server depending on sec configuration
@@ -218,7 +220,7 @@ func initEcfComm(ecfReceiveChan chan string, ecfSendChan chan string, muxServer 
 }
 
 func reDialer(dialer websocket.Dialer, sessionUrl url.URL) *websocket.Conn {
-	for i := 0 ; i < 15 ; i++ {
+	for i := 0; i < 15; i++ {
 		conn, _, err := dialer.Dial(sessionUrl.String(), nil)
 		if err != nil {
 			utils.Error.Printf("Data session dial error:%s\n", err)
@@ -235,11 +237,11 @@ func reDialer(dialer websocket.Dialer, sessionUrl url.URL) *websocket.Conn {
 func ecfClient(conn *websocket.Conn, ecfSendChan chan string) {
 	defer conn.Close()
 	for {
-		ecfRequest := <- ecfSendChan
+		ecfRequest := <-ecfSendChan
 		err := conn.WriteMessage(websocket.TextMessage, []byte(ecfRequest))
 		if err != nil {
 			utils.Error.Printf("ecfClient:Request write error:%s\n", err)
-			return 
+			return
 		}
 	}
 }
@@ -293,7 +295,7 @@ func consentReplyResponse(request string) string {
 		utils.Error.Printf("consentReplyResponse:error request=%s", request)
 		return `{"action":"consent-reply", "status":"401-Bad request"}`
 	}
-	if requestMap["messageId"] != nil  {
+	if requestMap["messageId"] != nil {
 		gatingId, err := strconv.Atoi(requestMap["messageId"].(string))
 		if err != nil {
 			utils.Error.Printf("consentReplyResponse:error converting id=%s", err)
@@ -316,7 +318,7 @@ func consentCancelResponse(request string, vissChan chan string) string {
 		utils.Error.Printf("consentCancelResponse:error request=%s", request)
 		return `{"action":"consent-cancel", "status":"401-Bad request"}`
 	}
-	if requestMap["messageId"] != nil  {
+	if requestMap["messageId"] != nil {
 		gatingId, err := strconv.Atoi(requestMap["messageId"].(string))
 		if err != nil {
 			utils.Error.Printf("consentCancelResponse:error converting id=%s", err)
@@ -331,7 +333,7 @@ func consentCancelResponse(request string, vissChan chan string) string {
 		for i := 0; i < LISTSIZE; i++ {
 			if activeList[i].GatingId == gatingId {
 				removeFromActiveList(i)
-				vissChan <- requestMap["messageId"].(string)  // remove eventual subscription
+				vissChan <- requestMap["messageId"].(string) // remove eventual subscription
 				return `{"action":"consent-cancel", "status":"200-OK"}`
 			}
 		}
@@ -482,13 +484,13 @@ func tokenValidationResponse(input string) string {
 	}
 }
 
-func getCompleteToken(token string) string {  //input token may be handle or complete token. Return complete token.
+func getCompleteToken(token string) string { //input token may be handle or complete token. Return complete token.
 	for i := 0; i < LISTSIZE; i++ {
 		if token == activeList[i].Atoken || token == activeList[i].AtokenHandle {
 			return activeList[i].Atoken
 		}
 	}
-	return ""	
+	return ""
 }
 
 func getGatingIdAndTokenHandle(token string) (string, string) {
@@ -583,6 +585,7 @@ func accessTokenResponse(request string, ecfSendChan chan string, ecfAvailable b
 		utils.Error.Printf("accessTokenResponse:error request=%s", request)
 		return `{"action": "at-request", "error": "Client request malformed"}`
 	}
+	utils.Info.Printf("agt token=%s", payload.Token)
 	err = payload.Agt.DecodeFromFull(payload.Token) // Decodes the AGT included in the request
 	if err != nil {
 		utils.Error.Printf("accessTokenResponse: error decoding token=%s", payload.Token)
@@ -603,9 +606,9 @@ func accessTokenResponse(request string, ecfSendChan chan string, ecfAvailable b
 			if ecfAvailable {
 				writeToPendingList(gatingId, payload)
 				utils.Info.Printf("requesting ECF about consent")
-//				ecfSendChan<-`{"action": "consent-ask", "purpose": "`+ payload.Purpose + `", "user-roles": "`+ payload.Agt.PayloadClaims["clx"] +
-				ecfSendChan<-`{"action": "consent-ask", "user-roles": "`+ payload.Agt.PayloadClaims["clx"] + `", "purpose": "`+ payload.Purpose +
-						`", "signal_access":` + getSignalAccess(payload.Purpose) + `, "messageId": "`+strconv.Itoa(gatingId) + `"}`
+				//				ecfSendChan<-`{"action": "consent-ask", "purpose": "`+ payload.Purpose + `", "user-roles": "`+ payload.Agt.PayloadClaims["clx"] +
+				ecfSendChan <- `{"action": "consent-ask", "user-roles": "` + payload.Agt.PayloadClaims["clx"] + `", "purpose": "` + payload.Purpose +
+					`", "signal_access":` + getSignalAccess(payload.Purpose) + `, "messageId": "` + strconv.Itoa(gatingId) + `"}`
 				return `{"action": "at-request", "sessionId":"` + strconv.Itoa(gatingId) + `", "consent":"NOT_SET"}`
 			} else {
 				return `{"action": "at-request", "error":"consent framework not accessible"}`
@@ -640,9 +643,9 @@ func checkifConsent(purpose string) bool {
 			for j := 0; j < len(pList[i].Access); j++ {
 				validation := -1
 				golib.VSSsearchNodes(pList[i].Access[j].Path, VSSTreeRoot, MAXFOUNDNODES, true, true, 0, nil, &validation)
-					if validation/10 == 1 {
-						return true
-					}
+				if validation/10 == 1 {
+					return true
+				}
 			}
 		}
 	}
@@ -650,12 +653,13 @@ func checkifConsent(purpose string) bool {
 }
 
 var GatingId int
+
 func initGatingId() {
 	GatingId = 666 + rand.Intn(9999-666)
 }
 
 func newGatingId() int {
-	gatingId := (GatingId + 1)%9999
+	gatingId := (GatingId + 1) % 9999
 	return gatingId
 }
 
@@ -801,7 +805,7 @@ func validatePop(payload AtGenPayload) (bool, string) {
 		utils.Error.Printf("validatePop: JTI used")
 		return false, `{"error": "Repeated JTI"}`
 	}
-	// Check signaure
+	// Check signature
 	if err := payload.PopTk.CheckSignature(); err != nil {
 		utils.Info.Printf("validatePop: Invalid POP signature: %s", err)
 		return false, `{"error": "Cannot validate POP signature"}`
@@ -1277,7 +1281,7 @@ func purgeLists() string {
 func setExpiryTicker() {
 	var listExpiryStr string
 	isUpdated := false
-	minExpiry := time.Now().Add(10*8760*time.Hour)  // listExpiry times should be less than 10 years from now...
+	minExpiry := time.Now().Add(10 * 8760 * time.Hour) // listExpiry times should be less than 10 years from now...
 	for i := 0; i < LISTSIZE; i++ {
 		if pendingList[i].GatingId == -1 {
 			continue
@@ -1309,7 +1313,7 @@ func setExpiryTicker() {
 		}
 	}
 	tickerValue := minExpiry.Sub(time.Now())
-//	utils.Info.Print("Expiry ticker period=%s", tickerValue)
+	//	utils.Info.Print("Expiry ticker period=%s", tickerValue)
 	if tickerValue > 0 && isUpdated {
 		expiryTicker.Reset(tickerValue)
 	} else {
@@ -1331,25 +1335,25 @@ func AtServerInit(viss2Chan chan string, viss2CancelChan chan string, vssRootRef
 	initGatingId()
 	expiryTicker = time.NewTicker(24 * time.Hour)
 
-	go initClientComm(clientChan, muxServer[0])  //HTTP to client
+	go initClientComm(clientChan, muxServer[0]) //HTTP to client
 	if consentSupport {
-		go initEcfComm(ecfReceiveChan, ecfSendChan, muxServer[1])	    // websocket client to ECF
+		go initEcfComm(ecfReceiveChan, ecfSendChan, muxServer[1]) // websocket client to ECF
 	}
 	utils.Info.Printf("atServer started...")
 
 	for {
 		select {
-		  case request := <-clientChan:
+		case request := <-clientChan:
 			utils.Info.Printf("atServer client request=%s", request)
 			response := generateClientResponse(request, ecfSendChan, ecfAvailable)
 			utils.Info.Printf("atServer client response=%s", response)
 			clientChan <- response
-		  case request := <-viss2Chan:
+		case request := <-viss2Chan:
 			utils.Info.Printf("VISSv2 server request=%s", request)
 			response := generateParentResponse(request)
 			utils.Info.Printf("VISSv2 server response=%s", response)
 			viss2Chan <- response
-		  case message := <-ecfReceiveChan:
+		case message := <-ecfReceiveChan:
 			utils.Info.Printf("atServer ECF message=%s", message)
 			if message == "internal-ecfAvailable" {
 				ecfAvailable = true
