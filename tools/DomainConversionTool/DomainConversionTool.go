@@ -364,7 +364,7 @@ func createConversionTable() {
 	updateInternalToolTableNames(northBoundDomain, southBoundDomain)
 	truncateConversionTable()
 	populateConversionTable(northBoundDomain, southBoundDomain, signalMappingList)
-	writescaleDataList()  // scaleDataList ist is populated by populateConversionTable()
+	writescaleDataList(northBoundDomain, southBoundDomain)  // scaleDataList is populated by populateConversionTable()
 }
 
 func domainTable(tableNames []string, name string) bool {
@@ -418,8 +418,8 @@ func domainTableName(tableName string) bool {
 	return true
 }
 
-func writescaleDataList() {
-	fileName := "scaleDataList.json"
+func writescaleDataList(northBoundDomain string, southBoundDomain string) {
+	fileName := northBoundDomain + "-" +  southBoundDomain + ".json"
 	treeFp, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if (err != nil) {
 		fmt.Printf("Could not open %s for writing conversion data\n", fileName)
