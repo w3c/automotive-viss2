@@ -12,7 +12,8 @@ https://docs.docker.com/compose/install/
 
 *viss-docker-rl*
 
-The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-rl) which is configured and built to interface the remotive labs cloud.
+The file docker-compose-rl.yml builds and runs  a variant of the feeder(feeder-rl, see Readme in feeder/feeder-rl for'
+more details) - which is configured and built to interface the remotive labs cloud.
 The Remotive cloud have recorded vehicle data which we can play back to a cloud version of their data broker. We have an
 interface written in Go - https://github.com/petervolvowinz/viss-rl-interfaces -  that we have integrated into the WAII feeder application. The docker compose version should be from 3.8.
 

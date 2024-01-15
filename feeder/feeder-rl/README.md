@@ -35,10 +35,12 @@ The file VehicleVssMapData.json is used if the feeder is executed with
 --dataprovider sim
 ```
 
-docker-compose and Docker located in the project root files run/build the feeder, redis and the vissv2server containers.
+The docker-compose file is located in docker/viss-docker-rl folder.
+The Docker file is located the project root:  *Dockerfile.rlserver*
 
-We need docker compose to run the system:
+To build and run.
 ```
+cd docker/viss-docker-rl
 docker compose -f docker-compose-rl.yml build
 docker compose -f docker-compose-rl.yml up
 ```
