@@ -220,6 +220,11 @@ func updateInternalToolTableNames(nbdTableName string, sbdTableName string) {
 	}
 }
 
+func showDomains() {
+	fmt.Printf("List names of existing domains in the DB.\n")
+	fmt.Printf("Existing domain tables=%s\n", getTableNameList(getDomainTableNames()))
+}
+
 func populateTable() {
 	var yamlFileName string
 	fmt.Printf("Populate a DB table using data from a YAML file.\n")
@@ -634,7 +639,6 @@ func getConversionTypeForEnum(nbdEnums string, sbdEnums string) int {
 }
 
 func getConversionTypeForLinear(nbdUnit string, sbdUnit string) int {
-	// TODO: Read unit conversion data from file. Match units with list entries, if match write A and B coeffs to conversionDaataList, and return its index.
 	var conversionCoefficients string
 	for i := 0 ; i < len(unitScaleList) ; i++ {
 		if unitScaleList[i].Unit1 == nbdUnit && unitScaleList[i].Unit2 == sbdUnit || 
@@ -680,7 +684,6 @@ func getTypeIndex(VSStype string) int8 {  //TODO: use it when writing the struct
 
 func getDatatypeIndex(VSSDatatype string) int8 {  //TODO: use it when writing the struct array
 	switch VSSDatatype {
-		case "uint4": return 0
 		case "uint8": return 0
 		case "uint16": return 1
 		case "uint32": return 2
@@ -689,8 +692,7 @@ func getDatatypeIndex(VSSDatatype string) int8 {  //TODO: use it when writing th
 		case "int16": return 5
 		case "int32": return 6
 		case "int64": return 7
-		case "float": return 8  // assume that it represents float32
-		case "float ": return 8  // well...
+		case "float": return 8
 		case "float32": return 8
 		case "double": return 9
 		case "float64": return 9
@@ -708,8 +710,6 @@ func getDatatypeIndex(VSSDatatype string) int8 {  //TODO: use it when writing th
 		case "float64[]": return 21
 		case "boolean[]": return 22
 		case "string[]": return 23
-		case "enum": return 24
-		case "state_encoded": return 24
 	}
 	fmt.Printf("getDatatypeIndex: unknown datatype=%s\n", VSSDatatype)
 	return -1
@@ -1143,8 +1143,8 @@ func readValue(line string) string {
 func main() {
 	// Create new parser object
 	parser := argparse.NewParser("print", "Domain Conversion Tool")
-	taskSelector := parser.Selector("t", "taskSelector", []string{"import", "join", "createfiles"}, &argparse.Options{Required: false,
-		Help: "Tasks to select between are import, join, or createfiles", Default: "import"})
+	taskSelector := parser.Selector("t", "taskSelector", []string{"domains", "import", "join", "createfiles"}, &argparse.Options{Required: false,
+		Help: "Tasks to select between are domains, import, join, or createfiles", Default: "import"})
 	DctDb := parser.String("d", "dbfile", &argparse.Options{
 		Required: false,
 		Help:     "DCT database filename",
@@ -1162,6 +1162,7 @@ func main() {
         defer db.Close()
 	fmt.Printf("Opened database %s for the task %s\n", *DctDb, *taskSelector)
 	switch *taskSelector {
+		case "domains": showDomains()
 		case "import": populateTable()
 		case "join": createConversionTable()
 		case "createfiles": createConversionFiles()
@@ -1169,4 +1170,3 @@ func main() {
 		default: fmt.Printf("Unsupported task.\n")
 	}
 }
-

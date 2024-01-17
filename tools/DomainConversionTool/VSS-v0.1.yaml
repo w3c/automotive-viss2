@@ -1,6 +1,6 @@
 # flat representation
 
-Domain: VSS-v0.1-test
+Domain: VSS-v0.1
 
 Vehicle.LowVoltageSystemState:
   datatype: string

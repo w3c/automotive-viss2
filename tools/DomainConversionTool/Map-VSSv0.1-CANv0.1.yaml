@@ -1,5 +1,5 @@
 # DCT-table-names
-NorthBoundDomain: VSS-v0.1-test
+NorthBoundDomain: VSS-v0.1
 SouthBoundDomain: CAN-v0.1
 
 Mapping:
