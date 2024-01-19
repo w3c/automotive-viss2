@@ -358,18 +358,24 @@ func createConversionTable() {
 	if !domainTable(tableNames, northBoundDomain) {
 		fmt.Printf("Existing domain tables=%s\n", getTableNameList(tableNames))
 		fmt.Printf("%s is not an existing table name. Bye.\n", northBoundDomain)
-		os.Exit(-1)
+		return
 	}
 	fmt.Printf("Name of table for the southbound domain = %s\n", southBoundDomain)
 	if !domainTable(tableNames, southBoundDomain) {
 		fmt.Printf("Existing domain tables=%s\n", getTableNameList(tableNames))
 		fmt.Printf("%s is not an existing table name. Bye.\n", southBoundDomain)
-		os.Exit(-1)
+		return
 	}
 	updateInternalToolTableNames(northBoundDomain, southBoundDomain)
 	truncateConversionTable()
 	populateConversionTable(northBoundDomain, southBoundDomain, signalMappingList)
 	writescaleDataList(northBoundDomain, southBoundDomain)  // scaleDataList is populated by populateConversionTable()
+	nbdNameArray := make([]string, len(signalMappingList))
+	for i := 0; i < len(signalMappingList); i++ {
+		nbdNameArray[i] = signalMappingList[i].North
+	}
+	sort.Strings(nbdNameArray)
+	createMapDatamodel(northBoundDomain, "Datamodel-" + northBoundDomain + "-" + southBoundDomain + ".yaml", nbdNameArray)
 }
 
 func domainTable(tableNames []string, name string) bool {
@@ -424,10 +430,10 @@ func domainTableName(tableName string) bool {
 }
 
 func writescaleDataList(northBoundDomain string, southBoundDomain string) {
-	fileName := northBoundDomain + "-" +  southBoundDomain + ".json"
+	fileName := "Scaling-" + northBoundDomain + "-" +  southBoundDomain + ".json"
 	treeFp, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if (err != nil) {
-		fmt.Printf("Could not open %s for writing conversion data\n", fileName)
+		fmt.Printf("Could not open %s for writing scaling data\n", fileName)
 		return
 	}
 	treeFp.Write([]byte("[\n"))
@@ -441,7 +447,7 @@ func writescaleDataList(northBoundDomain string, southBoundDomain string) {
 	}
 	treeFp.Write([]byte("]\n"))
 	treeFp.Close()
-	fmt.Printf("Conversion data list file %s created.\n ", fileName)
+	fmt.Printf("Scaling data list file %s created.\n", fileName)
 }
 
 func insertEscape(jsonString string) string {
@@ -849,21 +855,69 @@ func printArray(feederMap []FeederConversionData) {
 	}
 }
 
-func createTreeFile() {
+func createDomainDatamodel() {
 	var treeContent string
-	fmt.Printf("Create the VSS tree file in YAML format.\n")
-	nbtTable, _ := getInternalToolNbdTableNames()
-	nodeArray := readTreeData(nbtTable)
+	var domainName string
+	fmt.Printf("Create a VSS tree file in YAML format.\n")
+	tableNames := getDomainTableNames()
+	fmt.Printf("Existing domains=%s. Select domain: ", getTableNameList(tableNames))
+	fmt.Scanf("%s", &domainName)
+	if !domainTable(tableNames, domainName) {
+		fmt.Printf("Existing domain tables=%s\n", getTableNameList(tableNames))
+		fmt.Printf("%s is not an existing table name. Bye.\n", domainName)
+		return
+	}
+	nodeArray := readDomainDatamodel(domainName)
 	fmt.Printf("Complete tree (complete), or leafs only (leaf): ")
 	fmt.Scanf("%s", &treeContent)
-	createYamlFile(nodeArray, treeContent)
+	if treeContent != "complete" && treeContent != "leaf" {
+		fmt.Printf("Invalid input%s. Bye.\n", treeContent)
+		return
+	}
+	createYamlFile(nodeArray, treeContent, "Datamodel-" + domainName + ".yaml")
 }
 
-func readTreeData(nbd string) []DomainData {
+func createMapDatamodel(nbd string, fileName string, mapNameList []string) {
+	var node DomainData
+	var nodeArray []DomainData
+	for i := 0; i < len(mapNameList); i++ {
+		node = readMapElementDatamodel(nbd, mapNameList[i])
+		if node != (DomainData{}) {
+			nodeArray = append(nodeArray, node)
+		}
+	}
+	createYamlFile(nodeArray, "complete", fileName)
+}
+
+func readMapElementDatamodel(nbd string, mapSignalName string) DomainData {
+	sqlQuery := `SELECT "` + nbd + `".name, "` + nbd + `".type, "` + nbd + `".unit, "` + nbd + `".datatype, "` + nbd + `".enumValues, ` +
+		`"` + nbd + `".min, "` + nbd + `".max, "` + nbd + `".deflt, "` + nbd + `".uid, "` + nbd + `".description, "` + nbd + `".comment` +
+		    ` FROM "` + nbd + `" WHERE "` + nbd + `".name = "` + mapSignalName + `";`
+
+//	sqlQuery := `SELECT name, type, unit, datatype, enumValues, min, max, deflt, uid, description, comment FROM "` + nbd + `" ORDER BY name ASC;`
+	rows, err := db.Query(sqlQuery)
+	if err != nil {
+		fmt.Printf("readMapElementDatamodel: SQL query error=%s\n", err)
+		return (DomainData{})
+	}
+
+	rows.Next()
+	var node DomainData
+	err = rows.Scan(&(node.Path), &(node.Type), &(node.Unit), &(node.Datatype), 
+		&(node.EnumValues), &(node.Min), &(node.Max), &(node.Default), &(node.Uid), &(node.Description), &(node.Comment))
+	if err != nil {
+		fmt.Printf("readMapElementDatamodel: SQL result scan error=%s\n", err)
+		return (DomainData{})
+	}
+	rows.Close()
+	return node
+}
+
+func readDomainDatamodel(nbd string) []DomainData {
 	sqlQuery := `SELECT name, type, unit, datatype, enumValues, min, max, deflt, uid, description, comment FROM "` + nbd + `" ORDER BY name ASC;`
 	rows, err := db.Query(sqlQuery)
 	if err != nil {
-		fmt.Printf("readTreeData: SQL query error=%s\n", err)
+		fmt.Printf("readDomainDatamodel: SQL query error=%s\n", err)
 		return nil
 	}
 	var nodeArray []DomainData
@@ -873,7 +927,7 @@ func readTreeData(nbd string) []DomainData {
 		err = rows.Scan(&(node.Path), &(node.Type), &(node.Unit), &(node.Datatype), 
 			&(node.EnumValues), &(node.Min), &(node.Max), &(node.Default), &(node.Uid), &(node.Description), &(node.Comment))
 		if err != nil {
-			fmt.Printf("readTreeData: SQL result scan error=%s\n", err)
+			fmt.Printf("readDomainDatamodel: SQL result scan error=%s\n", err)
 			return nil
 		}
 		nodeArray = append(nodeArray, node)
@@ -882,14 +936,11 @@ func readTreeData(nbd string) []DomainData {
 	return nodeArray
 }
 
-func createYamlFile(nodeArray []DomainData, treeContent string) {
-	var fileName string
+func createYamlFile(nodeArray []DomainData, treeContent string, fileName string) {
 	includeNodes := false
 	if (treeContent == "complete") {
 		includeNodes = true
 	}
-	fmt.Printf("Name of the VSS file: ")
-	fmt.Scanf("%s", &fileName)
 	treeFp, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0755)
 	if (err != nil) {
 		fmt.Printf("Could not open %s for writing yaml data\n", fileName)
@@ -1143,8 +1194,8 @@ func readValue(line string) string {
 func main() {
 	// Create new parser object
 	parser := argparse.NewParser("print", "Domain Conversion Tool")
-	taskSelector := parser.Selector("t", "taskSelector", []string{"domains", "import", "join", "createfiles"}, &argparse.Options{Required: false,
-		Help: "Tasks to select between are domains, import, join, or createfiles", Default: "import"})
+	taskSelector := parser.Selector("t", "taskSelector", []string{"domains", "datamodel", "import", "join", "createfiles"}, &argparse.Options{Required: false,
+		Help: "Tasks to select between are domains, datamodel, import, join, or createfiles", Default: "import"})
 	DctDb := parser.String("d", "dbfile", &argparse.Options{
 		Required: false,
 		Help:     "DCT database filename",
@@ -1163,10 +1214,10 @@ func main() {
 	fmt.Printf("Opened database %s for the task %s\n", *DctDb, *taskSelector)
 	switch *taskSelector {
 		case "domains": showDomains()
+		case "datamodel": createDomainDatamodel()
 		case "import": populateTable()
 		case "join": createConversionTable()
 		case "createfiles": createConversionFiles()
-				    createTreeFile()
 		default: fmt.Printf("Unsupported task.\n")
 	}
 }
