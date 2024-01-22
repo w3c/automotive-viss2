@@ -84,7 +84,9 @@ This first verion of the DCT has some known limitations that are expected to be 
  ..<br>
  - elemN<br>
  * Signals from respective domains with number datatypes must have the same datatype, i.e. a uint8 in the northbound domain can only be mapped to a uint8 in the southbound domain.
- * Signals with allowed data restrictions must be defined with its elements in the same order in both domains.
+ * Signals with allowed data restrictions must be defined with its elements in the same order in both domains, and with the same number of elements.
+ * Booleans must on the southbound side be represented by ["0", "1"] as the logical values [false, true].
+ * The unit scaling is limited to the definitions in the UniScaling.yaml file.
  As an example, if the first defined element in one domain logically represents OFF then th first element in the other domain must also logically represent OFF.
  * It is not possible to delete either single data point entries in a domain, nor entire domains. This can of course be done by using some other SQLite tool capable of it.
  * Signals having array datatypes cannot be processed by DCT.
