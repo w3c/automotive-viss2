@@ -23,8 +23,14 @@ import (
 
 // See Readme for prerequisites to run tests succesfully
 
-type TResponse struct {
-	Token string `json:"token"`
+type TResponseAT struct {
+	Action string `json:"action"`
+	Token  string `json:"aToken"`
+}
+
+type TResponseAGT struct {
+	Action string `json:"action"`
+	Token  string `json:"token"`
 }
 
 const agt_posttesturl = "http://0.0.0.0:7500/agts" // AGT server
@@ -34,8 +40,9 @@ const LONG_TERM_TOKEN_LENGTH = 345600
 
 const PRIV_KEY_DIRECTORY = "../../agt_server/agt_private_key.rsa"
 
-//TODO this types should reside in utils somewhere , duplicate code.
+// TODO this types should reside in utils somewhere , duplicate code.
 type agtPayload struct {
+	Action  string `json:"action"`
 	Vin     string `json:"vin"`
 	Context string `json:"context"`
 	Proof   string `json:"proof"`
@@ -44,7 +51,8 @@ type agtPayload struct {
 }
 
 type atRequest struct {
-	Token   string `json:"token"`
+	Action  string `json:"action"`
+	Token   string `json:"agToken"`
 	Purpose string `json:"purpose"`
 	Pop     string `json:"pop"`
 }
@@ -61,6 +69,7 @@ func getAtRequestLT(agttoken string) *atRequest {
 	popToken := utils.PopToken{}
 	token, _ := popToken.GenerateToken(privKey)
 	return &atRequest{
+		Action:  "at-request",
 		Token:   agttoken,
 		Purpose: "fuel-status",
 		Pop:     token,
@@ -76,6 +85,7 @@ func getAtToken(agttoken string, lt bool) (*http.Response, error) {
 		atReq = getAtRequestLT(agttoken)
 	} else {
 		atReq = &atRequest{
+			Action:  "at-request",
 			Token:   agttoken,
 			Purpose: "fuel-status",
 			Pop:     "",
@@ -101,13 +111,31 @@ func getAtToken(agttoken string, lt bool) (*http.Response, error) {
 	return res, err
 }
 
-func parseATToken(res http.Response, t *testing.T) *TResponse {
+func parseAGTResponse(res http.Response, t *testing.T) TResponseAGT {
 
 	defer res.Body.Close()
 
-	post := &TResponse{}
+	post := TResponseAGT{}
+	derr := json.NewDecoder(res.Body).Decode(&post)
+	if derr != nil || post.Token == "" {
+		t.Error("could not parse http response")
+		return post
+	}
+
+	if res.StatusCode != http.StatusCreated {
+		t.Error("status code expected to be 201 , got: ", res.StatusCode)
+
+	}
+
+	return post
+}
+func parseATResponse(res http.Response, t *testing.T) *TResponseAT {
+
+	defer res.Body.Close()
+
+	post := &TResponseAT{}
 	derr := json.NewDecoder(res.Body).Decode(post)
-	if derr != nil {
+	if derr != nil || post.Token == "" {
 		t.Error("could not parse http response")
 		return nil
 	}
@@ -139,8 +167,9 @@ func getAccessToken(agt *http.Response, err error, t *testing.T) (*http.Response
 		t.Error(err)
 		return nil, nil
 	}
+	agtResponse := parseAGTResponse(*agt, t)
 
-	res, err := getAtToken(parseATToken(*agt, t).Token, true)
+	res, err := getAtToken(agtResponse.Token, true)
 	if err != nil {
 		t.Error(err)
 		return nil, nil
@@ -154,7 +183,7 @@ func decodeATPostResponse(t *testing.T, res *http.Response) string {
 		t.Error("status code expected to be 201 , got: ", res.StatusCode)
 		return ""
 	} else {
-		attokenpost := &TResponse{}
+		attokenpost := &TResponseAT{}
 		derr := json.NewDecoder(res.Body).Decode(attokenpost)
 
 		if derr != nil {
@@ -191,7 +220,7 @@ func infuseTokengRPCGetRequest(at_token string) []string {
 }
 
 func getShortTermAGTResponse() (*http.Response, error) {
-	body := []byte(`{"vin":"GEO001","context":"Independent+OEM+Cloud","proof":"ABC","key":"DEF"}`)
+	body := []byte(`{"action":"agt-request","vin":"GEO001","context":"Independent+OEM+Cloud","proof":"ABC","key":"DEF"}`)
 
 	r, err := http.NewRequest("POST", agt_posttesturl, bytes.NewBuffer(body))
 	if err != nil {
@@ -217,6 +246,7 @@ func getLongTermAGTResponse() (*http.Response, error) {
 	token, err := popToken.GenerateToken(privKey) // generate a proof-of-possession-token to get a LT token.
 
 	agtP := agtPayload{
+		Action:  "agt-request",
 		Vin:     "GEO001",
 		Context: "Independent+OEM+Cloud",
 		Proof:   "ABC",
@@ -239,7 +269,7 @@ func getLongTermAGTResponse() (*http.Response, error) {
 
 /**** ACTUAL TESTS, testing AGT short term token , long term token requests ******************************************/
 
-//AGT Server must be running
+// AGT Server must be running
 func TestShortTermTokenAccess(t *testing.T) {
 
 	res, err := getShortTermAGTResponse()
@@ -249,7 +279,7 @@ func TestShortTermTokenAccess(t *testing.T) {
 
 	defer res.Body.Close()
 
-	post := &TResponse{}
+	post := &TResponseAGT{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		panic(derr)
@@ -290,7 +320,7 @@ func TestLongTermTokenAccess(t *testing.T) {
 
 	defer res.Body.Close()
 
-	post := &TResponse{}
+	post := &TResponseAGT{}
 	derr := json.NewDecoder(res.Body).Decode(post)
 	if derr != nil {
 		panic(derr)
@@ -333,7 +363,8 @@ func TestAtTokenAccess_LT(t *testing.T) {
 		t.Error(err)
 	}
 
-	res, err := getAtToken(parseATToken(*res_ag, t).Token, false)
+	ltAGTResponse := parseAGTResponse(*res_ag, t)
+	res, err := getAtToken(ltAGTResponse.Token, true)
 
 	if err != nil {
 		t.Error(err)
@@ -342,7 +373,7 @@ func TestAtTokenAccess_LT(t *testing.T) {
 	if res.StatusCode != http.StatusCreated {
 		t.Error("status code expected to be 201 , got: ", res.StatusCode)
 	} else {
-		attokenpost := &TResponse{}
+		attokenpost := &TResponseAT{}
 		derr := json.NewDecoder(res.Body).Decode(attokenpost)
 
 		if derr != nil {

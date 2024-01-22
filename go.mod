@@ -1,14 +1,14 @@
 module github.com/w3c/automotive-viss2
 
-go 1.18
+go 1.21
 
 //example on how to use replace to point to fork or local path
 //replace github.com/w3c/automotive-viss2/utils => github.com/MagnusGun/WAII/utils master
 replace github.com/w3c/automotive-viss2/utils => ./utils
 
 replace (
-//	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc
-//	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc
+	//	github.com/COVESA/vss-tools/binary/go_parser/datamodel => github.com/UlfBj/vss-tools/binary/go_parser/datamodel v0.0.0-20231219145220-847ed46699dc
+	//	github.com/COVESA/vss-tools/binary/go_parser/parserlib => github.com/UlfBj/vss-tools/binary/go_parser/parserlib v0.0.0-20231219145220-847ed46699dc
 	github.com/w3c/automotive-viss2/grpc_pb => ./grpc_pb
 	github.com/w3c/automotive-viss2/server/vissv2server/atServer => ./server/vissv2server/atServer
 	github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr => ./server/vissv2server/grpcMgr
