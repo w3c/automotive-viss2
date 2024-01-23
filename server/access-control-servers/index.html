@@ -12,21 +12,21 @@
     <title>VISSv2 Access Control Servers :: W3C VISSv2 Reference Implementation</title>
 
     
-    <link href="/automotive-viss2/css/nucleus.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/fontawesome-all.min.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/hybrid.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/featherlight.min.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/auto-complete.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/theme.css?1706000114" rel="stylesheet">
-    <link href="/automotive-viss2/css/hugo-theme.css?1706000114" rel="stylesheet">
+    <link href="/automotive-viss2/css/nucleus.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/fontawesome-all.min.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/hybrid.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/featherlight.min.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/perfect-scrollbar.min.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/auto-complete.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/atom-one-dark-reasonable.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme.css?1706009139" rel="stylesheet">
+    <link href="/automotive-viss2/css/hugo-theme.css?1706009139" rel="stylesheet">
     
-    <link href="/automotive-viss2/css/theme-blue.css?1706000114" rel="stylesheet">
+    <link href="/automotive-viss2/css/theme-blue.css?1706009139" rel="stylesheet">
     
     
 
-    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1706000114"></script>
+    <script src="/automotive-viss2/js/jquery-3.3.1.min.js?1706009139"></script>
 
     <style>
       :root #header + #content > #left > #rlblock_left{
@@ -59,14 +59,14 @@
     <span data-search-clear=""><i class="fas fa-times"></i></span>
 </div>
 
-<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1706000114"></script>
-<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1706000114"></script>
+<script type="text/javascript" src="/automotive-viss2/js/lunr.min.js?1706009139"></script>
+<script type="text/javascript" src="/automotive-viss2/js/auto-complete.js?1706009139"></script>
 <script type="text/javascript">
     
         var baseurl = "https:\/\/w3c.github.io\/automotive-viss2\/";
     
 </script>
-<script type="text/javascript" src="/automotive-viss2/js/search.js?1706000114"></script>
+<script type="text/javascript" src="/automotive-viss2/js/search.js?1706009139"></script>
 
     
   </div>
@@ -609,9 +609,8 @@ and issue a request to the service manager to delete the entry on the subscripti
 <p>Error response: {“action”: “agt-request”, &ldquo;error&rdquo;:&ldquo;error-reason&rdquo;}  // if unsuccessful validation</p>
 <h4 id="payload-syntax-for-the-messages-in-the-client-to-ats-communication">Payload syntax for the messages in the client-to-ATS communication:</h4>
 <p>AT request: {“action”: “at-request”, &ldquo;agToken&rdquo;:&ldquo;x.y.z&rdquo;, &ldquo;purpose&rdquo;:&ldquo;purpose-description&rdquo;, &ldquo;pop&rdquo;:&quot;&quot;}  // pop shall be an empty string for access control short term flow.</p>
-<p>AT response 1: {“action”: “at-request”, &ldquo;aToken&rdquo;:&ldquo;x.y.z&rdquo;} ATS-&gt;Client // Consent is not required.
-.
-AT response 2: {“action”: “at-request”, &ldquo;sessionId &ldquo;:&ldquo;reference-Id&rdquo;, “consent”:”NOT_SET”} // Consent is required, and consent reply not obtained yet from ECF.</p>
+<p>AT response 1: {“action”: “at-request”, &ldquo;aToken&rdquo;:&ldquo;x.y.z&rdquo;} ATS-&gt;Client // Consent is not required.</p>
+<p>AT response 2: {“action”: “at-request”, &ldquo;sessionId &ldquo;:&ldquo;reference-Id&rdquo;, “consent”:”NOT_SET”} // Consent is required, and consent reply not obtained yet from ECF.</p>
 <p>AT inquiry request: {“action”: “at-inquiry”, &ldquo;sessionId&rdquo;:&ldquo;reference-Id&rdquo;}  // may need to be issued multiple times until consent is provided by ECF.</p>
 <p>AT inquiry response 1: {“action”: “at-inquiry”, &ldquo;aToken&rdquo;:&ldquo;x.y.z&rdquo;, “consent”:”YES”} ATS-&gt;Client // ECF has provided a positive consent.</p>
 <p>AT inquiry response 2: {“action”: “at-inquiry”, &ldquo;sessionId &ldquo;:&ldquo;reference-Id&rdquo;, “consent”:”NOT_SET”} // Reply is not obtained yet from ECF.</p>
@@ -865,19 +864,19 @@ AT response 2: {“action”: “at-request”, &ldquo;sessionId &ldquo;:&ldquo;
     <div style="left: -1000px; overflow: scroll; position: absolute; top: -1000px; border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;">
       <div style="border: none; box-sizing: content-box; height: 200px; margin: 0px; padding: 0px; width: 200px;"></div>
     </div>
-    <script src="/automotive-viss2/js/clipboard.min.js?1706000114"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1706000114"></script>
-    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1706000114"></script>
-    <script src="/automotive-viss2/js/jquery.sticky.js?1706000114"></script>
-    <script src="/automotive-viss2/js/featherlight.min.js?1706000114"></script>
-    <script src="/automotive-viss2/js/highlight.pack.js?1706000114"></script>
+    <script src="/automotive-viss2/js/clipboard.min.js?1706009139"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.min.js?1706009139"></script>
+    <script src="/automotive-viss2/js/perfect-scrollbar.jquery.min.js?1706009139"></script>
+    <script src="/automotive-viss2/js/jquery.sticky.js?1706009139"></script>
+    <script src="/automotive-viss2/js/featherlight.min.js?1706009139"></script>
+    <script src="/automotive-viss2/js/highlight.pack.js?1706009139"></script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1706000114"></script>
-    <script src="/automotive-viss2/js/learn.js?1706000114"></script>
-    <script src="/automotive-viss2/js/hugo-learn.js?1706000114"></script>
+    <script src="/automotive-viss2/js/modernizr.custom-3.6.0.js?1706009139"></script>
+    <script src="/automotive-viss2/js/learn.js?1706009139"></script>
+    <script src="/automotive-viss2/js/hugo-learn.js?1706009139"></script>
     
         
-            <script src="/automotive-viss2/mermaid/mermaid.js?1706000114"></script>
+            <script src="/automotive-viss2/mermaid/mermaid.js?1706009139"></script>
         
         <script>
             mermaid.initialize({ startOnLoad: true });
