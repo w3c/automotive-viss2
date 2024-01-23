@@ -21,8 +21,8 @@ Mapping:<br>
   South: signal-name<br>
 - North: signal-name<br>
   South: signal-name<br>
-An example of a mapping file is shown below.
-![Signal mapping example](/pics/Signal-mapping.png?pct=75)<br>
+An example of a mapping file is shown below.<br>
+![Signal mapping example](/pics/Signal-mapping.png?pct=75)
 The DCT directory contains three signal description files:<br>
 * CAN-v0.1.yaml // A southbound domain example describing 5 CAN signals
 * VSS-v0.1.yaml // A northbound domain example describing 6 VSS signals
@@ -80,12 +80,14 @@ or else the files can be renamd to the names tht the feeder tries to read per de
 ## DCT limitations
 This first verion of the DCT has some known limitations that are expected to be mitigated in later versions.
 * Arrays in the YAML input files cannot use the syntax [elem1, .., elemN] but must be represented as
- - elem1<br> 
- ..<br>
- - elemN<br>
+```
+ - elem1
+ ..
+ - elemN
+```
  * Signals from respective domains with number datatypes must have the same datatype, i.e. a uint8 in the northbound domain can only be mapped to a uint8 in the southbound domain.
  * Signals with allowed data restrictions must be defined with its elements in the same order in both domains, and with the same number of elements.
- * Booleans must on the southbound side be represented by ["0", "1"] as the logical values [false, true].
+ * Booleans must on the southbound side be represented by the string values "0" or "1" as the logical values false or true.
  * The unit scaling is limited to the definitions in the UniScaling.yaml file.
  As an example, if the first defined element in one domain logically represents OFF then th first element in the other domain must also logically represent OFF.
  * It is not possible to delete either single data point entries in a domain, nor entire domains. This can of course be done by using some other SQLite tool capable of it.
