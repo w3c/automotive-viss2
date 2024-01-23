@@ -11,7 +11,7 @@ The description must use the syntax as specified by VSS. It can contain a comple
 Before the signal descriptions there must be a line giving the name of the domain:<br>
 Domain: name-of-domain<br>
 An example of a southbound domain description is shown in the figure below.
-![Southbound domain signal definitions](pics/Southbound-domain-signals.png?pct=75)<br>
+![Southbound domain signal definitions](/pics/Southbound-domain-signals.png?pct=75)<br>
 The mapping file must first define the names of the northbound and southbound domains, respecively:<br>
 NorthBoundDomain: name-of domain<br>
 SouthBoundDomain: name-of domain<br>
@@ -22,7 +22,7 @@ Mapping:<br>
 - North: signal-name<br>
   South: signal-name<br>
 An example of a mapping file is shown below.
-![Signal mapping example](pics/Signal-mapping.png?pct=75)<br>
+![Signal mapping example](/pics/Signal-mapping.png?pct=75)<br>
 The DCT directory contains three signal description files:<br>
 * CAN-v0.1.yaml // A southbound domain example describing 5 CAN signals
 * VSS-v0.1.yaml // A northbound domain example describing 6 VSS signals

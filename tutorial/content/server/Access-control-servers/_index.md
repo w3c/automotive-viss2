@@ -143,7 +143,7 @@ Error response: {“action”: “agt-request”, "error":"error-reason"}  // if
 AT request: {“action”: “at-request”, "agToken":"x.y.z", "purpose":"purpose-description", "pop":""}  // pop shall be an empty string for access control short term flow.
 
 AT response 1: {“action”: “at-request”, "aToken":"x.y.z"} ATS->Client // Consent is not required.
-.
+
 AT response 2: {“action”: “at-request”, "sessionId ":"reference-Id", “consent”:”NOT_SET”} // Consent is required, and consent reply not obtained yet from ECF.
 
 AT inquiry request: {“action”: “at-inquiry”, "sessionId":"reference-Id"}  // may need to be issued multiple times until consent is provided by ECF.
