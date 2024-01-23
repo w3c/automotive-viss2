@@ -1,0 +1,11 @@
+# linear conversion unit1 to unit2:  = A * x + B
+- unit1: Celsius
+  unit2: Farenheit
+  coefficients:
+    A: 1.8
+    B: 32.0
+- unit1: km/h
+  unit2: mph
+  coefficients:
+    A: 0.6213712
+    B: 0
