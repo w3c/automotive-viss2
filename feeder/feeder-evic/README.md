@@ -1,6 +1,6 @@
 # External Vehicle Interface Client Feeder
 The EVIC feeder enables the Vehicle Interface client to be implemented as a separate process that is communicating with the feeder over a Websocket protocol, see the figure below.
-![EVIC feeder tech stack](pics/VISSv2-tech-stack-EVIC-feeder.jpg?pct=50)<br>
+![EVIC feeder tech stack](/pics/VISSv2-tech-stack-EVIC-feeder.jpg?pct=50)<br>
 
 A scenario where this could be of interest is if an implementation of an interface client exists, written in another language than the language of the feeder, which is the Go language.
 This was the case when it was developed, a CAN driver interface was available in Python, which then was extened with the Websocket interface to the EVIC feeder.

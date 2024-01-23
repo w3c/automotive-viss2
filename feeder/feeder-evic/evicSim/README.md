@@ -1,4 +1,4 @@
-#External Vehicle Interface Client Simulator
+# External Vehicle Interface Client Simulator
 This simulator is mainly meant to be used to verify that communication can be established with the EVIC feeder. It is hardcoded to simulate the signals defined in the variable canSignals,
 which are the set of signals defined in the WAII/tools/DomainConversionTool/CAN-v0.1.yaml file. 
 To use it with other Vehicle domain signals, the array elements of this variable has to be changed before building the simulator.
