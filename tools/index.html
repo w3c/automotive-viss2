@@ -9,7 +9,7 @@
 
     <link rel="shortcut icon" href="/automotive-viss2/images/fav.png" type="image/x-icon" />
 
-    <title>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial :: W3C VISSv2 Reference Implementation</title>
+    <title>WAII Tools :: W3C VISSv2 Reference Implementation</title>
 
     
     <link href="/automotive-viss2/css/nucleus.css?1706614082" rel="stylesheet">
@@ -40,7 +40,7 @@
     </style>
     
   </head>
-  <body class="" data-url="/automotive-viss2/">
+  <body class="" data-url="/automotive-viss2/tools/">
     <nav id="sidebar" class="">
 
 
@@ -381,7 +381,7 @@
     
     <li data-nav-id="/automotive-viss2/tools/" title="WAII Tools" class="dd-item
         
-        
+        active
         
         ">
       <a href="/automotive-viss2/tools/">
@@ -427,38 +427,115 @@
         <div id="overlay"></div>
         <div class="padding highlightable">
               
+              <div>
+                <div id="top-bar">
+                
+                  
+                  
+                  
+                  <div id="top-github-link">
+                    <a class="github-link" title='Edit this page' href="https://github.com/w3c/automotive-viss2/edit/master/tutorial/content/tools/_index.md" target="blank">
+                      <i class="fas fa-code-branch"></i>
+                      <span id="top-github-link-text">Edit this page</span>
+                    </a>
+                  </div>
+                  
+                
+                
+                <div id="breadcrumbs" itemscope="" itemtype="http://data-vocabulary.org/Breadcrumb">
+                    <span id="sidebar-toggle-span">
+                        <a href="#" id="sidebar-toggle" data-sidebar-toggle="">
+                          <i class="fas fa-bars"></i>
+                        </a>
+                    </span>
+                  
+                  <span id="toc-menu"><i class="fas fa-list-alt"></i></span>
+                  
+                  <span class="links">
+                 
+                 
+                    
+          
+          
+            
+            
+          
+          
+            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > WAII Tools
+          
+        
+          
+        
+                 
+                  </span>
+                </div>
+                
+                    <div class="progress">
+    <div class="wrapper">
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#domain-conversion-tool">Domain Conversion Tool</a></li>
+    <li><a href="#vss-tools-binary-exporter">VSS-Tools Binary Exporter</a></li>
+  </ul>
+</nav>
+    </div>
+</div>
+
+                
+              </div>
+            </div>
+            
         <div id="head-tags">
         
         </div>
         
         <div id="body-inner">
           
+            <h1>
+              
+              WAII Tools
+            </h1>
+          
 
         
 
-<span id="sidebar-toggle-span">
-<a href="#" id="sidebar-toggle" data-sidebar-toggle=""><i class="fas fa-bars"></i> navigation</a>
-</span>
 
- 
-<h2 id="w3c-vehicle-information-service-specification-ver-2-reference-implementation-tutorial">W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</h2>
-<p>The W3C VISSv2 specification, soon to become a W3C standard, is developed at the <a href="https://github.com/w3c/automotive">W3C/automotive github</a>.
-A reference implementation in the form of a server that exposes an interface according to the specification is developed on this repo.</p>
-<p>Also found on this repo are implementations of other components that are needed to realize a communication tech stack that reaches from clients through the server and to the underlying vehicle system interface.</p>
-<p><img src="/automotive-viss2/images/WAII-tech-stack.jpg?width=40pc" alt="VISSv2 communication tech stack"></p>
-<p>These software components (SwCs) can be categorized as follows:</p>
+
+	<p>SwCs categorized as tools are used &ldquo;off-line&rdquo; to create artefacts that can then be used by the &ldquo;on-line&rdquo; SwCs such as the server or by feeders.</p>
+<h2 id="domain-conversion-tool">Domain Conversion Tool</h2>
+<p>The DCT creates the following:</p>
 <ul>
-<li>server</li>
-<li>clients</li>
-<li>data storage</li>
-<li>feeders</li>
-<li>tools</li>
+<li>Two files used by a feeder for instructions on how to convert signals between the northbound domain and a southbound domain.</li>
+<li>A file containing a YAML representation of the northbound domain, to be usd as input to the VSS-Tools binary exporter.
+The input to the DCT are three files:</li>
+<li>A YAML representation of signals of a northbound domain.</li>
+<li>A YAML representation of signals of a southbound domain.</li>
+<li>A YAML representation of pairs of signals from respective domain that the feeder should convert between.
+For more information plese see the README in the <a href="https://github.com/w3c/automotive-viss2/tree/master/tools/DomainConversionTool">DCT</a> directory.</li>
 </ul>
-<p>The tutorial describes each SwC category in a separate chapter.
-It also contains a few Proof of concept (POC) examples, and information about installing,
-building and running Golang based SwCs, a Docker containerization, and about some peripheral components.</p>
+<h2 id="vss-tools-binary-exporter">VSS-Tools Binary Exporter</h2>
+<p>The VSS-Tools binary exporter is one of the exporters of the <a href="https://github.com/COVESA/vss-tools">COVESA/VSS-Tools</a> repo.</p>
+<p>However, running the tool is easiest done from the <a href="https://github.com/COVESA/vehicle_signal_specification/tree/master">COVESA/VSS</a> repo.
+After cloning the repo (make sure the VSS-Tools is included as a submodule) the binary exporter is run by issuing the command:</p>
+<pre tabindex="0"><code>make binary
+</code></pre><p>in the root directory.</p>
+<p>However, that will create a binary format representation of the VSS standard tree.
+If the binary exporter is to take another data model as input the make file will need to be modified.
+The make file line related to the binary exporter that points to the input file (the last line below):</p>
+<pre tabindex="0"><code>binary:
+	gcc -shared -o ${TOOLSDIR}/binary/binarytool.so -fPIC ${TOOLSDIR}/binary/binarytool.c
+	${TOOLSDIR}/vspec2binary.py --uuid -u ./spec/units.yaml ./spec/VehicleSignalSpecification.vspec vss_rel_$$(cat VERSION).binary
+</code></pre><p>needs to be modified to point to the desired file, i.e. the part &ldquo;./spec/VehicleSignalSpecification.vspec&rdquo; needs to be changed.</p>
+<p>The tool output, a file with the extension &ldquo;.binary&rdquo; will then have to be copied to the WAII server directory, and renamed to &ldquo;vss_vissv2.binary&rdquo;.</p>
+
+
+
+
+
+<footer class=" footline" >
 	
-  
+</footer>
+
         
         </div>
         
@@ -673,6 +750,7 @@ building and running Golang based SwCs, a Docker containerization, and about som
             
                 
                     
+                    
                 
                 
 
@@ -692,6 +770,8 @@ building and running Golang based SwCs, a Docker containerization, and about som
 
 	 
 	 
+		
+			<a class="nav nav-prev" href="/automotive-viss2/pocs/poc1/" title="Vehicle.Speed subscription example"> <i class="fa fa-chevron-left"></i></a>
 		
 		
 			<a class="nav nav-next" href="/automotive-viss2/client/" title="VISSv2 Clients" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
@@ -726,4 +806,3 @@ building and running Golang based SwCs, a Docker containerization, and about som
 
   </body>
 </html>
-
