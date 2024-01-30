@@ -1,5 +1,5 @@
 ---
-title: "VISSv2 Feeder"
+title: "WAII Feeders"
 ---
 
 A feeder is a Sw component that needs to implement three tasks:

@@ -1,5 +1,5 @@
 ---
-title: "VISSv2 Build System"
+title: "WAII Build System"
 ---
 
 ## Installing Golang
@@ -44,10 +44,6 @@ To simplify the building process of thesesoftware components the script W3CServe
 After the refactoring of these SwCs into one process with ech actor running as a separate thread,
 it became more convenient to build without this script, but it is still [avaliable](https://github.com/w3c/automotive-viss2/blob/master/W3CServer.sh).
 For more details, see the "Multi-process vs single-process server implementation" chapter in the README.
-
-There are multiple Software components on this repo, such as feeders, simulators, the DCT tool that are to be built as separate excutables.
-If it is forgotten to be mentiond in the README, one way of determining whether a separate build is needed or not is to check the package statement in the source code.
-If it says "package main" it is a separate executable and shall then be built and run as described above.
 
 ### Loggging
 Logging can be command line configured at startup.
