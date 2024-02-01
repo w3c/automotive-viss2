@@ -4,7 +4,7 @@ The instructions for how a specific data point shall be converted is read by the
 The creation of this file has been done "off line" previously by the DCT.
 The input to DCT for how to generate this data structure comes from three YAML files:
 * A file containing the description of signals for the northbound side (VSS domain).
-* A file containing the description of signals for the northbound side (Vehicle domain).
+* A file containing the description of signals for the southbound side (Vehicle domain).
 * A file containing a mapping of signals from respective domain.
 
 The description must use the syntax as specified by VSS. It can contain a complete tree with branches, or only the leaf nodes.
