@@ -792,8 +792,8 @@ func main() {
 		Default:  "info"})
 	dryRun := parser.Flag("", "dryrun", &argparse.Options{Required: false, Help: "dry run to generate vsspathlist file", Default: false})
 	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
-	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
-		Help: "Statestorage must be either sqlite, redis, or none", Default: "redis"})
+	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "apache-iotdb", "none"}, &argparse.Options{Required: false,
+		Help: "Statestorage must be either sqlite, redis, apache-iotdb, or none", Default: "redis"})
 	udsPath := parser.String("", "uds", &argparse.Options{
 		Required: false,
 		Help:     "Set UDS path and file",
