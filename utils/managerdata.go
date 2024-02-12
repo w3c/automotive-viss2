@@ -43,6 +43,22 @@ const (
 	PB_LEVEL2               = 3 // path is represented by integer index, retrieved from vsspathlist.json
 )
 
+type ErrorInformation struct {
+	Number string
+	Reason string
+	Message string
+}
+
+var ErrorInfoList [8]ErrorInformation = [8]ErrorInformation{
+	{"400","bad_request","The request is malformed."},
+	{"400","invalid_data","Data present in the request is invalid."},
+	{"401","expired_token","Access token has expired."},
+	{"401","invalid_token","Access token is invalid."},
+	{"401","missing_token","Access token is missing."},
+	{"403","forbidden_request","The server refuses to carry out the request."},
+	{"404","unavailable_data","The requested data was not found."},
+	{"503","service_unavailable","The server is temporarily unable to handle the request."}}
+
 var MuxServer = []*http.ServeMux{
 	http.NewServeMux(), // for app client HTTP sessions
 	http.NewServeMux(), // for app client WS sessions
