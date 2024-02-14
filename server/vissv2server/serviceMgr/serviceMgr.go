@@ -622,6 +622,25 @@ func setVehicleData(path string, value string) string {
 			return ""
 		}
 		return ts
+	case "apache-iotdb":
+		vssKey := []string{"`" + path + "`"} // Back-quote the VSS node for the DB insert, e.g. `Vehicle.CurrentLocation.Longitude`
+		vssValue := []string{value}
+		IoTDBts := time.Now().UTC().UnixNano() / 1000000
+
+		// IoTDB will automatically convert the value string to the native data type in the timeseries schema for basic types
+//		utils.Info.Printf("IoTDB: DB insert with prefixPath: %v vssKey: %v, vssValue: %v, ts: %v", IoTDbPrefixPath, vssKey, vssValue, IoTDBts)
+		if status, err := IoTDBsession.InsertStringRecord(IoTDbPrefixPath, vssKey, vssValue, IoTDBts); err != nil {
+			utils.Error.Printf("IoTDB: DB insert using InsertStringRecord failed with: %v", err)
+			return ""
+		} else {
+			if status != nil {
+				if err = client.VerifySuccess(status); err != nil {
+					utils.Error.Printf("IoTDB: DB insert Verify failed with: %v", err)
+					return ""
+				}
+			}
+		}
+		return ts
 	}
 	return ""
 }
