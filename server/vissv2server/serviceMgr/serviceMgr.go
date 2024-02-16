@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -524,19 +525,6 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 			}
 		} else {
 			return dp
-			/*			type RedisDp struct {
-							Val string
-							Ts  string
-						}
-						var currentDp RedisDp
-						err := json.Unmarshal([]byte(dp), &currentDp)
-						if err != nil {
-							utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
-							return ""
-						} else {
-							//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
-							return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
-						}*/
 		}
 	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -953,11 +941,17 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 		})
 		err := redisClient.Ping().Err()
 		if err != nil {
-			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
-			os.Exit(1)
-		} else {
-			utils.Info.Printf("Redis state storage initialised.")
+			if utils.FileExists("redis.log") {
+				os.Remove("redis.log")
+			}
+			cmd := exec.Command("/usr/bin/bash", "redisNativeInit.sh")
+			err := cmd.Run()
+			if err != nil {
+				utils.Error.Printf("redis-server startup failed, err=%s", err)
+				os.Exit(1)
+			}
 		}
+		utils.Info.Printf("Redis state storage initialised.")
 	default:
 		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
@@ -999,13 +993,13 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			switch requestMap["action"] {
 			case "set":
 				if strings.Contains(requestMap["path"].(string), "[") == true {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Forbidden request", "Set request must only address a single end point.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
 				ts := setVehicleData(requestMap["path"].(string), requestMap["value"].(string))
 				if len(ts) == 0 {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error", "Underlying system failed to update.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 7, "") //service_unavailable
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1015,7 +1009,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				pathArray := unpackPaths(requestMap["path"].(string))
 				if pathArray == nil {
 					utils.Error.Printf("Unmarshal of path array failed.")
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshal failed on array of paths.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1024,7 +1018,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 					utils.UnpackFilter(requestMap["filter"], &filterList)
 					if len(filterList) == 0 {
 						utils.Error.Printf("Request filter malformed.")
-						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Request filter malformed.")
+						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 						dataChan <- utils.FinalizeMessage(errorResponseMap)
 						break
 					}
@@ -1037,7 +1031,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				dataPack := getDataPack(pathArray, filterList)
 				if len(dataPack) == 0 {
 					utils.Info.Printf("No historic data available")
-					utils.SetErrorResponse(requestMap, errorResponseMap, "404", "Not found", "Historic data not available.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 6, "")  //unavailable_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1048,13 +1042,13 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				subscriptionState.RouterId = requestMap["RouterId"].(string)
 				subscriptionState.Path = unpackPaths(requestMap["path"].(string))
 				if requestMap["filter"] == nil || requestMap["filter"] == "" {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
 				utils.UnpackFilter(requestMap["filter"], &(subscriptionState.FilterList))
 				if len(subscriptionState.FilterList) == 0 {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 				}
 				if requestMap["gatingId"] != nil {
@@ -1080,7 +1074,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 						requestMap["subscriptionId"] = subscriptId
 					}
 				}
-				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsubscribe failed.", "Incorrect or missing subscription id.")
+				utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
 			case "internal-killsubscriptions":
 				isRemoved := true
@@ -1094,12 +1088,12 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 					requestMap["action"] = "subscription"
 					requestMap["requestId"] = nil
 					requestMap["subscriptionId"] = subscriptionId
-					utils.SetErrorResponse(requestMap, errorResponseMap, "401", "Token expired or consent cancelled.", "")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 2, "Token expired or consent cancelled.")
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					_, subscriptionList = scanAndRemoveListItem(subscriptionList, routerId)
 				}
 			default:
-				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unknown action.", "")
+				utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
 			} // switch
 		case <-dummyTicker.C:

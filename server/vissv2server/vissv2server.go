@@ -225,7 +225,7 @@ func getTokenErrorMessage(index int) string {
 }
 
 func setTokenErrorResponse(reqMap map[string]interface{}, errorCode int) {
-	utils.SetErrorResponse(reqMap, errorResponseMap, "400", "Bad Request", getTokenErrorMessage(errorCode))
+	utils.SetErrorResponse(reqMap, errorResponseMap, 3, getTokenErrorMessage(errorCode))
 }
 
 // Sends a message to the Access Token Server to validate the Access Token paths and permissions
@@ -572,19 +572,19 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	if utils.MapRequest(request, &requestMap) != 0 {
 		utils.Error.Printf("serveRequest():invalid JSON format=%s", request)
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "See VISSv2 spec and JSON RFC for valid request syntax.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
 	if requestMap["action"] == nil || validRequest(request, requestMap["action"].(string)) == false {
 		utils.Error.Printf("serveRequest():invalid action params=%s", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "Request parameter invalid.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
 	if requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "*") == true {
 		utils.Error.Printf("serveRequest():path contained wildcard=%s", requestMap["path"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request syntax", "Wildcard must be in filter expression.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -593,7 +593,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	}
 	if requestMap["action"] == "set" && requestMap["filter"] != nil {
 		utils.Error.Printf("serveRequest():Set request combined with filtering.")
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "invalid request", "Set request must not contain filtering.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -625,7 +625,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					err := json.Unmarshal([]byte(filterList[i].Parameter), &searchPath) // Writes in search path all values in filter
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
-						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshall failed on array of paths.")
+						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 						backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 						return
 					}
@@ -655,7 +655,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					return
 				}
 				utils.Error.Printf("Metadata not available.")
-				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Metadata not available.")
+				utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
@@ -689,12 +689,12 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		maxValidation = utils.GetMaxValidation(int(validation), maxValidation)
 	}
 	if totalMatches == 0 {
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "No signals matching path.", "")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 6, "")  //unavailable_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
 	if requestMap["action"] == "set" && golib.VSSgetType(searchData[0].NodeHandle) != gomodel.ACTUATOR {
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Illegal command", "Only the actuator node type can be set.")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -735,7 +735,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			return
 		}
 	default: // should not be possible...
-		utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Access control tag invalid.", "See VISSv2 spec for access control tagging")
+		utils.SetErrorResponse(requestMap, errorResponseMap, 7, "")  //service_unavailable
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}

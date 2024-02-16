@@ -56,13 +56,14 @@ mqtt_mgr
 vissv2server
 
 # Folders
-!server/service_mgr/
-!server/server_core/
-!server/ws_mgr/
-!server/http_mgr/
-!server/agt_server/
-!server/at_server/
-!server/mqtt_mgr/
+!vissv2server/
+!vissv2server/service_mgr/
+!vissv2server/server_core/
+!vissv2server/ws_mgr/
+!vissv2server/http_mgr/
+!vissv2server/agt_server/
+!vissv2server/at_server/
+!vissv2server/mqtt_mgr/
 vendor/
 logs/
 
