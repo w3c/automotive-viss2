@@ -30,6 +30,10 @@
   </url><url>
     <loc>https://w3c.github.io/automotive-viss2/pocs/</loc>
   </url><url>
+    <loc>https://w3c.github.io/automotive-viss2/datastore/redis/</loc>
+  </url><url>
+    <loc>https://w3c.github.io/automotive-viss2/datastore/sqlite/</loc>
+  </url><url>
     <loc>https://w3c.github.io/automotive-viss2/tools/</loc>
   </url>
 </urlset>

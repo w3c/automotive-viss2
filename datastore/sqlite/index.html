@@ -9,7 +9,7 @@
 
     <link rel="shortcut icon" href="/automotive-viss2/images/fav.png" type="image/x-icon" />
 
-    <title>VISSv2 peripheral components :: W3C VISSv2 Reference Implementation</title>
+    <title>WAII SQLite :: W3C VISSv2 Reference Implementation</title>
 
     
     <link href="/automotive-viss2/css/nucleus.css?1708073060" rel="stylesheet">
@@ -40,7 +40,7 @@
     </style>
     
   </head>
-  <body class="" data-url="/automotive-viss2/peripheral-components/">
+  <body class="" data-url="/automotive-viss2/datastore/sqlite/">
     <nav id="sidebar" class="">
 
 
@@ -135,7 +135,7 @@
     
     <li data-nav-id="/automotive-viss2/peripheral-components/" title="VISSv2 peripheral components" class="dd-item
         
-        active
+        
         
         ">
       <a href="/automotive-viss2/peripheral-components/">
@@ -244,7 +244,7 @@
   
     
     <li data-nav-id="/automotive-viss2/datastore/" title="WAII Data Storage" class="dd-item
-        
+        parent
         
         
         ">
@@ -300,7 +300,7 @@
     
     <li data-nav-id="/automotive-viss2/datastore/sqlite/" title="WAII SQLite" class="dd-item
         
-        
+        active
         
         ">
       <a href="/automotive-viss2/datastore/sqlite/">
@@ -498,7 +498,7 @@
                   
                   
                   <div id="top-github-link">
-                    <a class="github-link" title='Edit this page' href="https://github.com/w3c/automotive-viss2/edit/master/tutorial/content/peripheral-components/_index.md" target="blank">
+                    <a class="github-link" title='Edit this page' href="https://github.com/w3c/automotive-viss2/edit/master/tutorial/content/datastore/sqlite/_index.md" target="blank">
                       <i class="fas fa-code-branch"></i>
                       <span id="top-github-link-text">Edit this page</span>
                     </a>
@@ -525,7 +525,13 @@
             
           
           
-            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > VISSv2 peripheral components
+            
+            
+          
+          
+            <a href='/automotive-viss2/'>W3C Vehicle Information Service Specification ver 2 Reference Implementation Tutorial</a> > <a href='/automotive-viss2/datastore/'>WAII Data Storage</a> > WAII SQLite
+          
+        
           
         
           
@@ -538,14 +544,7 @@
     <div class="wrapper">
 <nav id="TableOfContents">
   <ul>
-    <li><a href="#access-control-authorization-servers">Access control authorization servers</a>
-      <ul>
-        <li><a href="#access-grant-token-server-agts">Access Grant Token server (AGTS)</a></li>
-        <li><a href="#access-token-server-ats">Access Token server (ATS)</a></li>
-      </ul>
-    </li>
-    <li><a href="#open-vehicle-data-set-ovds">Open Vehicle Data Set (OVDS)</a></li>
-    <li><a href="#live-simulator">Live simulator</a></li>
+    <li><a href="#sqlite-state-storage">SQLite state storage</a></li>
   </ul>
 </nav>
     </div>
@@ -563,7 +562,7 @@
           
             <h1>
               
-              VISSv2 peripheral components
+              WAII SQLite
             </h1>
           
 
@@ -571,49 +570,12 @@
 
 
 
-	<p>A few other software components that can be useful when setting up a VISSv2 communication tech stack exists:</p>
-<ul>
-<li>Authorization servers for access control and consent models.</li>
-<li>Open Vehicle Data Set, a relational database with a table configuration that enables it to store time series of VSS data from multiple vehicles.</li>
-<li>A &ldquo;live simulator&rdquo; that can read vehicle trip data stored in an OVDS database , and replay it so that it appears as live data from the recorded trip.</li>
-</ul>
-<h2 id="access-control-authorization-servers">Access control authorization servers</h2>
-<p>The VISS2 specification describes an access control model involving two authorization servers:</p>
-<ul>
-<li>Access Grant Token server</li>
-<li>Access Token server
-For details please read the <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#access-control-model">VISSv2: Access Control</a>,
-and the <a href="">Consent Model</a> chapters.</li>
-</ul>
-<p>To trigger the access control and consent functionality it is necessary to tag the corresponding VSS nodes as described in the spec.
-This can either be done by editing of the actual vspec files from the <a href="https://github.com/COVESA/vehicle_signal_specification/tree/master/spec">VSS/spec</a> directory,
-or by creating overlay files and include them as described in <a href="https://github.com/COVESA/vss-tools">VSS-tools</a>,
-and then generate the VSS tree in binary format as described in <a href="https://w3c.github.io/automotive-viss2/server/#vss-tree-configuration">VSS tree configuration</a>.</p>
-<h3 id="access-grant-token-server-agts">Access Grant Token server (AGTS)</h3>
-<p>The <a href="https://github.com/w3c/automotive-viss2/tree/master/server/agt_server">AGTS</a>,
-which typically will be deployed off-vehicle, in the cloud, is separately built and deployed.
-The file agt_public_key.rsa is generated at startup, which must be copied to the <a href="https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer">AT server</a> directory.</p>
-<h3 id="access-token-server-ats">Access Token server (ATS)</h3>
-<p>The <a href="https://github.com/w3c/automotive-viss2/tree/master/server/vissv2server/atServer">ATS</a> is deployed on a separate thread within the VISSv2 server,
-to include it make sure it is uncommented in the serverComponents string array in <a href="https://github.com/w3c/automotive-viss2/blob/master/server/vissv2server/vissv2server.go">viss2server.go</a>.
-The ATS uses the <a href="https://raw.githack.com/w3c/automotive/gh-pages/spec/VISSv2_Core.html#policy-documents">policy documents</a> described in the spec when validating an access token,
-examples of these are available in the purposelist.json and scopelist.json files.</p>
-<h2 id="open-vehicle-data-set-ovds">Open Vehicle Data Set (OVDS)</h2>
-<p>The code to realize an OVDS database is found <a href="https://github.com/COVESA/ccs-components/tree/master/ovds">here</a>.
-The database is realized using SQLite, so it is possible to use the SQLite API to read and write from it.</p>
-<p>However, an <a href="https://github.com/COVESA/ccs-components/tree/master/ovds/server">OVDS server</a> is available that exposes a small set of methods for this, over HTTP.
-For more details, please check the README on the link.</p>
-<p>There is as well an <a href="https://github.com/COVESA/ccs-components/tree/master/ovds/client">OVDS client</a>
-available that connects to a VISSv2 server to fetch data that it then writes into the OVDS using the OVDS server interface.</p>
-<h2 id="live-simulator">Live simulator</h2>
-<p>The <a href="https://github.com/COVESA/ccs-components/tree/master/livesim">live simulator</a> reads data from an OVDS containing recorded trip data,
-and then writes it into a state storage timed by the data time stamps so that it appears timing wise as when it was recorded.
-For more details, please check the README on the link.</p>
-<p>The the test_vehicles.db file in the <a href="https://github.com/COVESA/ccs-components/tree/master/ovds/server">OVDS server</a>
-directory contains trip data generously provided by Geotab Inc.
-It can be used as input to the live simulator, as well as the sawtooth_trip.db for simple testing.</p>
-<p>The live simulator needs a copy of the list of leaf node paths (vsspathlist.json),
-which needs to contain at least all the paths that are to be replayed from the OVDS, and are also to be found in the VSS tree that the VISSv2 server uses.</p>
+	<h2 id="sqlite-state-storage">SQLite state storage</h2>
+<p>When an SQLite database is used as the state storage it is necessary to prepopulate it with one row for each VSS treeleaf node, having the path name as the key.
+To do this there is a <a href="https://github.com/COVESA/ccs-components/tree/master/statestorage/sqlImpl">statestorage_mgr</a> that takes a file containing a list of all the pathnames,
+&ldquo;vsspathlist.json&rdquo; as input. This file is generated by the server at startup, taking the paths from the VSS tree that it has access to.</p>
+<p>This SQLite DB file then needs to be moved to the WAII/server/visv2server/serviceMgr directory, where it should have the name &ldquo;statestorage.db&rdquo;
+(if server configuration is not changed to another name).</p>
 
 
 
@@ -689,60 +651,6 @@ which needs to contain at least all the paths that are to be replayed from the O
             
                 
                     
-                    
-                
-                
-
-                    
-                    
-                    
-
-                    
-            
-        
-                    
-                        
-            
-            
-                
-                    
-                        
-                        
-                    
-                
-                
-
-                    
-                    
-                        
-                    
-                    
-
-                    
-                        
-            
-            
-                
-                    
-                
-                
-
-                    
-                    
-                    
-
-                    
-            
-        
-                    
-            
-        
-                    
-                        
-            
-            
-                
-                    
                 
                 
 
@@ -785,10 +693,65 @@ which needs to contain at least all the paths that are to be replayed from the O
             
         
                     
+            
+        
+                    
                         
             
             
                 
+                    
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
+                    
+                        
+            
+            
+                
+                    
+                    
+                
+                
+
+                    
+                    
+                        
+                    
+                    
+
+                    
+                        
+            
+            
+                
+                    
+                        
+                        
+                    
+                
+                
+
+                    
+                    
+                    
+
+                    
+            
+        
+                    
+                        
+            
+            
+                
+                    
                     
                 
                 
@@ -808,6 +771,9 @@ which needs to contain at least all the paths that are to be replayed from the O
             
             
                 
+                    
+                        
+                        
                     
                 
                 
@@ -895,10 +861,10 @@ which needs to contain at least all the paths that are to be replayed from the O
 	 
 	 
 		
-			<a class="nav nav-prev" href="/automotive-viss2/docker-step-by-step/" title="VISSv2 Docker"> <i class="fa fa-chevron-left"></i></a>
+			<a class="nav nav-prev" href="/automotive-viss2/datastore/redis/" title="WAII Redis"> <i class="fa fa-chevron-left"></i></a>
 		
 		
-			<a class="nav nav-next" href="/automotive-viss2/server/" title="VISSv2 Server" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
+			<a class="nav nav-next" href="/automotive-viss2/feeder/" title="WAII Feeders" style="margin-right: 0px;"><i class="fa fa-chevron-right"></i></a>
 		
 	
     </div>
