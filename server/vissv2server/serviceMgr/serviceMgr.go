@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -524,19 +525,6 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 			}
 		} else {
 			return dp
-			/*			type RedisDp struct {
-							Val string
-							Ts  string
-						}
-						var currentDp RedisDp
-						err := json.Unmarshal([]byte(dp), &currentDp)
-						if err != nil {
-							utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
-							return ""
-						} else {
-							//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
-							return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
-						}*/
 		}
 	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
@@ -953,11 +941,17 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 		})
 		err := redisClient.Ping().Err()
 		if err != nil {
-			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
-			os.Exit(1)
-		} else {
-			utils.Info.Printf("Redis state storage initialised.")
+			if utils.FileExists("redis.log") {
+				os.Remove("redis.log")
+			}
+			cmd := exec.Command("/usr/bin/bash", "redisNativeInit.sh")
+			err := cmd.Run()
+			if err != nil {
+				utils.Error.Printf("redis-server startup failed, err=%s", err)
+				os.Exit(1)
+			}
 		}
+		utils.Info.Printf("Redis state storage initialised.")
 	default:
 		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
