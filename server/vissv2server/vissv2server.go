@@ -794,10 +794,7 @@ func main() {
 	vssJson := parser.String("", "vssJson", &argparse.Options{Required: false, Help: "path and name vssPathlist json file", Default: "../vsspathlist.json"})
 	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
 		Help: "Statestorage must be either sqlite, redis, or none", Default: "redis"})
-	udsPath := parser.String("", "uds", &argparse.Options{
-		Required: false,
-		Help:     "Set UDS path and file",
-		Default:  "/var/tmp/vissv2/histctrlserver.sock"})
+	historySupport := parser.Flag("s", "history", &argparse.Options{Required: false, Help: "Support for historic data requests", Default: false})
 	dbFile := parser.String("", "dbfile", &argparse.Options{
 		Required: false,
 		Help:     "statestorage database filename",
@@ -859,7 +856,7 @@ func main() {
 			go grpcMgr.GrpcMgrInit(3, transportMgrChannel[3])
 			go transportDataSession(transportMgrChannel[3], transportDataChan[3], backendChan[3])
 		case "serviceMgr":
-			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *udsPath, *dbFile)
+			go serviceMgr.ServiceMgrInit(0, serviceMgrChannel[0], *stateDB, *historySupport, *dbFile)
 			go serviceDataSession(serviceMgrChannel[0], serviceDataChan[0], backendChan)
 		case "atServer":
 			go atServer.AtServerInit(atsChannel[0], atsChannel[1], VSSTreeRoot, *consentSupport)

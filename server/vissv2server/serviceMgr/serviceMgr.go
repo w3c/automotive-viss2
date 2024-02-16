@@ -73,57 +73,9 @@ var dbHandle *sql.DB
 var dbErr error
 var redisClient *redis.Client
 var stateDbType string
+var historySupport bool
 
 var dummyValue int // dummy value returned when DB configured to none. Counts from 0 to 999, wrap around, updated every 47 msec
-
-type FeederReg struct {
-	RootName   string `json:"root"`
-	SocketFile string `json:"fname"`
-	DbFile     string `json:"db"`
-	UdsConn    net.Conn
-}
-
-var feederRegList []FeederReg
-
-func readFeederRegistrations(sockFile string) []FeederReg {
-	var regList []FeederReg
-	data, err := ioutil.ReadFile(sockFile)
-	if err != nil {
-		utils.Error.Printf("readFeederRegistrations():%s error=%s", sockFile, err)
-		return nil
-	}
-	err = json.Unmarshal(data, &regList)
-	if err != nil {
-		utils.Error.Printf("readFeederRegistrations():unmarshal error=%s", err)
-		return nil
-	}
-	for i := 0; i < len(regList); i++ {
-		regList[i].UdsConn = nil
-	}
-	return regList
-}
-
-func getFeederConn(path string) net.Conn {
-	root := utils.ExtractRootName(path)
-	for i := 0; i < len(feederRegList); i++ {
-		if root == feederRegList[i].RootName {
-			if feederRegList[i].UdsConn == nil {
-				feederRegList[i].UdsConn = connectToFeeder(feederRegList[i].SocketFile)
-			}
-			return feederRegList[i].UdsConn
-		}
-	}
-	return nil
-}
-
-func connectToFeeder(sockFile string) net.Conn {
-	feederConn, err := net.Dial("unix", sockFile)
-	if err != nil {
-		utils.Error.Printf("connectToFeeder:UDS Dial failed, err = %s", err)
-		return nil
-	}
-	return feederConn
-}
 
 func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
@@ -558,13 +510,13 @@ func setVehicleData(path string, value string) string {
 					return ""
 				}
 				return ts*/
-		feederConn := getFeederConn(path)
-		if feederConn == nil {
+		udsConn := utils.GetUdsConn(path, "serverFeeder")
+		if udsConn == nil {
 			utils.Error.Printf("setVehicleData:Failed to UDS connect to feeder for path = %s", path)
 			return ""
 		}
 		data := `{"path":"` + path + `", "dp":{"value":"` + value + `", "ts":"` + ts + `"}}`
-		_, err := feederConn.Write([]byte(data))
+		_, err := udsConn.Write([]byte(data))
 		if err != nil {
 			utils.Error.Printf("setVehicleData:Write failed, err = %s", err)
 			return ""
@@ -614,10 +566,10 @@ func createHistoryList(vss_data []byte) bool {
 	return true
 }
 
-func historyServer(historyAccessChan chan string, udsPath string, vss_data []byte) {
+func historyServer(historyAccessChan chan string, vss_data []byte) {
 	listExists := createHistoryList(vss_data) // file is created by core-server at startup
 	histCtrlChannel := make(chan string)
-	go initHistoryControlServer(histCtrlChannel, udsPath)
+	go initHistoryControlServer(histCtrlChannel)
 	historyChannel := make(chan int)
 	for {
 		select {
@@ -762,11 +714,10 @@ func captureHistoryValue(signalId int) {
 	}
 }
 
-func initHistoryControlServer(histCtrlChan chan string, udsPath string) {
-	os.Remove(udsPath)
-	l, err := net.Listen("unix", udsPath)
+func initHistoryControlServer(histCtrlChan chan string) {
+	l, err := net.Listen("unix", utils.GetUdsPath("Vehicle", "history"))
 	if err != nil {
-		utils.Error.Printf("HistCtrlServer:Listen failed, err = %s", err)
+		utils.Error.Printf("HistCtrlServer:Listen failed, er = %s.", err)
 		return
 	}
 
@@ -815,6 +766,9 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	if filterList != nil {
 		for i := 0; i < len(filterList); i++ {
 			if filterList[i].Type == "history" {
+				if !historySupport {
+					return ""
+				}
 				period = filterList[i].Parameter
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
@@ -914,10 +868,11 @@ func getValidation(path string) string {
 	return "read-write" //dummy return
 }
 
-func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
+func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, histSupport bool, dbFile string) {
 	stateDbType = stateStorageType
+	historySupport = histSupport
 
-	feederRegList = readFeederRegistrations("feeder-registration.json")
+	utils.ReadUdsRegistrations("uds-registration.json")
 
 	switch stateDbType {
 	case "sqlite":
@@ -935,7 +890,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	case "redis":
 		redisClient = redis.NewClient(&redis.Options{
 			Network:  "unix",
-			Addr:     feederRegList[0].DbFile, //TODO replace with check and exit if not defined.
+			Addr:     utils.GetUdsPath("Vehicle", "serverFeeder"), //TODO replace with check and exit if not defined.
 			Password: "",
 			DB:       1,
 		})
@@ -968,7 +923,9 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 
 	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
-	go historyServer(historyAccessChannel, udsPath, vss_data)
+	if historySupport {
+		go historyServer(historyAccessChannel, vss_data)
+	}
 	var dummyTicker *time.Ticker
 	if stateDbType != "none" {
 		dummyTicker = time.NewTicker(47 * time.Millisecond)
