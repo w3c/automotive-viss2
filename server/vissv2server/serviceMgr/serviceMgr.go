@@ -40,7 +40,7 @@ type SubscriptionState struct {
 	Path                []string
 	FilterList          []utils.FilterObject
 	LatestDataPoint     string
-	GatingId	    string
+	GatingId            string
 }
 
 var subscriptionId int
