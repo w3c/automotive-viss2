@@ -892,7 +892,7 @@ func generateAt(payload AtGenPayload) string {
 }
 
 func initPurposelist() {
-	data, err := ioutil.ReadFile("atServer/purposelist.json")
+	data, err := os.ReadFile("atServer/purposelist.json")
 	if err != nil {
 		utils.Error.Printf("Error reading purposelist.json\n")
 		os.Exit(-1)
