@@ -15,7 +15,7 @@ import (
 func main() {
 	client := redis.NewClient(&redis.Options{
 		Network:  "unix",
-		Addr:     "/var/tmp/vissv2/redisDB.sock",
+		Addr:     utils.GetUdsPath("Vehicle", "redis"),
 		Password: "",
 		DB:       1,
 	})
