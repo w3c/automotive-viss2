@@ -9,6 +9,18 @@ services:
     volumes:
       - /tmp/docker/
 
+  redis:
+    image: redis
+    container_name: app_redis
+    privileged: true
+    user: root
+    command: redis-server /etc/redis.conf
+    volumes:
+      - ../../redis/redis.conf:/etc/redis.conf
+    volumes_from:
+      - tmp
+
+
   feeder-rl:
     container_name: feeder-rl
     user: root
@@ -26,16 +38,6 @@ services:
     volumes_from:
       - tmp
 
-  redis:
-    image: redis
-    container_name: app_redis
-    privileged: true
-    user: root
-    command: redis-server /etc/redis.conf
-    volumes:
-      - ../../redis/redis.conf:/etc/redis.conf
-    volumes_from:
-      - tmp
 
   vissv2server:
     container_name: vissv2server
