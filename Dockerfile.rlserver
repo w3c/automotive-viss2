@@ -84,4 +84,11 @@ COPY --from=builder /build/server/agt_server/agt_public_key.rsa .
 ENTRYPOINT ["/app/vissv2server","-s","redis"]
 
 
-
+FROM golang:1.21-bookworm as agt_server
+USER root
+RUN mkdir transport_sec
+WORKDIR /app
+COPY --from=builder /build/bin/agt_server .
+COPY --from=builder /build/server/transport_sec/transportSec.json ../transport_sec/transportSec.json
+COPY --from=builder /build/server/agt_server/agt_public_key.rsa .
+COPY --from=builder /build/server/agt_server/agt_private_key.rsa .

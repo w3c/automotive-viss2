@@ -1,5 +1,5 @@
 /**
-* (C) 2023 Ford Motor Company
+* (C) 2024 Ford Motor Company
 *
 * All files and artifacts are licensed under the provisions of the license provided by the LICENSE file in this repository.
 *
@@ -15,10 +15,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/w3c/automotive-viss2/utils"
 	"io/ioutil"
+	"sort"
 	"math/rand"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,28 +30,114 @@ type DomainData struct {
 }
 
 type FeederMap struct {
-	VssName     string `json:"vssdata"`
-	VehicleName string `json:"vehicledata"`
+	MapIndex uint16
+	Name string
+	Type int8
+	Datatype int8
+	ConvertIndex uint16
 }
+
+var scalingDataList []string
 
 var redisClient *redis.Client
 var dbHandle *sql.DB
 var stateDbType string
 
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func readscalingDataList(listFilename string) []string {
+	if !fileExists(listFilename) {
+		utils.Error.Printf("readscalingDataList: The file %s does not exist.", listFilename)
+		return nil
+	}
+	data, err := ioutil.ReadFile(listFilename)
+	if err != nil {
+		utils.Error.Printf("readscalingDataList:Error reading %s: %s", listFilename, err)
+		return nil
+	}
+	var convertData []string
+	err = json.Unmarshal([]byte(data), &convertData)
+	if err != nil {
+		utils.Error.Printf("readscalingDataList:Error unmarshal json=%s", err)
+		return nil
+	}
+	return convertData
+}
+
 func readFeederMap(mapFilename string) []FeederMap {
-	var fMap []FeederMap
-	data, err := ioutil.ReadFile(mapFilename)
-	if err != nil {
-		utils.Error.Printf("readFeederMap():%s error=%s", mapFilename, err)
+	var feederMap []FeederMap
+	treeFp, err := os.OpenFile(mapFilename, os.O_RDONLY, 0644)
+	if (err != nil) {
+		utils.Error.Printf("Could not open %s for reading map data", mapFilename)
 		return nil
 	}
-	err = json.Unmarshal(data, &fMap)
-	if err != nil {
-		utils.Error.Printf("readFeederMap():unmarshal error=%s", err)
-		return nil
+	for  {
+		mapElement := readElement(treeFp)
+		if mapElement.Name == "" {
+			break
+		}
+		feederMap = append(feederMap, mapElement)
 	}
-	//utils.Info.Printf("readFeederMap():fMap[0].VssName=%s", fMap[0].VssName)
-	return fMap
+	treeFp.Close()
+	return feederMap
+}
+
+// The reading order must be aligned with the reading order by the Domain Conversion Tool
+func readElement(treeFp *os.File) FeederMap {
+	var feederMap FeederMap
+	feederMap.MapIndex = deSerializeUInt(readBytes(2, treeFp)).(uint16)
+//utils.Info.Printf("feederMap.MapIndex=%d\n", feederMap.MapIndex)
+
+	NameLen := deSerializeUInt(readBytes(1, treeFp)).(uint8)
+	feederMap.Name = string(readBytes((uint32)(NameLen), treeFp))
+//utils.Info.Printf("NameLen=%d\n", NameLen)
+//utils.Info.Printf("feederMap.Name=%s\n", feederMap.Name)
+
+	feederMap.Type = (int8)(deSerializeUInt(readBytes(1, treeFp)).(uint8))
+//utils.Info.Printf("feederMap.Type=%d\n", feederMap.Type)
+
+	feederMap.Datatype = (int8)(deSerializeUInt(readBytes(1, treeFp)).(uint8))
+//utils.Info.Printf("feederMap.Datatype=%d\n", feederMap.Datatype)
+
+	feederMap.ConvertIndex = deSerializeUInt(readBytes(2, treeFp)).(uint16)
+//utils.Info.Printf("feederMap.ConvertIndex=%d\n", feederMap.ConvertIndex)
+
+	return feederMap
+}
+
+func readBytes(numOfBytes uint32, treeFp *os.File) []byte {
+	if (numOfBytes > 0) {
+	    buf := make([]byte, numOfBytes)
+	    treeFp.Read(buf)
+	    return buf
+	}
+	return nil
+}
+
+func deSerializeUInt(buf []byte) interface{} {
+    switch len(buf) {
+      case 1:
+        var intVal uint8
+        intVal = (uint8)(buf[0])
+        return intVal
+      case 2:
+        var intVal uint16
+        intVal = (uint16)((uint16)((uint16)(buf[1])*256) + (uint16)(buf[0]))
+        return intVal
+      case 4:
+        var intVal uint32
+        intVal = (uint32)((uint32)((uint32)(buf[3])*16777216) + (uint32)((uint32)(buf[2])*65536) + (uint32)((uint32)(buf[1])*256) + (uint32)(buf[0]))
+        return intVal
+      default:
+        utils.Error.Printf("Buffer length=%d is of an unknown size", len(buf))
+        return nil
+    }
 }
 
 func initVSSInterfaceMgr(inputChan chan DomainData, outputChan chan DomainData) {
@@ -153,8 +241,6 @@ func initVehicleInterfaceMgr(fMap []FeederMap, inputChan chan DomainData, output
 		select {
 		case outData := <-outputChan:
 			utils.Info.Printf("Data for calling the vehicle interface: Name=%s, Value=%s", outData.Name, outData.Value)
-			// TODO: writing the data to the vehicle interface
-			// simulate a slowly changing state of the signal
 			simCtx.RandomSim = false
 			simCtx.Path = outData.Name
 			simCtx.SetVal = outData.Value
@@ -189,56 +275,117 @@ func calcInputValue(iteration int, setValue string) string {
 
 func selectRandomInput(fMap []FeederMap) DomainData {
 	var domainData DomainData
-	signalIndex := rand.Intn(len(fMap))
-	domainData.Name = fMap[signalIndex].VehicleName
-	domainData.Value = strconv.Itoa(rand.Intn(1000))
+	signalIndex := getRandomVssfMapIndex(fMap)
+	domainData.Name = fMap[signalIndex].Name
+	if fMap[signalIndex].Datatype == 0 { // uint8, maybe allowed...
+		domainData.Value = strconv.Itoa(rand.Intn(10))
+	} else if fMap[signalIndex].Datatype == 9 { // double, maybe lat/long
+		domainData.Value = strconv.Itoa(rand.Intn(90))
+	} else if fMap[signalIndex].Datatype == 10 { // bool
+		domainData.Value = strconv.Itoa(rand.Intn(2))
+	} else {
+		domainData.Value = strconv.Itoa(rand.Intn(1000))
+	}
 	utils.Info.Printf("Simulated data from Vehicle interface: Name=%s, Value=%s", domainData.Name, domainData.Value)
 	return domainData
 }
 
-func searchMap(fMap []FeederMap, inDomain string, signalName string) string {
-	for i := 0; i < len(fMap); i++ {
-		if inDomain == "VSS" {
-			if fMap[i].VssName == signalName {
-				return fMap[i].VehicleName
+func getRandomVssfMapIndex(fMap []FeederMap) int {
+	signalIndex := rand.Intn(len(fMap))
+	for strings.Contains(fMap[signalIndex].Name, ".") { // assuming vehicle if names do not contain dot...
+		signalIndex = (signalIndex+1)%(len(fMap)-1)
+	}
+	return signalIndex
+}
+
+func convertDomainData(north2SouthConv bool, inData DomainData, feederMap []FeederMap) DomainData {
+	var outData DomainData
+	matchIndex := sort.Search(len(feederMap), func(i int) bool { return feederMap[i].Name >= inData.Name })
+	if matchIndex == len(feederMap) || feederMap[matchIndex].Name != inData.Name {
+		matchIndex = -1
+	}
+	outData.Name = feederMap[feederMap[matchIndex].MapIndex].Name
+	outData.Value = convertValue(inData.Value, feederMap[matchIndex].ConvertIndex,  
+				feederMap[matchIndex].Datatype, feederMap[feederMap[matchIndex].MapIndex].Datatype, north2SouthConv)
+	return outData
+}
+
+func convertValue(value string, convertIndex uint16, inDatatype int8, outDatatype int8, north2SouthConv bool) string {
+	switch convertIndex {
+		case 0: // no conversion
+			return value
+		default: // call to conversion method
+			var convertDataMap interface{}
+			err := json.Unmarshal([]byte(scalingDataList[convertIndex-1]), &convertDataMap)
+			if err != nil {
+				utils.Error.Printf("convertValue:Error unmarshal scalingDataList item=%s", scalingDataList[convertIndex-1])
+				return ""
 			}
-		} else {
-			if fMap[i].VehicleName == signalName {
-				return fMap[i].VssName
+			switch vv := convertDataMap.(type) {
+				case map[string]interface{}:
+					return enumConversion(vv, north2SouthConv, value)
+				case interface{}:
+					return linearConversion(vv.([]interface{}), north2SouthConv, value)
+				default:
+					utils.Error.Printf("convertValue: convert data=%s has unknown format.", scalingDataList[convertIndex-1])
 			}
-		}
 	}
 	return ""
 }
 
-func convertDomainData(inDomain string, inData DomainData, feederMap []FeederMap) DomainData {
-	var outData DomainData
-	outName := searchMap(feederMap, inDomain, inData.Name)
-	if outName == "" {
-		utils.Error.Printf("Domain mapping failed")
+func enumConversion(enumObj map[string]interface{}, north2SouthConv bool, inValue string) string { // enumObj = {"Key1":"value1", .., "KeyN":"valueN"}, k is VSS value
+	for k, v := range enumObj{
+		if north2SouthConv {
+			if k == inValue {
+				return v.(string)
+			}
+		} else {
+			if v.(string) == inValue {
+				return k
+			}
+		}
 	}
-	outData.Name = outName
-	outData.Value = convertValue(inData.Value)
-	return outData
+	utils.Error.Printf("enumConversion: value=%s is out of range.", inValue)
+	return ""
 }
 
-func convertValue(value string) string { // TODO: value may need to be scaled, and have datatype changed
-	return value
+func linearConversion(coeffArray []interface{}, north2SouthConv bool, inValue string) string { // coeffArray = [A, B], y = Ax +B, y is VSS value
+	var A float64
+	var B float64
+	var x float64
+	var err error
+	if x, err = strconv.ParseFloat(inValue, 64); err != nil {
+		utils.Error.Printf("linearConversion: input value=%s cannot be converted to float.", inValue)
+		return ""
+	}
+	A = coeffArray[0].(float64)
+	B = coeffArray[1].(float64)
+	var y float64
+	if north2SouthConv {
+		y = A * x + B
+	} else {
+		y = (x - B)/A
+	}
+	return strconv.FormatFloat(y, 'f', -1, 32)
 }
 
 func main() {
 	// Create new parser object
-	parser := argparse.NewParser("print", "Data feeder for the Vehicle tree") // The root node name Vehicle must be synched with the feeder-registration.json file.
+	parser := argparse.NewParser("print", "Data feeder template version 2")
 	mapFile := parser.String("m", "mapfile", &argparse.Options{
 		Required: false,
-		Help:     "Vehicle-VSS mapping data filename",
-		Default:  "VehicleVssMapData.json"})
+		Help:     "VSS-Vehicle mapping data filename",
+		Default:  "VssVehicle.cvt"})
+	sclDataFile := parser.String("s", "scldatafile", &argparse.Options{
+		Required: false,
+		Help:     "VSS-Vehicle scaling data filename",
+		Default:  "VssVehicleScaling.json"})
 	logFile := parser.Flag("", "logfile", &argparse.Options{Required: false, Help: "outputs to logfile in ./logs folder"})
 	logLevel := parser.Selector("", "loglevel", []string{"trace", "debug", "info", "warn", "error", "fatal", "panic"}, &argparse.Options{
 		Required: false,
 		Help:     "changes log output level",
 		Default:  "info"})
-	stateDB := parser.Selector("s", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
+	stateDB := parser.Selector("d", "statestorage", []string{"sqlite", "redis", "none"}, &argparse.Options{Required: false,
 		Help: "Statestorage must be either sqlite, redis, or none", Default: "redis"})
 	dbFile := parser.String("f", "dbfile", &argparse.Options{
 		Required: false,
@@ -293,15 +440,16 @@ func main() {
 
 	utils.Info.Printf("Initializing the feeder for mapping file %s.", *mapFile)
 	feederMap := readFeederMap(*mapFile)
+	scalingDataList = readscalingDataList(*sclDataFile)
 	go initVSSInterfaceMgr(vssInputChan, vssOutputChan)
 	go initVehicleInterfaceMgr(feederMap, vehicleInputChan, vehicleOutputChan)
 
 	for {
 		select {
 		case vssInData := <-vssInputChan:
-			vehicleOutputChan <- convertDomainData("VSS", vssInData, feederMap)
+			vehicleOutputChan <- convertDomainData(true, vssInData, feederMap)
 		case vehicleInData := <-vehicleInputChan:
-			vssOutputChan <- convertDomainData("Vehicle", vehicleInData, feederMap)
+			vssOutputChan <- convertDomainData(false, vehicleInData, feederMap)
 		}
 	}
 }

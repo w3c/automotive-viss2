@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"net"
 	"os"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,69 @@ func translateToMatrixIndex(index int) int {
 		case 12: return 4
 	}
 	return 0
+}
+
+type UdsReg struct {
+	RootName     string `json:"root"`
+	ServerFeeder string `json:"serverFeeder"`
+	Redis        string `json:"redis"`
+	History      string `json:"history"`
+}
+
+var udsRegList []UdsReg
+
+func ReadUdsRegistrations(sockFile string) {
+	data, err := ioutil.ReadFile(sockFile)
+	if err != nil {
+		Error.Printf("readUdsRegistrations():%s error=%s", sockFile, err)
+		return
+	}
+	err = json.Unmarshal(data, &udsRegList)
+	if err != nil {
+		Error.Printf("readUdsRegistrations():unmarshal error=%s", err)
+		return
+	}
+	return
+}
+
+func GetUdsConn(path string, connectionName string) net.Conn {
+	root := ExtractRootName(path)
+	for i := 0; i < len(udsRegList); i++ {
+		if root == udsRegList[i].RootName {
+			return connectViaUds(getSocketPath(i, connectionName))
+		}
+	}
+	return nil
+}
+
+func GetUdsPath(path string, connectionName string) string {
+	root := ExtractRootName(path)
+	for i := 0; i < len(udsRegList); i++ {
+		if root == udsRegList[i].RootName {
+			getSocketPath(i, connectionName)
+		}
+	}
+	return ""
+}
+
+func getSocketPath(listIndex int, connectionName string) string {
+	switch connectionName {
+		case "serverFeeder": return udsRegList[listIndex].ServerFeeder
+		case "redis": return udsRegList[listIndex].Redis
+		case "history": return udsRegList[listIndex].History
+		default:
+			Error.Printf("getSocketPath:Unknown connection name = %s", connectionName)
+			return ""
+	}
+}
+
+func connectViaUds(sockFile string) net.Conn {
+	udsConn, err := net.Dial("unix", sockFile)
+	if err != nil {
+		Error.Printf("connectViaUds:UDS Dial failed, err = %s", err)
+		return nil
+	}
+	return udsConn
 }
 
 func GetServerIP() string {
@@ -154,7 +218,7 @@ func ExtractFromToken(token string, claim string) string { // TODO remove white 
 	return ""
 }
 
-func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
+/*func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
 	if reqMap["RouterId"] != nil {
 		errRespMap["RouterId"] = reqMap["RouterId"]
 	}
@@ -174,6 +238,40 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 		"reason":  reason,
 		"message": message,
 	}
+	errRespMap["error"] = errMap
+	errRespMap["ts"] = GetRfcTime()
+}*/
+
+//func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
+func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, errorListIndex int, altErrorMessage string) {
+	if reqMap["RouterId"] != nil {
+		errRespMap["RouterId"] = reqMap["RouterId"]
+	}
+	if reqMap["action"] != nil {
+		errRespMap["action"] = reqMap["action"]
+	}
+	if reqMap["requestId"] != nil {
+		errRespMap["requestId"] = reqMap["requestId"]
+	} else {
+		delete(errRespMap, "requestId")
+	}
+	if reqMap["subscriptionId"] != nil {
+		errRespMap["subscriptionId"] = reqMap["subscriptionId"]
+	}
+	errorMessage := ErrorInfoList[errorListIndex].Message
+	if len(altErrorMessage) > 0 {
+		errorMessage = altErrorMessage
+	}
+	errMap := map[string]interface{}{
+		"number":  ErrorInfoList[errorListIndex].Number,
+		"reason":  ErrorInfoList[errorListIndex].Reason,
+		"message": errorMessage,
+	}
+/*	errMap := map[string]interface{}{
+		"number":  number,
+		"reason":  reason,
+		"message": message,
+	}*/
 	errRespMap["error"] = errMap
 	errRespMap["ts"] = GetRfcTime()
 }

@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -74,6 +75,7 @@ var dbHandle *sql.DB
 var dbErr error
 var redisClient *redis.Client
 var stateDbType string
+var historySupport bool
 
 // Apache IoTDB 
 var IoTDBsession client.Session
@@ -89,55 +91,6 @@ var IoTDBconfig = &client.Config{
 
 
 var dummyValue int // dummy value returned when DB configured to none. Counts from 0 to 999, wrap around, updated every 47 msec
-
-type FeederReg struct {
-	RootName   string `json:"root"`
-	SocketFile string `json:"fname"`
-	DbFile     string `json:"db"`
-	UdsConn    net.Conn
-}
-
-var feederRegList []FeederReg
-
-func readFeederRegistrations(sockFile string) []FeederReg {
-	var regList []FeederReg
-	data, err := ioutil.ReadFile(sockFile)
-	if err != nil {
-		utils.Error.Printf("readFeederRegistrations():%s error=%s", sockFile, err)
-		return nil
-	}
-	err = json.Unmarshal(data, &regList)
-	if err != nil {
-		utils.Error.Printf("readFeederRegistrations():unmarshal error=%s", err)
-		return nil
-	}
-	for i := 0; i < len(regList); i++ {
-		regList[i].UdsConn = nil
-	}
-	return regList
-}
-
-func getFeederConn(path string) net.Conn {
-	root := utils.ExtractRootName(path)
-	for i := 0; i < len(feederRegList); i++ {
-		if root == feederRegList[i].RootName {
-			if feederRegList[i].UdsConn == nil {
-				feederRegList[i].UdsConn = connectToFeeder(feederRegList[i].SocketFile)
-			}
-			return feederRegList[i].UdsConn
-		}
-	}
-	return nil
-}
-
-func connectToFeeder(sockFile string) net.Conn {
-	feederConn, err := net.Dial("unix", sockFile)
-	if err != nil {
-		utils.Error.Printf("connectToFeeder:UDS Dial failed, err = %s", err)
-		return nil
-	}
-	return feederConn
-}
 
 func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
@@ -539,19 +492,6 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 			}
 		} else {
 			return dp
-			/*			type RedisDp struct {
-							Val string
-							Ts  string
-						}
-						var currentDp RedisDp
-						err := json.Unmarshal([]byte(dp), &currentDp)
-						if err != nil {
-							utils.Error.Printf("Unmarshal failed for signal entry=%s, error=%s", string(dp), err)
-							return ""
-						} else {
-							//			utils.Info.Printf("Data: val=%s, ts=%s\n", currentDp.Val, currentDp.Ts)
-							return `{"value":"` + currentDp.Val + `", "ts":"` + currentDp.Ts + `"}`
-						}*/
 		}
 	case "apache-iotdb":
 		var (
@@ -610,13 +550,13 @@ func setVehicleData(path string, value string) string {
 					return ""
 				}
 				return ts*/
-		feederConn := getFeederConn(path)
-		if feederConn == nil {
+		udsConn := utils.GetUdsConn(path, "serverFeeder")
+		if udsConn == nil {
 			utils.Error.Printf("setVehicleData:Failed to UDS connect to feeder for path = %s", path)
 			return ""
 		}
 		data := `{"path":"` + path + `", "dp":{"value":"` + value + `", "ts":"` + ts + `"}}`
-		_, err := feederConn.Write([]byte(data))
+		_, err := udsConn.Write([]byte(data))
 		if err != nil {
 			utils.Error.Printf("setVehicleData:Write failed, err = %s", err)
 			return ""
@@ -685,10 +625,10 @@ func createHistoryList(vss_data []byte) bool {
 	return true
 }
 
-func historyServer(historyAccessChan chan string, udsPath string, vss_data []byte) {
+func historyServer(historyAccessChan chan string, vss_data []byte) {
 	listExists := createHistoryList(vss_data) // file is created by core-server at startup
 	histCtrlChannel := make(chan string)
-	go initHistoryControlServer(histCtrlChannel, udsPath)
+	go initHistoryControlServer(histCtrlChannel)
 	historyChannel := make(chan int)
 	for {
 		select {
@@ -833,11 +773,10 @@ func captureHistoryValue(signalId int) {
 	}
 }
 
-func initHistoryControlServer(histCtrlChan chan string, udsPath string) {
-	os.Remove(udsPath)
-	l, err := net.Listen("unix", udsPath)
+func initHistoryControlServer(histCtrlChan chan string) {
+	l, err := net.Listen("unix", utils.GetUdsPath("Vehicle", "history"))
 	if err != nil {
-		utils.Error.Printf("HistCtrlServer:Listen failed, err = %s", err)
+		utils.Error.Printf("HistCtrlServer:Listen failed, er = %s.", err)
 		return
 	}
 
@@ -886,6 +825,9 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	if filterList != nil {
 		for i := 0; i < len(filterList); i++ {
 			if filterList[i].Type == "history" {
+				if !historySupport {
+					return ""
+				}
 				period = filterList[i].Parameter
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
@@ -985,10 +927,11 @@ func getValidation(path string) string {
 	return "read-write" //dummy return
 }
 
-func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
+func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, histSupport bool, dbFile string) {
 	stateDbType = stateStorageType
+	historySupport = histSupport
 
-	feederRegList = readFeederRegistrations("feeder-registration.json")
+	utils.ReadUdsRegistrations("uds-registration.json")
 
 	switch stateDbType {
 	case "sqlite":
@@ -1006,17 +949,23 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	case "redis":
 		redisClient = redis.NewClient(&redis.Options{
 			Network:  "unix",
-			Addr:     feederRegList[0].DbFile, //TODO replace with check and exit if not defined.
+			Addr:     utils.GetUdsPath("Vehicle", "serverFeeder"), //TODO replace with check and exit if not defined.
 			Password: "",
 			DB:       1,
 		})
 		err := redisClient.Ping().Err()
 		if err != nil {
-			utils.Error.Printf("Could not initialise redis DB, err = %s", err)
-			os.Exit(1)
-		} else {
-			utils.Info.Printf("Redis state storage initialised.")
+			if utils.FileExists("redis.log") {
+				os.Remove("redis.log")
+			}
+			cmd := exec.Command("/usr/bin/bash", "redisNativeInit.sh")
+			err := cmd.Run()
+			if err != nil {
+				utils.Error.Printf("redis-server startup failed, err=%s", err)
+				os.Exit(1)
+			}
 		}
+    utils.Info.Printf("Redis state storage initialised.")
 	case "apache-iotdb":
 		utils.Info.Printf("IoTDB: creating new session with host:%v port:%v user:%v pass:%v", IoTDBconfig.Host, IoTDBconfig.Port, IoTDBconfig.UserName, IoTDBconfig.Password)
 		IoTDBsession = client.NewSession(IoTDBconfig)
@@ -1041,7 +990,9 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 
 	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
-	go historyServer(historyAccessChannel, udsPath, vss_data)
+	if historySupport {
+		go historyServer(historyAccessChannel, vss_data)
+	}
 	var dummyTicker *time.Ticker
 	if stateDbType != "none" {
 		dummyTicker = time.NewTicker(47 * time.Millisecond)
@@ -1066,13 +1017,13 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			switch requestMap["action"] {
 			case "set":
 				if strings.Contains(requestMap["path"].(string), "[") == true {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Forbidden request", "Set request must only address a single end point.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
 				ts := setVehicleData(requestMap["path"].(string), requestMap["value"].(string))
 				if len(ts) == 0 {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error", "Underlying system failed to update.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 7, "") //service_unavailable
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1082,7 +1033,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				pathArray := unpackPaths(requestMap["path"].(string))
 				if pathArray == nil {
 					utils.Error.Printf("Unmarshal of path array failed.")
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Internal error.", "Unmarshal failed on array of paths.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1091,7 +1042,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 					utils.UnpackFilter(requestMap["filter"], &filterList)
 					if len(filterList) == 0 {
 						utils.Error.Printf("Request filter malformed.")
-						utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Bad request", "Request filter malformed.")
+						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 						dataChan <- utils.FinalizeMessage(errorResponseMap)
 						break
 					}
@@ -1104,7 +1055,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				dataPack := getDataPack(pathArray, filterList)
 				if len(dataPack) == 0 {
 					utils.Info.Printf("No historic data available")
-					utils.SetErrorResponse(requestMap, errorResponseMap, "404", "Not found", "Historic data not available.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 6, "")  //unavailable_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1115,13 +1066,13 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				subscriptionState.RouterId = requestMap["RouterId"].(string)
 				subscriptionState.Path = unpackPaths(requestMap["path"].(string))
 				if requestMap["filter"] == nil || requestMap["filter"] == "" {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Filter missing.", "")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
 				utils.UnpackFilter(requestMap["filter"], &(subscriptionState.FilterList))
 				if len(subscriptionState.FilterList) == 0 {
-					utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Invalid filter.", "See VISSv2 specification.")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 				}
 				if requestMap["gatingId"] != nil {
@@ -1147,7 +1098,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 						requestMap["subscriptionId"] = subscriptId
 					}
 				}
-				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unsubscribe failed.", "Incorrect or missing subscription id.")
+				utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
 			case "internal-killsubscriptions":
 				isRemoved := true
@@ -1161,12 +1112,12 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 					requestMap["action"] = "subscription"
 					requestMap["requestId"] = nil
 					requestMap["subscriptionId"] = subscriptionId
-					utils.SetErrorResponse(requestMap, errorResponseMap, "401", "Token expired or consent cancelled.", "")
+					utils.SetErrorResponse(requestMap, errorResponseMap, 2, "Token expired or consent cancelled.")
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					_, subscriptionList = scanAndRemoveListItem(subscriptionList, routerId)
 				}
 			default:
-				utils.SetErrorResponse(requestMap, errorResponseMap, "400", "Unknown action.", "")
+				utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
 			} // switch
 		case <-dummyTicker.C:
