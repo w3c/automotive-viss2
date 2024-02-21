@@ -7,7 +7,7 @@ services=(vissv2server agt_server)
 usage() {
 	#    echo "usage: $0 startme|stopme|configureme" >&2
 	echo "usage: $0 startme|stopme" >&2
-	echo "usage: Optional parameter: sqlite|redis|none" >&2
+	echo "usage: Optional parameter: sqlite|redis|apache-iotdb|none" >&2
 }
 
 startme() {

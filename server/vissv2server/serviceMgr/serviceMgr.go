@@ -28,6 +28,8 @@ import (
 	"github.com/go-redis/redis"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/w3c/automotive-viss2/utils"
+	"github.com/apache/iotdb-client-go/client"
+	"fmt"
 )
 
 type RegRequest struct {
@@ -74,6 +76,19 @@ var dbErr error
 var redisClient *redis.Client
 var stateDbType string
 var historySupport bool
+
+// Apache IoTDB 
+var IoTDBsession client.Session
+var IoTDbPrefixPath string = "root.test2.dev1" // DB prefix used for get/set
+var IoTDbTimeout int64 = 3000
+var IoTDBconfig = &client.Config{
+//	Host:     "127.0.0.1",
+	Host:     "iotdb-service",
+	Port:     "6667",
+	UserName: "root",
+	Password: "root",
+}
+
 
 var dummyValue int // dummy value returned when DB configured to none. Counts from 0 to 999, wrap around, updated every 47 msec
 
@@ -478,6 +493,31 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		} else {
 			return dp
 		}
+	case "apache-iotdb":
+		var (
+			// Back-quote the VSS node for the DB query, e.g. `Vehicle.CurrentLocation.Longitude`
+			selectLastSQL = fmt.Sprintf("select last `%v` from %v", path, IoTDbPrefixPath)
+			value = ""
+			ts = ""
+		)
+//		utils.Info.Printf("IoTDB: query using: %v", selectLastSQL)
+		sessionDataSet, err := IoTDBsession.ExecuteQueryStatement(selectLastSQL, &IoTDbTimeout)
+		if err == nil {
+			var success bool
+			success, err = sessionDataSet.Next()
+			if err == nil && success{
+				value = sessionDataSet.GetText("Value")
+				ts = sessionDataSet.GetText(client.TimestampColumnName)
+//				utils.Info.Printf("IoTDB: get returned: ts=%v, Value=%v", ts, value)
+//				resultStr := `{"value":"` + value + `", "ts":"` + ts + `"}`
+//				utils.Info.Printf("IoTDB: returning get result=%v", resultStr)
+			}
+			sessionDataSet.Close()
+		} else {
+			utils.Error.Printf("IoTDB: Query failed with error=%s", err)
+			return `{"value":"Data-not-found", "ts":"` + utils.GetRfcTime() + `"}`
+		}
+		return `{"value":"` + value + `", "ts":"` + ts + `"}`
 	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 	}
@@ -520,6 +560,25 @@ func setVehicleData(path string, value string) string {
 		if err != nil {
 			utils.Error.Printf("setVehicleData:Write failed, err = %s", err)
 			return ""
+		}
+		return ts
+	case "apache-iotdb":
+		vssKey := []string{"`" + path + "`"} // Back-quote the VSS node for the DB insert, e.g. `Vehicle.CurrentLocation.Longitude`
+		vssValue := []string{value}
+		IoTDBts := time.Now().UTC().UnixNano() / 1000000
+
+		// IoTDB will automatically convert the value string to the native data type in the timeseries schema for basic types
+//		utils.Info.Printf("IoTDB: DB insert with prefixPath: %v vssKey: %v, vssValue: %v, ts: %v", IoTDbPrefixPath, vssKey, vssValue, IoTDBts)
+		if status, err := IoTDBsession.InsertStringRecord(IoTDbPrefixPath, vssKey, vssValue, IoTDBts); err != nil {
+			utils.Error.Printf("IoTDB: DB insert using InsertStringRecord failed with: %v", err)
+			return ""
+		} else {
+			if status != nil {
+				if err = client.VerifySuccess(status); err != nil {
+					utils.Error.Printf("IoTDB: DB insert Verify failed with: %v", err)
+					return ""
+				}
+			}
 		}
 		return ts
 	}
@@ -906,7 +965,15 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				os.Exit(1)
 			}
 		}
-		utils.Info.Printf("Redis state storage initialised.")
+    utils.Info.Printf("Redis state storage initialised.")
+	case "apache-iotdb":
+		utils.Info.Printf("IoTDB: creating new session with host:%v port:%v user:%v pass:%v", IoTDBconfig.Host, IoTDBconfig.Port, IoTDBconfig.UserName, IoTDBconfig.Password)
+		IoTDBsession = client.NewSession(IoTDBconfig)
+		if err := IoTDBsession.Open(false, 0); err != nil {
+			utils.Error.Printf("IoTDB: Failed to open session with error=%s", err)			
+			os.Exit(1)
+		}
+		defer IoTDBsession.Close()
 	default:
 		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
