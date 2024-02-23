@@ -1,0 +1,33 @@
+
+name: vissv2server build check
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+    paths:
+    - ".github/workflows/vissv2server-build.yml"
+    - "server/**"
+  workflow_dispatch:
+
+concurrency:
+      group: ${{ github.ref }}-${{ github.workflow }}
+      cancel-in-progress: true
+
+jobs:
+
+  vissv2server-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Build vissv2server
+        run: |
+          cd server/vissv2server
+          go build
+      - name: Verify that help succeeds
+        run: |
+          cd server/vissv2server
+          ./vissv2server --help
