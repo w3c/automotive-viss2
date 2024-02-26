@@ -13,19 +13,15 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
-	//	"net/http"
+	"fmt"
+	"github.com/akamensky/argparse"
+	"github.com/gorilla/websocket"
+	"github.com/w3c/automotive-viss2/utils"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
-
-	"fmt"
 	"time"
-
-	"github.com/akamensky/argparse"
-	"github.com/gorilla/websocket"
-	"github.com/w3c/automotive-viss2/utils"
 )
 
 var commandNumber string
@@ -82,7 +78,7 @@ func retrieveRequest(jsonRequest map[string]interface{}) string {
 }
 
 func createListFromFile(fname string) int {
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		fmt.Printf("Error reading file=%s", fname)
 		return 0

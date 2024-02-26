@@ -14,11 +14,10 @@ import (
 	"github.com/go-redis/redis"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/w3c/automotive-viss2/utils"
-	"io/ioutil"
-	"sort"
 	"math/rand"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -30,10 +29,10 @@ type DomainData struct {
 }
 
 type FeederMap struct {
-	MapIndex uint16
-	Name string
-	Type int8
-	Datatype int8
+	MapIndex     uint16
+	Name         string
+	Type         int8
+	Datatype     int8
 	ConvertIndex uint16
 }
 
@@ -56,7 +55,7 @@ func readscalingDataList(listFilename string) []string {
 		utils.Error.Printf("readscalingDataList: The file %s does not exist.", listFilename)
 		return nil
 	}
-	data, err := ioutil.ReadFile(listFilename)
+	data, err := os.ReadFile(listFilename)
 	if err != nil {
 		utils.Error.Printf("readscalingDataList:Error reading %s: %s", listFilename, err)
 		return nil
@@ -73,11 +72,11 @@ func readscalingDataList(listFilename string) []string {
 func readFeederMap(mapFilename string) []FeederMap {
 	var feederMap []FeederMap
 	treeFp, err := os.OpenFile(mapFilename, os.O_RDONLY, 0644)
-	if (err != nil) {
+	if err != nil {
 		utils.Error.Printf("Could not open %s for reading map data", mapFilename)
 		return nil
 	}
-	for  {
+	for {
 		mapElement := readElement(treeFp)
 		if mapElement.Name == "" {
 			break
@@ -92,52 +91,52 @@ func readFeederMap(mapFilename string) []FeederMap {
 func readElement(treeFp *os.File) FeederMap {
 	var feederMap FeederMap
 	feederMap.MapIndex = deSerializeUInt(readBytes(2, treeFp)).(uint16)
-//utils.Info.Printf("feederMap.MapIndex=%d\n", feederMap.MapIndex)
+	//utils.Info.Printf("feederMap.MapIndex=%d\n", feederMap.MapIndex)
 
 	NameLen := deSerializeUInt(readBytes(1, treeFp)).(uint8)
 	feederMap.Name = string(readBytes((uint32)(NameLen), treeFp))
-//utils.Info.Printf("NameLen=%d\n", NameLen)
-//utils.Info.Printf("feederMap.Name=%s\n", feederMap.Name)
+	//utils.Info.Printf("NameLen=%d\n", NameLen)
+	//utils.Info.Printf("feederMap.Name=%s\n", feederMap.Name)
 
 	feederMap.Type = (int8)(deSerializeUInt(readBytes(1, treeFp)).(uint8))
-//utils.Info.Printf("feederMap.Type=%d\n", feederMap.Type)
+	//utils.Info.Printf("feederMap.Type=%d\n", feederMap.Type)
 
 	feederMap.Datatype = (int8)(deSerializeUInt(readBytes(1, treeFp)).(uint8))
-//utils.Info.Printf("feederMap.Datatype=%d\n", feederMap.Datatype)
+	//utils.Info.Printf("feederMap.Datatype=%d\n", feederMap.Datatype)
 
 	feederMap.ConvertIndex = deSerializeUInt(readBytes(2, treeFp)).(uint16)
-//utils.Info.Printf("feederMap.ConvertIndex=%d\n", feederMap.ConvertIndex)
+	//utils.Info.Printf("feederMap.ConvertIndex=%d\n", feederMap.ConvertIndex)
 
 	return feederMap
 }
 
 func readBytes(numOfBytes uint32, treeFp *os.File) []byte {
-	if (numOfBytes > 0) {
-	    buf := make([]byte, numOfBytes)
-	    treeFp.Read(buf)
-	    return buf
+	if numOfBytes > 0 {
+		buf := make([]byte, numOfBytes)
+		treeFp.Read(buf)
+		return buf
 	}
 	return nil
 }
 
 func deSerializeUInt(buf []byte) interface{} {
-    switch len(buf) {
-      case 1:
-        var intVal uint8
-        intVal = (uint8)(buf[0])
-        return intVal
-      case 2:
-        var intVal uint16
-        intVal = (uint16)((uint16)((uint16)(buf[1])*256) + (uint16)(buf[0]))
-        return intVal
-      case 4:
-        var intVal uint32
-        intVal = (uint32)((uint32)((uint32)(buf[3])*16777216) + (uint32)((uint32)(buf[2])*65536) + (uint32)((uint32)(buf[1])*256) + (uint32)(buf[0]))
-        return intVal
-      default:
-        utils.Error.Printf("Buffer length=%d is of an unknown size", len(buf))
-        return nil
-    }
+	switch len(buf) {
+	case 1:
+		var intVal uint8
+		intVal = (uint8)(buf[0])
+		return intVal
+	case 2:
+		var intVal uint16
+		intVal = (uint16)((uint16)((uint16)(buf[1])*256) + (uint16)(buf[0]))
+		return intVal
+	case 4:
+		var intVal uint32
+		intVal = (uint32)((uint32)((uint32)(buf[3])*16777216) + (uint32)((uint32)(buf[2])*65536) + (uint32)((uint32)(buf[1])*256) + (uint32)(buf[0]))
+		return intVal
+	default:
+		utils.Error.Printf("Buffer length=%d is of an unknown size", len(buf))
+		return nil
+	}
 }
 
 func initVSSInterfaceMgr(inputChan chan DomainData, outputChan chan DomainData) {
@@ -293,7 +292,7 @@ func selectRandomInput(fMap []FeederMap) DomainData {
 func getRandomVssfMapIndex(fMap []FeederMap) int {
 	signalIndex := rand.Intn(len(fMap))
 	for strings.Contains(fMap[signalIndex].Name, ".") { // assuming vehicle if names do not contain dot...
-		signalIndex = (signalIndex+1)%(len(fMap)-1)
+		signalIndex = (signalIndex + 1) % (len(fMap) - 1)
 	}
 	return signalIndex
 }
@@ -305,36 +304,36 @@ func convertDomainData(north2SouthConv bool, inData DomainData, feederMap []Feed
 		matchIndex = -1
 	}
 	outData.Name = feederMap[feederMap[matchIndex].MapIndex].Name
-	outData.Value = convertValue(inData.Value, feederMap[matchIndex].ConvertIndex,  
-				feederMap[matchIndex].Datatype, feederMap[feederMap[matchIndex].MapIndex].Datatype, north2SouthConv)
+	outData.Value = convertValue(inData.Value, feederMap[matchIndex].ConvertIndex,
+		feederMap[matchIndex].Datatype, feederMap[feederMap[matchIndex].MapIndex].Datatype, north2SouthConv)
 	return outData
 }
 
 func convertValue(value string, convertIndex uint16, inDatatype int8, outDatatype int8, north2SouthConv bool) string {
 	switch convertIndex {
-		case 0: // no conversion
-			return value
-		default: // call to conversion method
-			var convertDataMap interface{}
-			err := json.Unmarshal([]byte(scalingDataList[convertIndex-1]), &convertDataMap)
-			if err != nil {
-				utils.Error.Printf("convertValue:Error unmarshal scalingDataList item=%s", scalingDataList[convertIndex-1])
-				return ""
-			}
-			switch vv := convertDataMap.(type) {
-				case map[string]interface{}:
-					return enumConversion(vv, north2SouthConv, value)
-				case interface{}:
-					return linearConversion(vv.([]interface{}), north2SouthConv, value)
-				default:
-					utils.Error.Printf("convertValue: convert data=%s has unknown format.", scalingDataList[convertIndex-1])
-			}
+	case 0: // no conversion
+		return value
+	default: // call to conversion method
+		var convertDataMap interface{}
+		err := json.Unmarshal([]byte(scalingDataList[convertIndex-1]), &convertDataMap)
+		if err != nil {
+			utils.Error.Printf("convertValue:Error unmarshal scalingDataList item=%s", scalingDataList[convertIndex-1])
+			return ""
+		}
+		switch vv := convertDataMap.(type) {
+		case map[string]interface{}:
+			return enumConversion(vv, north2SouthConv, value)
+		case interface{}:
+			return linearConversion(vv.([]interface{}), north2SouthConv, value)
+		default:
+			utils.Error.Printf("convertValue: convert data=%s has unknown format.", scalingDataList[convertIndex-1])
+		}
 	}
 	return ""
 }
 
 func enumConversion(enumObj map[string]interface{}, north2SouthConv bool, inValue string) string { // enumObj = {"Key1":"value1", .., "KeyN":"valueN"}, k is VSS value
-	for k, v := range enumObj{
+	for k, v := range enumObj {
 		if north2SouthConv {
 			if k == inValue {
 				return v.(string)
@@ -362,9 +361,9 @@ func linearConversion(coeffArray []interface{}, north2SouthConv bool, inValue st
 	B = coeffArray[1].(float64)
 	var y float64
 	if north2SouthConv {
-		y = A * x + B
+		y = A*x + B
 	} else {
-		y = (x - B)/A
+		y = (x - B) / A
 	}
 	return strconv.FormatFloat(y, 'f', -1, 32)
 }

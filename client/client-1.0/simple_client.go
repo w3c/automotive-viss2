@@ -14,7 +14,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
+	//"io/ioutil"
 	//	"net/http"
 	"net/url"
 	"os"
@@ -82,7 +82,7 @@ func retrieveRequest(jsonRequest map[string]interface{}) string {
 }
 
 func createListFromFile(fname string) int {
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		fmt.Printf("Error reading file=%s", fname)
 		return 0

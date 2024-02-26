@@ -15,7 +15,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,10 +23,10 @@ import (
 )
 
 /*
-* The codelist shall contain all keys used in JSON payloads, all "constant" key values, and number types.
-  If the list is extended, keys shall be placed in front of the list,
-* constant key values in the middle of the lst, and number types at the end of the list.
-* The CODELISTDELIM must be updated to the correct element numbers.
+  - The codelist shall contain all keys used in JSON payloads, all "constant" key values, and number types.
+    If the list is extended, keys shall be placed in front of the list,
+  - constant key values in the middle of the lst, and number types at the end of the list.
+  - The CODELISTDELIM must be updated to the correct element numbers.
 */
 var codelist string = `{"codes":["action", "requestId", "value", "ts", "path", "subscriptionId", "data", "dp", "filter", "authorization",
                         "get", "set", "subscribe", "unsubscribe", "subscription", 
@@ -614,7 +614,7 @@ func compressValue(value []byte) []byte {
 }
 
 func createPathList(fname string) int {
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		Error.Printf("Error reading %s: %s", fname, err)
 		return 0
