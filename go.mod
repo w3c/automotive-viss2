@@ -24,6 +24,7 @@ require (
 	github.com/COVESA/vss-tools/binary/go_parser/datamodel v0.0.0-20231222140420-5343e9c0884d
 	github.com/COVESA/vss-tools/binary/go_parser/parserlib v0.0.0-20231222140420-5343e9c0884d
 	github.com/akamensky/argparse v1.4.0
+	github.com/apache/iotdb-client-go v1.1.7
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
@@ -39,6 +40,7 @@ require (
 )
 
 require (
+	github.com/apache/thrift v0.15.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	golang.org/x/net v0.19.0 // indirect

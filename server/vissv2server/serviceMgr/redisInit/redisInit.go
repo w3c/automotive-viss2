@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/w3c/automotive-viss2/utils"
 	"os/exec"
 	//	"github.com/go-redis/redis"
 	"github.com/go-redis/redis/v8"
@@ -15,7 +16,7 @@ import (
 func main() {
 	client := redis.NewClient(&redis.Options{
 		Network:  "unix",
-		Addr:     "/var/tmp/vissv2/redisDB.sock",
+		Addr:     utils.GetUdsPath("Vehicle", "redis"),
 		Password: "",
 		DB:       1,
 	})

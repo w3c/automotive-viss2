@@ -25,16 +25,20 @@ The server consist of the software components shown below:
  - Access Grant token server
  - Access Token server 
  
-hese used to be built as separate processes that communicated over the Websockets protocol.
+These used to be built as separate processes that communicated over the Websockets protocol.
 This model is available on the "multi-process" branch. To start them there is a shell script, please check the README for details of it.
 
-On the master branch these coponents are today implemented as threads within a single process, to build it
+On the master branch these components are today implemented as threads within a single process, to build it
+move to the `./server/vissv2server` directory,
 
-move to the ./server/vissv2 directory,
+issue 
 
-issue $ go build
 
-and the start it ./vissv2server
+```bash
+$ go build
+```
+
+and the start it `./vissv2server`
 
 The server may be started with a few different command line flags, append --help to get more info about them.
 

@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/w3c/automotive-viss2/utils"
 	"os"
 	"time"
 	//"github.com/go-redis/redis"
@@ -41,7 +42,7 @@ func main() {
 
 	feederClient = redis.NewClient(&redis.Options{
 		Network:  "unix",
-		Addr:     "/var/tmp/vissv2/redisDB.sock",
+		Addr:     utils.GetUdsPath("Vehicle", "redis"),
 		Password: "",
 		DB:       1,
 	})

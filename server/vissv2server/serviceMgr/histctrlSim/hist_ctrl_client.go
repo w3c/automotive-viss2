@@ -19,7 +19,8 @@ import (
 
 func main() {
 	buf := make([]byte, 128)
-	conn, err := net.Dial("unix", "/tmp/vissv2/histctrlserver.sock")
+//	conn, err := net.Dial("unix", "/tmp/vissv2/histctrlserver.sock")
+	conn, err := net.Dial("unix", utils.GetUdsPath("Vehicle", "history"))
 	if err != nil {
 		utils.Error.Printf("HistCtrlClient:Accept failed, err = %s", err)
 		os.Exit(-1)

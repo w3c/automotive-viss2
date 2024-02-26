@@ -28,6 +28,8 @@ import (
 	"github.com/go-redis/redis"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/w3c/automotive-viss2/utils"
+	"github.com/apache/iotdb-client-go/client"
+	"fmt"
 )
 
 type RegRequest struct {
@@ -73,57 +75,22 @@ var dbHandle *sql.DB
 var dbErr error
 var redisClient *redis.Client
 var stateDbType string
+var historySupport bool
+
+// Apache IoTDB 
+var IoTDBsession client.Session
+var IoTDbPrefixPath string = "root.test2.dev1" // DB prefix used for get/set
+var IoTDbTimeout int64 = 3000
+var IoTDBconfig = &client.Config{
+//	Host:     "127.0.0.1",
+	Host:     "iotdb-service",
+	Port:     "6667",
+	UserName: "root",
+	Password: "root",
+}
+
 
 var dummyValue int // dummy value returned when DB configured to none. Counts from 0 to 999, wrap around, updated every 47 msec
-
-type FeederReg struct {
-	RootName   string `json:"root"`
-	SocketFile string `json:"fname"`
-	DbFile     string `json:"db"`
-	UdsConn    net.Conn
-}
-
-var feederRegList []FeederReg
-
-func readFeederRegistrations(sockFile string) []FeederReg {
-	var regList []FeederReg
-	data, err := ioutil.ReadFile(sockFile)
-	if err != nil {
-		utils.Error.Printf("readFeederRegistrations():%s error=%s", sockFile, err)
-		return nil
-	}
-	err = json.Unmarshal(data, &regList)
-	if err != nil {
-		utils.Error.Printf("readFeederRegistrations():unmarshal error=%s", err)
-		return nil
-	}
-	for i := 0; i < len(regList); i++ {
-		regList[i].UdsConn = nil
-	}
-	return regList
-}
-
-func getFeederConn(path string) net.Conn {
-	root := utils.ExtractRootName(path)
-	for i := 0; i < len(feederRegList); i++ {
-		if root == feederRegList[i].RootName {
-			if feederRegList[i].UdsConn == nil {
-				feederRegList[i].UdsConn = connectToFeeder(feederRegList[i].SocketFile)
-			}
-			return feederRegList[i].UdsConn
-		}
-	}
-	return nil
-}
-
-func connectToFeeder(sockFile string) net.Conn {
-	feederConn, err := net.Dial("unix", sockFile)
-	if err != nil {
-		utils.Error.Printf("connectToFeeder:UDS Dial failed, err = %s", err)
-		return nil
-	}
-	return feederConn
-}
 
 func initDataServer(serviceMgrChan chan string, clientChannel chan string, backendChannel chan string) {
 	for {
@@ -526,6 +493,31 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		} else {
 			return dp
 		}
+	case "apache-iotdb":
+		var (
+			// Back-quote the VSS node for the DB query, e.g. `Vehicle.CurrentLocation.Longitude`
+			selectLastSQL = fmt.Sprintf("select last `%v` from %v", path, IoTDbPrefixPath)
+			value = ""
+			ts = ""
+		)
+//		utils.Info.Printf("IoTDB: query using: %v", selectLastSQL)
+		sessionDataSet, err := IoTDBsession.ExecuteQueryStatement(selectLastSQL, &IoTDbTimeout)
+		if err == nil {
+			var success bool
+			success, err = sessionDataSet.Next()
+			if err == nil && success{
+				value = sessionDataSet.GetText("Value")
+				ts = sessionDataSet.GetText(client.TimestampColumnName)
+//				utils.Info.Printf("IoTDB: get returned: ts=%v, Value=%v", ts, value)
+//				resultStr := `{"value":"` + value + `", "ts":"` + ts + `"}`
+//				utils.Info.Printf("IoTDB: returning get result=%v", resultStr)
+			}
+			sessionDataSet.Close()
+		} else {
+			utils.Error.Printf("IoTDB: Query failed with error=%s", err)
+			return `{"value":"Data-not-found", "ts":"` + utils.GetRfcTime() + `"}`
+		}
+		return `{"value":"` + value + `", "ts":"` + ts + `"}`
 	case "none":
 		return `{"value":"` + strconv.Itoa(dummyValue) + `", "ts":"` + utils.GetRfcTime() + `"}`
 	}
@@ -558,16 +550,35 @@ func setVehicleData(path string, value string) string {
 					return ""
 				}
 				return ts*/
-		feederConn := getFeederConn(path)
-		if feederConn == nil {
+		udsConn := utils.GetUdsConn(path, "serverFeeder")
+		if udsConn == nil {
 			utils.Error.Printf("setVehicleData:Failed to UDS connect to feeder for path = %s", path)
 			return ""
 		}
 		data := `{"path":"` + path + `", "dp":{"value":"` + value + `", "ts":"` + ts + `"}}`
-		_, err := feederConn.Write([]byte(data))
+		_, err := udsConn.Write([]byte(data))
 		if err != nil {
 			utils.Error.Printf("setVehicleData:Write failed, err = %s", err)
 			return ""
+		}
+		return ts
+	case "apache-iotdb":
+		vssKey := []string{"`" + path + "`"} // Back-quote the VSS node for the DB insert, e.g. `Vehicle.CurrentLocation.Longitude`
+		vssValue := []string{value}
+		IoTDBts := time.Now().UTC().UnixNano() / 1000000
+
+		// IoTDB will automatically convert the value string to the native data type in the timeseries schema for basic types
+//		utils.Info.Printf("IoTDB: DB insert with prefixPath: %v vssKey: %v, vssValue: %v, ts: %v", IoTDbPrefixPath, vssKey, vssValue, IoTDBts)
+		if status, err := IoTDBsession.InsertStringRecord(IoTDbPrefixPath, vssKey, vssValue, IoTDBts); err != nil {
+			utils.Error.Printf("IoTDB: DB insert using InsertStringRecord failed with: %v", err)
+			return ""
+		} else {
+			if status != nil {
+				if err = client.VerifySuccess(status); err != nil {
+					utils.Error.Printf("IoTDB: DB insert Verify failed with: %v", err)
+					return ""
+				}
+			}
 		}
 		return ts
 	}
@@ -614,10 +625,10 @@ func createHistoryList(vss_data []byte) bool {
 	return true
 }
 
-func historyServer(historyAccessChan chan string, udsPath string, vss_data []byte) {
+func historyServer(historyAccessChan chan string, vss_data []byte) {
 	listExists := createHistoryList(vss_data) // file is created by core-server at startup
 	histCtrlChannel := make(chan string)
-	go initHistoryControlServer(histCtrlChannel, udsPath)
+	go initHistoryControlServer(histCtrlChannel)
 	historyChannel := make(chan int)
 	for {
 		select {
@@ -762,11 +773,10 @@ func captureHistoryValue(signalId int) {
 	}
 }
 
-func initHistoryControlServer(histCtrlChan chan string, udsPath string) {
-	os.Remove(udsPath)
-	l, err := net.Listen("unix", udsPath)
+func initHistoryControlServer(histCtrlChan chan string) {
+	l, err := net.Listen("unix", utils.GetUdsPath("Vehicle", "history"))
 	if err != nil {
-		utils.Error.Printf("HistCtrlServer:Listen failed, err = %s", err)
+		utils.Error.Printf("HistCtrlServer:Listen failed, er = %s.", err)
 		return
 	}
 
@@ -815,6 +825,9 @@ func getDataPack(pathArray []string, filterList []utils.FilterObject) string {
 	if filterList != nil {
 		for i := 0; i < len(filterList); i++ {
 			if filterList[i].Type == "history" {
+				if !historySupport {
+					return ""
+				}
 				period = filterList[i].Parameter
 				utils.Info.Printf("Historic data request, period=%s", period)
 				getHistory = true
@@ -914,10 +927,11 @@ func getValidation(path string) string {
 	return "read-write" //dummy return
 }
 
-func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, udsPath string, dbFile string) {
+func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType string, histSupport bool, dbFile string) {
 	stateDbType = stateStorageType
+	historySupport = histSupport
 
-	feederRegList = readFeederRegistrations("feeder-registration.json")
+	utils.ReadUdsRegistrations("uds-registration.json")
 
 	switch stateDbType {
 	case "sqlite":
@@ -935,7 +949,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 	case "redis":
 		redisClient = redis.NewClient(&redis.Options{
 			Network:  "unix",
-			Addr:     feederRegList[0].DbFile, //TODO replace with check and exit if not defined.
+			Addr:     utils.GetUdsPath("Vehicle", "serverFeeder"), //TODO replace with check and exit if not defined.
 			Password: "",
 			DB:       1,
 		})
@@ -951,7 +965,15 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				os.Exit(1)
 			}
 		}
-		utils.Info.Printf("Redis state storage initialised.")
+    utils.Info.Printf("Redis state storage initialised.")
+	case "apache-iotdb":
+		utils.Info.Printf("IoTDB: creating new session with host:%v port:%v user:%v pass:%v", IoTDBconfig.Host, IoTDBconfig.Port, IoTDBconfig.UserName, IoTDBconfig.Password)
+		IoTDBsession = client.NewSession(IoTDBconfig)
+		if err := IoTDBsession.Open(false, 0); err != nil {
+			utils.Error.Printf("IoTDB: Failed to open session with error=%s", err)			
+			os.Exit(1)
+		}
+		defer IoTDBsession.Close()
 	default:
 		utils.Error.Printf("Unknown state storage type = %s", stateDbType)
 	}
@@ -968,7 +990,9 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 
 	vss_data := getVssPathList(serverCoreIP, 8081, "/vsspathlist")
 	go initDataServer(serviceMgrChan, dataChan, backendChan)
-	go historyServer(historyAccessChannel, udsPath, vss_data)
+	if historySupport {
+		go historyServer(historyAccessChannel, vss_data)
+	}
 	var dummyTicker *time.Ticker
 	if stateDbType != "none" {
 		dummyTicker = time.NewTicker(47 * time.Millisecond)
