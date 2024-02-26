@@ -1,9 +1,10 @@
-name: Standard Build Check
+name: Documentation Generation
 
 on: 
   push:
     branches:
       - master
+  pull_request:
 
 jobs:
   docgen:
@@ -11,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
@@ -27,7 +28,7 @@ jobs:
       - name: Deploy docs
         # Only deploy docs if this was a push to master
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
-        uses: JamesIves/github-pages-deploy-action@4.1.4
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages # The branch the action should deploy to.
           folder: docs # The folder the action should deploy.
