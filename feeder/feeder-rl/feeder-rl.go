@@ -13,7 +13,6 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/petervolvowinz/viss-rl-interfaces"
 	"github.com/w3c/automotive-viss2/utils"
-	"io/ioutil"
 	"log"
 	"math/rand"
 	"net"
@@ -41,7 +40,7 @@ type FeederMap struct {
 
 func readFeederMap(mapFilename string) []FeederMap {
 	var fMap []FeederMap
-	data, err := ioutil.ReadFile(mapFilename)
+	data, err := os.ReadFile(mapFilename)
 	if err != nil {
 		utils.Error.Printf("readFeederMap():%s error=%s", mapFilename, err)
 		return nil

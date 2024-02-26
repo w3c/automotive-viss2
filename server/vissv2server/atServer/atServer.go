@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -892,7 +891,7 @@ func generateAt(payload AtGenPayload) string {
 }
 
 func initPurposelist() {
-	data, err := ioutil.ReadFile("atServer/purposelist.json")
+	data, err := os.ReadFile("atServer/purposelist.json")
 	if err != nil {
 		utils.Error.Printf("Error reading purposelist.json\n")
 		os.Exit(-1)
@@ -1053,7 +1052,7 @@ func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[str
 }
 
 func initScopeList() {
-	data, err := ioutil.ReadFile("atServer/scopelist.json")
+	data, err := os.ReadFile("atServer/scopelist.json")
 	if err != nil {
 		utils.Info.Printf("scopelist.json not found")
 		return

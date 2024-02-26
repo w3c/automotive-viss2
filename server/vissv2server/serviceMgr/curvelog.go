@@ -10,7 +10,7 @@ package serviceMgr
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
 	"sync"
@@ -215,7 +215,7 @@ func jsonToStructList(data string) *SignalDimensionLists {
 }
 
 func readSignalDimensions(fname string) *SignalDimensionLists {
-	data, err := ioutil.ReadFile(fname)
+	data, err := os.ReadFile(fname)
 	if err != nil {
 		utils.Error.Printf("Error reading signal dimension file=%s", err)
 		return nil

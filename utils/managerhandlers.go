@@ -10,13 +10,12 @@
 package utils
 
 import (
-	"encoding/json"
-	"io/ioutil"
-
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
+	"io"
 	"net/http"
-
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -44,7 +43,7 @@ func ReturnWsClientIndex(index int) {
 
 // Initializes TransportSec Variables
 func ReadTransportSecConfig() {
-	data, err := ioutil.ReadFile(TrSecConfigPath + "transportSec.json")
+	data, err := os.ReadFile(TrSecConfigPath + "transportSec.json")
 	if err != nil {
 		Info.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", TrSecConfigPath, err)
 		SecureConfiguration.TransportSec = "no"
@@ -137,7 +136,7 @@ func frontendHttpAppSession(w http.ResponseWriter, req *http.Request, clientChan
 		requestMap["action"] = "get"
 	case "POST": // set
 		requestMap["action"] = "set"
-		body, _ := ioutil.ReadAll(req.Body)
+		body, _ := io.ReadAll(req.Body)
 		requestMap["value"] = string(body)
 	default:
 		//		http.Error(w, "400 Unsupported method", http.StatusBadRequest)
@@ -352,7 +351,7 @@ func GetTLSConfig(host string, caCertFile string, certOpt tls.ClientAuthType, se
 	var err error
 	var caCertPool *x509.CertPool
 	if certOpt > tls.RequestClientCert { // If a client certificate is required, then the CA certificate is needed
-		caCert, err = ioutil.ReadFile(caCertFile)
+		caCert, err = os.ReadFile(caCertFile)
 		if err != nil {
 			Error.Printf("Error opening cert file", caCertFile, ", error ", err)
 			return nil

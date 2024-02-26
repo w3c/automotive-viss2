@@ -13,7 +13,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	//"io/ioutil"
 	"os"
 )
 
@@ -37,7 +37,7 @@ var secConfig SecConfig
 func readTransportSecConfig() {
 	path, err := os.Getwd()
 
-	data, err := ioutil.ReadFile(path + "/" + trSecConfigPath + "transportSec.json")
+	data, err := os.ReadFile(path + "/" + trSecConfigPath + "transportSec.json")
 	if err != nil {
 		fmt.Printf("ReadTransportSecConfig():%stransportSec.json error=%s", trSecConfigPath, err)
 		secConfig.TransportSec = "no"
@@ -62,7 +62,7 @@ func prepareTransportSecConfig() *x509.CertPool {
 		fmt.Printf("Error creating x509 keypair from client cert file %s and client key file %s\n", clientCertFile, clientKeyFile)
 		os.Exit(1)
 	}
-	caCert, err := ioutil.ReadFile(trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt")
+	caCert, err := os.ReadFile(trSecConfigPath + secConfig.CaSecPath + "Root.CA.crt")
 	if err != nil {
 		fmt.Printf("Error opening cert file %s, Error: %s", trSecConfigPath+secConfig.CaSecPath+"Root.CA.crt", err)
 		os.Exit(1)

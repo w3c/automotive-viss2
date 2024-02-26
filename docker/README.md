@@ -22,7 +22,10 @@ Placing the dockerfile which is used to build the image in the root is done for
 practical reasons. See: https://www.baeldung.com/ops/docker-include-files-outside-build-context
 
 
-To build and run the docker example see below:
+To build and run the docker example see below, please note that the docker-compose-rl.yml file is located in 
+the: _viss-docker-rl_ folder
+
+
 
 ```bash
 $ docker compose -f docker-compose-rl.yml build 

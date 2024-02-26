@@ -15,21 +15,19 @@ package serviceMgr
 import (
 	"database/sql"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"github.com/apache/iotdb-client-go/client"
+	"github.com/go-redis/redis"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/w3c/automotive-viss2/utils"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-
 	"time"
-
-	"github.com/go-redis/redis"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/w3c/automotive-viss2/utils"
-	"github.com/apache/iotdb-client-go/client"
-	"fmt"
 )
 
 type RegRequest struct {
@@ -43,7 +41,7 @@ type SubscriptionState struct {
 	Path                []string
 	FilterList          []utils.FilterObject
 	LatestDataPoint     string
-	GatingId	    string
+	GatingId            string
 }
 
 var subscriptionId int
@@ -77,18 +75,17 @@ var redisClient *redis.Client
 var stateDbType string
 var historySupport bool
 
-// Apache IoTDB 
+// Apache IoTDB
 var IoTDBsession client.Session
 var IoTDbPrefixPath string = "root.test2.dev1" // DB prefix used for get/set
 var IoTDbTimeout int64 = 3000
 var IoTDBconfig = &client.Config{
-//	Host:     "127.0.0.1",
+	//	Host:     "127.0.0.1",
 	Host:     "iotdb-service",
 	Port:     "6667",
 	UserName: "root",
 	Password: "root",
 }
-
 
 var dummyValue int // dummy value returned when DB configured to none. Counts from 0 to 999, wrap around, updated every 47 msec
 
@@ -497,20 +494,20 @@ func getVehicleData(path string) string { // returns {"value":"Y", "ts":"Z"}
 		var (
 			// Back-quote the VSS node for the DB query, e.g. `Vehicle.CurrentLocation.Longitude`
 			selectLastSQL = fmt.Sprintf("select last `%v` from %v", path, IoTDbPrefixPath)
-			value = ""
-			ts = ""
+			value         = ""
+			ts            = ""
 		)
-//		utils.Info.Printf("IoTDB: query using: %v", selectLastSQL)
+		//		utils.Info.Printf("IoTDB: query using: %v", selectLastSQL)
 		sessionDataSet, err := IoTDBsession.ExecuteQueryStatement(selectLastSQL, &IoTDbTimeout)
 		if err == nil {
 			var success bool
 			success, err = sessionDataSet.Next()
-			if err == nil && success{
+			if err == nil && success {
 				value = sessionDataSet.GetText("Value")
 				ts = sessionDataSet.GetText(client.TimestampColumnName)
-//				utils.Info.Printf("IoTDB: get returned: ts=%v, Value=%v", ts, value)
-//				resultStr := `{"value":"` + value + `", "ts":"` + ts + `"}`
-//				utils.Info.Printf("IoTDB: returning get result=%v", resultStr)
+				//				utils.Info.Printf("IoTDB: get returned: ts=%v, Value=%v", ts, value)
+				//				resultStr := `{"value":"` + value + `", "ts":"` + ts + `"}`
+				//				utils.Info.Printf("IoTDB: returning get result=%v", resultStr)
 			}
 			sessionDataSet.Close()
 		} else {
@@ -568,7 +565,7 @@ func setVehicleData(path string, value string) string {
 		IoTDBts := time.Now().UTC().UnixNano() / 1000000
 
 		// IoTDB will automatically convert the value string to the native data type in the timeseries schema for basic types
-//		utils.Info.Printf("IoTDB: DB insert with prefixPath: %v vssKey: %v, vssValue: %v, ts: %v", IoTDbPrefixPath, vssKey, vssValue, IoTDBts)
+		//		utils.Info.Printf("IoTDB: DB insert with prefixPath: %v vssKey: %v, vssValue: %v, ts: %v", IoTDbPrefixPath, vssKey, vssValue, IoTDBts)
 		if status, err := IoTDBsession.InsertStringRecord(IoTDbPrefixPath, vssKey, vssValue, IoTDBts); err != nil {
 			utils.Error.Printf("IoTDB: DB insert using InsertStringRecord failed with: %v", err)
 			return ""
@@ -891,7 +888,7 @@ func getVssPathList(host string, port int, path string) []byte {
 		utils.Error.Fatal("getVssPathList::response Status: ", resp.Status)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Fatal("getVssPathList::Error reading response. ", err)
 	}
@@ -965,12 +962,12 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				os.Exit(1)
 			}
 		}
-    utils.Info.Printf("Redis state storage initialised.")
+		utils.Info.Printf("Redis state storage initialised.")
 	case "apache-iotdb":
 		utils.Info.Printf("IoTDB: creating new session with host:%v port:%v user:%v pass:%v", IoTDBconfig.Host, IoTDBconfig.Port, IoTDBconfig.UserName, IoTDBconfig.Password)
 		IoTDBsession = client.NewSession(IoTDBconfig)
 		if err := IoTDBsession.Open(false, 0); err != nil {
-			utils.Error.Printf("IoTDB: Failed to open session with error=%s", err)			
+			utils.Error.Printf("IoTDB: Failed to open session with error=%s", err)
 			os.Exit(1)
 		}
 		defer IoTDBsession.Close()
@@ -1017,7 +1014,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			switch requestMap["action"] {
 			case "set":
 				if strings.Contains(requestMap["path"].(string), "[") == true {
-					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1033,7 +1030,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				pathArray := unpackPaths(requestMap["path"].(string))
 				if pathArray == nil {
 					utils.Error.Printf("Unmarshal of path array failed.")
-					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
+					utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1042,7 +1039,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 					utils.UnpackFilter(requestMap["filter"], &filterList)
 					if len(filterList) == 0 {
 						utils.Error.Printf("Request filter malformed.")
-						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
+						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "") //bad_request
 						dataChan <- utils.FinalizeMessage(errorResponseMap)
 						break
 					}
@@ -1055,7 +1052,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				dataPack := getDataPack(pathArray, filterList)
 				if len(dataPack) == 0 {
 					utils.Info.Printf("No historic data available")
-					utils.SetErrorResponse(requestMap, errorResponseMap, 6, "")  //unavailable_data
+					utils.SetErrorResponse(requestMap, errorResponseMap, 6, "") //unavailable_data
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1066,7 +1063,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 				subscriptionState.RouterId = requestMap["RouterId"].(string)
 				subscriptionState.Path = unpackPaths(requestMap["path"].(string))
 				if requestMap["filter"] == nil || requestMap["filter"] == "" {
-					utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
+					utils.SetErrorResponse(requestMap, errorResponseMap, 0, "") //bad_request
 					dataChan <- utils.FinalizeMessage(errorResponseMap)
 					break
 				}
@@ -1098,7 +1095,7 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 						requestMap["subscriptionId"] = subscriptId
 					}
 				}
-				utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
+				utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 				dataChan <- utils.FinalizeMessage(errorResponseMap)
 			case "internal-killsubscriptions":
 				isRemoved := true
