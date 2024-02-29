@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -958,13 +959,14 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			utils.Error.Printf("redis-server ,ping err = %s", err)
 			if utils.FileExists("redis.log") {
 				os.Remove("redis.log")
-			} /*
-				cmd := exec.Command("/usr/bin/bash", "redisNativeInit.sh")
-				err := cmd.Run()
-				if err != nil {
-					utils.Error.Printf("redis-server startup failed, err=%s", err)
-					os.Exit(1)
-				}*/
+			}
+			cmd := exec.Command("/usr/bin/bash", "redisNativeInit.sh")
+			err := cmd.Run()
+			if err != nil {
+				utils.Error.Printf("redis-server startup failed, err=%s", err)
+				// os.Exit(1) should terminate the process
+				return
+			}
 		} else {
 			utils.Info.Printf("Redis state ping is ok")
 		}
