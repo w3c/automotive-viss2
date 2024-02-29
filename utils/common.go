@@ -16,7 +16,6 @@ import (
 	"encoding/json"
 	"net"
 	"os"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -27,19 +26,24 @@ const IpEnvVarName = "GEN2MODULEIP"
 
 // Access control values: none=0, write-only=1. read-write=2, consent +=10
 // matrix preserving inherited value with read-write having priority over write-only and consent over no consent
-var validationMatrix [5][5]int = [5][5]int{{0,1,2,11,12}, {1,1,2,11,12}, {2,2,2,12,12}, {11,11,12,11,12}, {12,12,12,12,12}}
+var validationMatrix [5][5]int = [5][5]int{{0, 1, 2, 11, 12}, {1, 1, 2, 11, 12}, {2, 2, 2, 12, 12}, {11, 11, 12, 11, 12}, {12, 12, 12, 12, 12}}
 
 func GetMaxValidation(newValidation int, currentMaxValidation int) int {
-	return validationMatrix [translateToMatrixIndex(newValidation)][translateToMatrixIndex(currentMaxValidation)]
+	return validationMatrix[translateToMatrixIndex(newValidation)][translateToMatrixIndex(currentMaxValidation)]
 }
 
 func translateToMatrixIndex(index int) int {
 	switch index {
-		case 0: return 0
-		case 1: return 1
-		case 2: return 2
-		case 11: return 3
-		case 12: return 4
+	case 0:
+		return 0
+	case 1:
+		return 1
+	case 2:
+		return 2
+	case 11:
+		return 3
+	case 12:
+		return 4
 	}
 	return 0
 }
@@ -53,18 +57,18 @@ type UdsReg struct {
 
 var udsRegList []UdsReg
 
-func ReadUdsRegistrations(sockFile string) {
-	data, err := ioutil.ReadFile(sockFile)
+func ReadUdsRegistrations(sockFile string) []UdsReg {
+	data, err := os.ReadFile(sockFile)
 	if err != nil {
 		Error.Printf("readUdsRegistrations():%s error=%s", sockFile, err)
-		return
+		return nil
 	}
 	err = json.Unmarshal(data, &udsRegList)
 	if err != nil {
 		Error.Printf("readUdsRegistrations():unmarshal error=%s", err)
-		return
+		return nil
 	}
-	return
+	return udsRegList
 }
 
 func GetUdsConn(path string, connectionName string) net.Conn {
@@ -79,22 +83,27 @@ func GetUdsConn(path string, connectionName string) net.Conn {
 
 func GetUdsPath(path string, connectionName string) string {
 	root := ExtractRootName(path)
+	Info.Printf("GetUdsPath:root=%s, connectionName=%s", root, connectionName)
 	for i := 0; i < len(udsRegList); i++ {
 		if root == udsRegList[i].RootName {
-			getSocketPath(i, connectionName)
+			return getSocketPath(i, connectionName)
 		}
 	}
+	Info.Printf("could not find root name")
 	return ""
 }
 
 func getSocketPath(listIndex int, connectionName string) string {
 	switch connectionName {
-		case "serverFeeder": return udsRegList[listIndex].ServerFeeder
-		case "redis": return udsRegList[listIndex].Redis
-		case "history": return udsRegList[listIndex].History
-		default:
-			Error.Printf("getSocketPath:Unknown connection name = %s", connectionName)
-			return ""
+	case "serverFeeder":
+		return udsRegList[listIndex].ServerFeeder
+	case "redis":
+		return udsRegList[listIndex].Redis
+	case "history":
+		return udsRegList[listIndex].History
+	default:
+		Error.Printf("getSocketPath:Unknown connection name = %s", connectionName)
+		return ""
 	}
 }
 
@@ -242,7 +251,7 @@ func ExtractFromToken(token string, claim string) string { // TODO remove white 
 	errRespMap["ts"] = GetRfcTime()
 }*/
 
-//func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
+// func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, number string, reason string, message string) {
 func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]interface{}, errorListIndex int, altErrorMessage string) {
 	if reqMap["RouterId"] != nil {
 		errRespMap["RouterId"] = reqMap["RouterId"]
@@ -267,7 +276,7 @@ func SetErrorResponse(reqMap map[string]interface{}, errRespMap map[string]inter
 		"reason":  ErrorInfoList[errorListIndex].Reason,
 		"message": errorMessage,
 	}
-/*	errMap := map[string]interface{}{
+	/*	errMap := map[string]interface{}{
 		"number":  number,
 		"reason":  reason,
 		"message": message,
@@ -316,8 +325,8 @@ func FileExists(filename string) bool {
 func ExtractRootName(path string) string {
 	dotDelimiter := strings.Index(path, ".")
 	if dotDelimiter == -1 {
-		Error.Print("ExtractRootName():Could not find root node name in path=%s", path)
-		return ""
+		Info.Print("ExtractRootName():Could not find root node name in path=%s", path)
+		return path
 	}
 	return path[:dotDelimiter]
 }

@@ -9,21 +9,11 @@ services:
     volumes:
       - /tmp/docker/
 
-  redis:
-    image: redis
-    container_name: app_redis
-    privileged: true
-    user: root
-    command: redis-server /etc/redis.conf
-    volumes:
-      - ../../redis/redis.conf:/etc/redis.conf
-    volumes_from:
-      - tmp
-
-
   feeder-rl:
     container_name: feeder-rl
     user: root
+    depends_on:
+      - redis
     build:
       context: ../../
       dockerfile: Dockerfile.rlserver
@@ -31,7 +21,7 @@ services:
     entrypoint: [/app/feeder,--dataprovider, remotive, --rdb, /tmp/docker/redisDB.sock,--fch,/tmp/docker/server-feeder-channel.sock]
     ports:
       - "443:443"
-    #volumes:
+      #volumes:
       #- ./feeder/feeder-rl/certificate.pem:/app/certificate.pem
       #- ./feeder/feeder-rl/config.json:/app/config.json
       #- ./feeder/feeder-rl/VehicleVssMapData.json:/app/VehicleVssMapData.json
@@ -39,8 +29,27 @@ services:
       - tmp
 
 
+  redis:
+    image: redis
+    container_name: app_redis
+    privileged: true
+    user: root
+    command: redis-server /etc/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - ../../redis/redis.conf:/etc/redis.conf
+    volumes_from:
+      - tmp
+
+
+
+
   vissv2server:
     container_name: vissv2server
+    depends_on:
+      - redis
+      - feeder-rl
     build:
       context: ../../  # context set to repo root
       dockerfile: Dockerfile.rlserver
