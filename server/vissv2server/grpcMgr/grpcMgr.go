@@ -216,7 +216,6 @@ func (s *Server) GetRequest(ctx context.Context, in *pb.GetRequestMessage) (*pb.
 	grpcResponseChan := make(chan string)
 	var grpcRequestMessage = GrpcRequestMessage{vssReq, grpcResponseChan}
 	utils.Info.Println(grpcRequestMessage.VssReq)
-	// fmt.Println("*****************" + grpcRequestMessage.VssReq + "*****************")
 	grpcClientChan[0] <- grpcRequestMessage // forward to mgr hub,
 	vssResp := <-grpcResponseChan           //  and wait for response
 	pbResp := utils.GetResponseJsonToPb(vssResp, grpcCompression)

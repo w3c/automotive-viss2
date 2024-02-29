@@ -57,18 +57,18 @@ type UdsReg struct {
 
 var udsRegList []UdsReg
 
-func ReadUdsRegistrations(sockFile string) {
+func ReadUdsRegistrations(sockFile string) []UdsReg {
 	data, err := os.ReadFile(sockFile)
 	if err != nil {
 		Error.Printf("readUdsRegistrations():%s error=%s", sockFile, err)
-		return
+		return nil
 	}
 	err = json.Unmarshal(data, &udsRegList)
 	if err != nil {
 		Error.Printf("readUdsRegistrations():unmarshal error=%s", err)
-		return
+		return nil
 	}
-	return
+	return udsRegList
 }
 
 func GetUdsConn(path string, connectionName string) net.Conn {
@@ -83,11 +83,13 @@ func GetUdsConn(path string, connectionName string) net.Conn {
 
 func GetUdsPath(path string, connectionName string) string {
 	root := ExtractRootName(path)
+	Info.Printf("GetUdsPath:root=%s, connectionName=%s", root, connectionName)
 	for i := 0; i < len(udsRegList); i++ {
 		if root == udsRegList[i].RootName {
-			getSocketPath(i, connectionName)
+			return getSocketPath(i, connectionName)
 		}
 	}
+	Info.Printf("could not find root name")
 	return ""
 }
 
@@ -323,8 +325,8 @@ func FileExists(filename string) bool {
 func ExtractRootName(path string) string {
 	dotDelimiter := strings.Index(path, ".")
 	if dotDelimiter == -1 {
-		Error.Print("ExtractRootName():Could not find root node name in path=%s", path)
-		return ""
+		Info.Print("ExtractRootName():Could not find root node name in path=%s", path)
+		return path
 	}
 	return path[:dotDelimiter]
 }

@@ -944,14 +944,17 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			utils.Error.Printf("Could not find state storage file = %s", dbFile)
 		}
 	case "redis":
+		addr := utils.GetUdsPath("Vehicle", "redis")
+		utils.Info.Printf(addr)
 		redisClient = redis.NewClient(&redis.Options{
 			Network:  "unix",
-			Addr:     utils.GetUdsPath("Vehicle", "serverFeeder"), //TODO replace with check and exit if not defined.
+			Addr:     addr, //TODO replace with check and exit if not defined.
 			Password: "",
 			DB:       1,
 		})
 		err := redisClient.Ping().Err()
 		if err != nil {
+			utils.Error.Printf("redis-server ,ping err = %s", err)
 			if utils.FileExists("redis.log") {
 				os.Remove("redis.log")
 			}
@@ -959,8 +962,11 @@ func ServiceMgrInit(mgrId int, serviceMgrChan chan string, stateStorageType stri
 			err := cmd.Run()
 			if err != nil {
 				utils.Error.Printf("redis-server startup failed, err=%s", err)
-				os.Exit(1)
+				// os.Exit(1) should terminate the process
+				return
 			}
+		} else {
+			utils.Info.Printf("Redis state ping is ok")
 		}
 		utils.Info.Printf("Redis state storage initialised.")
 	case "apache-iotdb":
