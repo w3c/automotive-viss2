@@ -1,3 +1,7 @@
+# W3C Automotive Working Group closed
+
+The [VISS specification](https://github.com/COVESA/vehicle-information-service-specification) and this [reference implementation](https://github.com/COVESA/vissr) are continuing to be worked on at [COVESA]{https://covesa.global).
+
 **(C) 2023, 2024 Ford Motor Company**<br>
 **(C) 2019, 2023, 2024 Volvo Cars**<br>
 **(C) 2019 Geotab Inc**<br>
