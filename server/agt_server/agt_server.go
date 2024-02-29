@@ -13,8 +13,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -65,7 +65,7 @@ func makeAgtServerHandler(serverChannel chan string) func(http.ResponseWriter, *
 				http.Error(w, "400 bad request method.", 400)
 			}
 		} else {
-			bodyBytes, err := ioutil.ReadAll(req.Body)
+			bodyBytes, err := io.ReadAll(req.Body)
 			if err != nil {
 				http.Error(w, "400 request unreadable.", 400)
 			} else { // POST REQUEST TO /agts

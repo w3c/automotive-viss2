@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -1053,7 +1052,7 @@ func extractPurposeElementsL4SignalAccessL2(k int, index int, accessElem map[str
 }
 
 func initScopeList() {
-	data, err := ioutil.ReadFile("atServer/scopelist.json")
+	data, err := os.ReadFile("atServer/scopelist.json")
 	if err != nil {
 		utils.Info.Printf("scopelist.json not found")
 		return

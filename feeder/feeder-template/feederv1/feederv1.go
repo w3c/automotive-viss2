@@ -14,7 +14,6 @@ import (
 	"github.com/go-redis/redis"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/w3c/automotive-viss2/utils"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"os"
@@ -38,7 +37,7 @@ var stateDbType string
 
 func readFeederMap(mapFilename string) []FeederMap {
 	var fMap []FeederMap
-	data, err := ioutil.ReadFile(mapFilename)
+	data, err := os.ReadFile(mapFilename)
 	if err != nil {
 		utils.Error.Printf("readFeederMap():%s error=%s", mapFilename, err)
 		return nil

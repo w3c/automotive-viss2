@@ -15,21 +15,19 @@ package serviceMgr
 import (
 	"database/sql"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
+	"github.com/apache/iotdb-client-go/client"
+	"github.com/go-redis/redis"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/w3c/automotive-viss2/utils"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
-
 	"time"
-
-	"fmt"
-	"github.com/apache/iotdb-client-go/client"
-	"github.com/go-redis/redis"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/w3c/automotive-viss2/utils"
 )
 
 type RegRequest struct {
@@ -890,7 +888,7 @@ func getVssPathList(host string, port int, path string) []byte {
 		utils.Error.Fatal("getVssPathList::response Status: ", resp.Status)
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Fatal("getVssPathList::Error reading response. ", err)
 	}

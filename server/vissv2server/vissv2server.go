@@ -16,6 +16,7 @@ import (
 	//   "fmt"
 
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -24,7 +25,7 @@ import (
 
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	//"io/ioutil"
 	"net/http"
 	"sort"
 	"strconv"
@@ -34,9 +35,9 @@ import (
 	"github.com/w3c/automotive-viss2/server/vissv2server/atServer"
 	"github.com/w3c/automotive-viss2/server/vissv2server/grpcMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/httpMgr"
+	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/serviceMgr"
 	"github.com/w3c/automotive-viss2/server/vissv2server/wsMgr"
-	"github.com/w3c/automotive-viss2/server/vissv2server/mqttMgr"
 
 	gomodel "github.com/COVESA/vss-tools/binary/go_parser/datamodel"
 	golib "github.com/COVESA/vss-tools/binary/go_parser/parserlib"
@@ -53,7 +54,7 @@ var serverComponents []string = []string{
 	"serviceMgr",
 	"httpMgr",
 	"wsMgr",
-//	"mqttMgr",  //to avoid calls to the mosquitto broker if not used anyway
+	//	"mqttMgr",  //to avoid calls to the mosquitto broker if not used anyway
 	"grpcMgr",
 	"atServer",
 }
@@ -74,8 +75,8 @@ var serviceMgrChannel = []chan string{
 }
 
 var atsChannel = []chan string{
-	make(chan string),  // access token verification
-	make(chan string),  // token cancellation
+	make(chan string), // access token verification
+	make(chan string), // token cancellation
 }
 
 // add element to both channels if support for new transport protocol is added
@@ -234,7 +235,7 @@ func verifyToken(token string, action string, paths string, validation int) (int
 	gatingId := ""
 	request := `{"token":"` + token + `","paths":"` + paths + `","action":"` + action + `","validation":"` + strconv.Itoa(validation) + `"}`
 	atsChannel[0] <- request
-	body := <- atsChannel[0]
+	body := <-atsChannel[0]
 	var bdy map[string]interface{}
 	var err error
 	if err = json.Unmarshal([]byte(body), &bdy); err != nil {
@@ -252,12 +253,12 @@ func verifyToken(token string, action string, paths string, validation int) (int
 		utils.Error.Print("verifyToken: Error converting validation claim to int. ", err)
 		return 42, handle, gatingId
 	} else if atsValidation == 0 {
-			if bdy["handle"] != nil {
-				handle = bdy["handle"].(string)
-			}
-			if bdy["gatingId"] != nil {
-				gatingId = bdy["gatingId"].(string)
-			}
+		if bdy["handle"] != nil {
+			handle = bdy["handle"].(string)
+		}
+		if bdy["gatingId"] != nil {
+			gatingId = bdy["gatingId"].(string)
+		}
 	}
 	return atsValidation, handle, gatingId
 }
@@ -387,7 +388,7 @@ func getNoScopeList(tokenContext string) ([]string, int) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		utils.Error.Print("getNoScopeList:Error reading response. ", err)
 		return nil, 0
@@ -572,19 +573,19 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	var requestMap = make(map[string]interface{})
 	if utils.MapRequest(request, &requestMap) != 0 {
 		utils.Error.Printf("serveRequest():invalid JSON format=%s", request)
-		utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
+		utils.SetErrorResponse(requestMap, errorResponseMap, 0, "") //bad_request
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
 	if requestMap["action"] == nil || validRequest(request, requestMap["action"].(string)) == false {
 		utils.Error.Printf("serveRequest():invalid action params=%s", requestMap["action"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
+		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
 	if requestMap["path"] != nil && strings.Contains(requestMap["path"].(string), "*") == true {
 		utils.Error.Printf("serveRequest():path contained wildcard=%s", requestMap["path"])
-		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
+		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -593,7 +594,7 @@ func serveRequest(request string, tDChanIndex int, sDChanIndex int) {
 	}
 	if requestMap["action"] == "set" && requestMap["filter"] != nil {
 		utils.Error.Printf("serveRequest():Set request combined with filtering.")
-		utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
+		utils.SetErrorResponse(requestMap, errorResponseMap, 0, "") //bad_request
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -625,7 +626,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					err := json.Unmarshal([]byte(filterList[i].Parameter), &searchPath) // Writes in search path all values in filter
 					if err != nil {
 						utils.Error.Printf("Unmarshal filter path array failed.")
-						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
+						utils.SetErrorResponse(requestMap, errorResponseMap, 0, "") //bad_request
 						backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 						return
 					}
@@ -655,7 +656,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 					return
 				}
 				utils.Error.Printf("Metadata not available.")
-				utils.SetErrorResponse(requestMap, errorResponseMap, 0, "")  //bad_request
+				utils.SetErrorResponse(requestMap, errorResponseMap, 0, "") //bad_request
 				backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 				return
 			}
@@ -689,12 +690,12 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 		maxValidation = utils.GetMaxValidation(int(validation), maxValidation)
 	}
 	if totalMatches == 0 {
-		utils.SetErrorResponse(requestMap, errorResponseMap, 6, "")  //unavailable_data
+		utils.SetErrorResponse(requestMap, errorResponseMap, 6, "") //unavailable_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
 	if requestMap["action"] == "set" && golib.VSSgetType(searchData[0].NodeHandle) != gomodel.ACTUATOR {
-		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "")  //invalid_data
+		utils.SetErrorResponse(requestMap, errorResponseMap, 1, "") //invalid_data
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -711,7 +712,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 
 	tokenHandle := ""
 	gatingId := ""
-	switch maxValidation%10 {
+	switch maxValidation % 10 {
 	case 0: // validation not required
 	case 1:
 		fallthrough
@@ -735,7 +736,7 @@ func issueServiceRequest(requestMap map[string]interface{}, tDChanIndex int, sDC
 			return
 		}
 	default: // should not be possible...
-		utils.SetErrorResponse(requestMap, errorResponseMap, 7, "")  //service_unavailable
+		utils.SetErrorResponse(requestMap, errorResponseMap, 7, "") //service_unavailable
 		backendChan[tDChanIndex] <- utils.FinalizeMessage(errorResponseMap)
 		return
 	}
@@ -760,7 +761,7 @@ type PathList struct {
 var pathList PathList
 
 func sortPathList(listFname string) {
-	data, err := ioutil.ReadFile(listFname)
+	data, err := os.ReadFile(listFname)
 	if err != nil {
 		utils.Error.Printf("Error reading %s: %s\n", listFname, err)
 		return
@@ -772,7 +773,7 @@ func sortPathList(listFname string) {
 	}
 	sort.Strings(pathList.LeafPaths)
 	file, _ := json.Marshal(pathList)
-	_ = ioutil.WriteFile(listFname, file, 0644)
+	_ = os.WriteFile(listFname, file, 0644)
 }
 
 func createPathListFile(listFname string) {
@@ -874,7 +875,7 @@ func main() {
 			serveRequest(request, 2, 0)
 		case request := <-transportDataChan[3]: // request from gRPC mgr
 			serveRequest(request, 3, 0)
-		case gatingId := <- atsChannel[1]:
+		case gatingId := <-atsChannel[1]:
 			request := `{"action": "internal-cancelsubscription", "gatingId":"` + gatingId + `"}`
 			serveRequest(request, 0, 0)
 			//  case request := <- transportDataChan[X]:  // implement when there is a Xth transport protocol mgr
